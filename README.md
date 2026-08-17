@@ -6,7 +6,8 @@
 
 ## 演示视频
 
-<video src="Video_2026-08-17_16-38-40.mp4" controls width="100%"></video>
+<!-- 在 GitHub 网页端编辑本文件，将 Video_2026-08-17_16-38-40.mp4 拖入此区域即可内嵌播放 -->
+<!-- <video src="https://github.com/user-attachments/assets/REPLACE_WITH_UPLOADED_ID" controls></video> -->
 
 ---
 
