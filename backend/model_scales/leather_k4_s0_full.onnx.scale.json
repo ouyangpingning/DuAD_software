@@ -1,0 +1,12 @@
+{
+  "model": "leather_k4_s0_full.onnx",
+  "category": "leather",
+  "vmin": -1.3930668830871582,
+  "vmax": 1.4853087663650513,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 32,
+  "method": "good_p2_p99.9"
+}

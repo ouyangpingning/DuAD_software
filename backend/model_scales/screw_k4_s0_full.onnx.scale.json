@@ -1,0 +1,12 @@
+{
+  "model": "screw_k4_s0_full.onnx",
+  "category": "screw",
+  "vmin": -2.4537298679351807,
+  "vmax": -0.909870445728302,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 41,
+  "method": "good_p2_p99.9"
+}

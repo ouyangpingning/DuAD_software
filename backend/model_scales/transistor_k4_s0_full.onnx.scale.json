@@ -1,0 +1,12 @@
+{
+  "model": "transistor_k4_s0_full.onnx",
+  "category": "transistor",
+  "vmin": -2.5819711685180664,
+  "vmax": 0.35700473189353943,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 60,
+  "method": "good_p2_p99.9"
+}

@@ -1,0 +1,12 @@
+{
+  "model": "toothbrush_k4_s0_full.onnx",
+  "category": "toothbrush",
+  "vmin": -2.4496805667877197,
+  "vmax": 0.6330848336219788,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 12,
+  "method": "good_p2_p99.9"
+}

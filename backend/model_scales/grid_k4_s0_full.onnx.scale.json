@@ -1,0 +1,12 @@
+{
+  "model": "grid_k4_s0_full.onnx",
+  "category": "grid",
+  "vmin": -1.2692691087722778,
+  "vmax": 1.178285002708435,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 21,
+  "method": "good_p2_p99.9"
+}

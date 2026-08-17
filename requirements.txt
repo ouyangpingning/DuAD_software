@@ -1,0 +1,6 @@
+# 基础运行依赖（Linux x86_64 已测试）
+PySide6==6.11.1
+numpy==2.5.2
+Pillow==12.3.0
+pyserial==3.5
+paho-mqtt==2.1.0

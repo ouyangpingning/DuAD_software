@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# CPU 推理（无 NVIDIA GPU / Windows / ARM 环境请使用本文件）
+onnxruntime==1.28.0

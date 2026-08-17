@@ -1,0 +1,12 @@
+{
+  "model": "tile_k4_s0_full.onnx",
+  "category": "tile",
+  "vmin": -1.1517385244369507,
+  "vmax": 0.5631580948829651,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 33,
+  "method": "good_p2_p99.9"
+}

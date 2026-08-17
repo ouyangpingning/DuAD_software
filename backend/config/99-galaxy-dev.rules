@@ -1,0 +1,13 @@
+#Get user access for using Galaxy USB3 cameras
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2ba2", MODE:="0666", TAG+="uaccess", TAG+="udev-acl"
+
+#Get user access for using Galaxy CXP
+KERNEL=="gx_cxp_*", MODE="0666"
+
+#Get user access for using Galaxy GEV
+KERNEL=="gx_gev_*", MODE="0666"
+
+#Get user access for using Galaxy U3D
+KERNEL=="gx_u3v_*", MODE="0666"
+#Create SN symbol link
+KERNEL=="gx_u3v_*", ATTRS{serial}!="", SYMLINK+="gx_u3v_sn_%s{serial}"

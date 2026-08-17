@@ -1,0 +1,12 @@
+{
+  "model": "capsule_k4_s0_full.onnx",
+  "category": "capsule",
+  "vmin": -2.6834323406219482,
+  "vmax": 1.001625895500183,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 23,
+  "method": "good_p2_p99.9"
+}

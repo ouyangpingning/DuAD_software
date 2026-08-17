@@ -1,0 +1,12 @@
+{
+  "model": "carpet_k4_s0_full.onnx",
+  "category": "carpet",
+  "vmin": -2.5535056591033936,
+  "vmax": -0.19979684054851532,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 28,
+  "method": "good_p2_p99.9"
+}

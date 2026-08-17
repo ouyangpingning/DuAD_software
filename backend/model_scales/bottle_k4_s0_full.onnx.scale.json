@@ -1,0 +1,12 @@
+{
+  "model": "bottle_k4_s0_full.onnx",
+  "category": "bottle",
+  "vmin": -1.5294398069381714,
+  "vmax": 0.593048095703125,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 20,
+  "method": "good_p2_p99.9"
+}

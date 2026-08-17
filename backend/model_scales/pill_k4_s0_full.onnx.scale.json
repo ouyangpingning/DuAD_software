@@ -1,0 +1,12 @@
+{
+  "model": "pill_k4_s0_full.onnx",
+  "category": "pill",
+  "vmin": -2.5789453983306885,
+  "vmax": 0.5089904069900513,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 26,
+  "method": "good_p2_p99.9"
+}

@@ -1,0 +1,12 @@
+{
+  "model": "metal_nut_k4_s0_full.onnx",
+  "category": "metal_nut",
+  "vmin": -2.1517539024353027,
+  "vmax": 0.9692103862762451,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 22,
+  "method": "good_p2_p99.9"
+}

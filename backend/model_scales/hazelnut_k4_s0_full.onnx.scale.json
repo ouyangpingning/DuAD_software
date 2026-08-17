@@ -1,0 +1,12 @@
+{
+  "model": "hazelnut_k4_s0_full.onnx",
+  "category": "hazelnut",
+  "vmin": -1.76937997341156,
+  "vmax": 0.3010633885860443,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 40,
+  "method": "good_p2_p99.9"
+}

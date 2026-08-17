@@ -1,0 +1,12 @@
+{
+  "model": "zipper_k4_s0_full.onnx",
+  "category": "zipper",
+  "vmin": -2.3112199306488037,
+  "vmax": -0.175505131483078,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 32,
+  "method": "good_p2_p99.9"
+}

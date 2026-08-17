@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# 虚拟环境（由 setup_env.sh 重建，不提交）
+DuAD_SoftwareContent/pyqml/
+.venv/
+venv/
+
+# 模型权重/标定产物（体积大，由用户自行放置）
+*.onnx
+*.onnx.threshold.json
+*.ckpt
+*.pth
+*.pt
+*.engine
+
+# 日志/临时文件
+*.log
+*.tmp
+tmp/
+/dist/
+/build/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,12 @@
+{
+  "model": "wood_k4_s0_full.onnx",
+  "category": "wood",
+  "vmin": -1.8318772315979004,
+  "vmax": 2.0791313648223877,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 19,
+  "method": "good_p2_p99.9"
+}

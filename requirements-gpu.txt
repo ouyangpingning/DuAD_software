@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# NVIDIA GPU 推理（Linux x86_64 + CUDA 13 + TensorRT，当前开发机配置）
+onnxruntime-gpu==1.28.0
+tensorrt==11.2.1.2
+tensorrt_cu13==11.2.1.2
+tensorrt_cu13_libs==10.16.1.11

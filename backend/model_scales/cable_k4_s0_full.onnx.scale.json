@@ -1,0 +1,12 @@
+{
+  "model": "cable_k4_s0_full.onnx",
+  "category": "cable",
+  "vmin": -1.3124996423721313,
+  "vmax": 0.6373538374900818,
+  "percentiles": [
+    2,
+    99.9
+  ],
+  "n_images": 58,
+  "method": "good_p2_p99.9"
+}
