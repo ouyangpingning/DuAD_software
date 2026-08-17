@@ -9,6 +9,9 @@
 <!-- 在 GitHub 网页端编辑本文件，将 Video_2026-08-17_16-38-40.mp4 拖入此区域即可内嵌播放 -->
 <!-- <video src="https://github.com/user-attachments/assets/REPLACE_WITH_UPLOADED_ID" controls></video> -->
 
+https://github.com/user-attachments/assets/5f7297c6-ca6f-4562-90fe-056e4c92d23e
+
+
 ---
 
 ## 1. 功能总览
