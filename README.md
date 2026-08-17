@@ -4,6 +4,10 @@
 
 技术栈：`PySide6 + QML`，后端包含大恒相机采集、ONNX 实时推理、MQTT 报警、CH340 光源控制与定时图像采集。
 
+## 演示视频
+
+<video src="Video_2026-08-17_16-38-40.mp4" controls width="100%"></video>
+
 ---
 
 ## 1. 功能总览
