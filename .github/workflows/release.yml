@@ -35,5 +35,6 @@ jobs:
             dist/*_Installer.tar.gz \
             dist/*_CPU-Portable.tar.zst \
             dist/SHA256SUMS \
+            --target "$GITHUB_SHA" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
