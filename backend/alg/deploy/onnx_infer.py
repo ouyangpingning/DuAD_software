@@ -16,6 +16,8 @@ ONNX 推理模块（无 torch 依赖）— 联调用轻量推理。
     heatmap_rgb, score = det.predict(image_rgb_np)   # image: [H,W,3] uint8
 """
 import json
+import os
+
 import numpy as np
 from PIL import Image
 import onnxruntime as ort
@@ -83,6 +85,19 @@ class ONNXAnomalyDetector:
         providers = [p for p in ('TensorrtExecutionProvider', 'CUDAExecutionProvider',
                                  'CPUExecutionProvider')
                      if p in ort.get_available_providers()]
+
+        # 运行时 GPU 自动判断：检测到 NVIDIA 驱动、但 onnxruntime 没有
+        # CUDA/TensorRT provider（说明装的是 CPU 包或 GPU 依赖缺失），给出
+        # 一次性升级提示；用户无驱动时不打扰。
+        _gpu_providers = [p for p in providers
+                          if p in ('TensorrtExecutionProvider', 'CUDAExecutionProvider')]
+        if (not _gpu_providers
+                and not getattr(ONNXAnomalyDetector, '_gpu_warned', False)
+                and os.path.exists('/proc/driver/nvidia/version')):
+            ONNXAnomalyDetector._gpu_warned = True
+            print("[WARN] 检测到 NVIDIA 驱动，但当前 onnxruntime 无 GPU provider"
+                  "（未安装 onnxruntime-gpu/TensorRT 依赖），将使用 CPU 推理；"
+                  "运行 setup_env.sh 安装 GPU 依赖可大幅加速")
 
         # 内存优化（实测上位机 RSS 构成：session 加载 ~540MB + 首推 ~360MB）：
         # - ORT_ENABLE_BASIC 而非 ALL：ALL 级图优化会复制/变换图产生大量

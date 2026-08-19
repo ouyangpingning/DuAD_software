@@ -103,23 +103,30 @@ GUI：PySide6 6.11.1
 | pyserial | 3.5 | 光源串口 |
 | paho-mqtt | 2.1.0 | MQTT 云通信 |
 | onnxruntime-gpu | 1.28.0 | GPU 推理（可选 CPU） |
-| tensorrt / tensorrt_cu13 / tensorrt_cu13_libs | 见 requirements-gpu.txt | TensorRT 加速 |
+| tensorrt_cu13_libs | 见 requirements-gpu.txt | TensorRT 加速（仅 GPU 包，不随发布包打包） |
 
 ---
 
 ## 4. 一键配置环境
 
-### Linux x86_64 + NVIDIA GPU
+### 自动检测 NVIDIA 驱动（推荐）
 
 ```bash
 cd DuAD_software
 bash setup_env.sh
 ```
 
-### Linux x86_64 + 仅 CPU 推理
+检测到 NVIDIA 驱动时安装 GPU 推理依赖（onnxruntime-gpu + TensorRT）；
+未检测到时自动安装 CPU 推理依赖。
+
+### 强制指定 CPU / GPU
 
 ```bash
+# 仅 CPU 推理
 DUAD_INSTALL_GPU=0 bash setup_env.sh
+
+# 强制 GPU 推理依赖
+DUAD_INSTALL_GPU=1 bash setup_env.sh
 ```
 
 ### 相机 USB 权限
@@ -233,7 +240,46 @@ $PY tests/test_mqtt_bridge.py
 
 ---
 
-## 9. Git 仓库同步
+## 9. 打包与 GitHub Release
+
+### 打包策略
+
+> 详细说明书见 [docs/14-打包与GitHub-Release发布.md](docs/14-打包与GitHub-Release发布.md)。
+
+- GPU 系统动态库（`nvidia-*-cu13`、`tensorrt_libs`，约 6GB）**不打包**；
+  有 NVIDIA 驱动的用户运行 `setup_env.sh` 时自动从 PyPI 安装 GPU 依赖，
+  无驱动用户安装 CPU 依赖。
+- 发布两种 Linux x64 产物：
+  - `DuAD_<版本>_Linux_x64_Installer.tar.gz`：应用 + 安装脚本，不含 Python 依赖。
+  - `DuAD_<版本>_Linux_x64_CPU-Portable.tar.zst`：内置 CPU 推理 venv，解压即用。
+- 运行时若检测到 NVIDIA 驱动但当前环境只有 CPU 依赖，会在日志中提示升级。
+
+### 本地打包
+
+```bash
+bash scripts/package.sh 1.0.0
+```
+
+产物输出到 `dist/`。跳过 venv 构建（快速验证）可运行：
+
+```bash
+DUAD_SKIP_VENV=1 bash scripts/package.sh 1.0.0
+```
+
+### 发布到 GitHub Release
+
+推送 `v*` 标签后，GitHub Actions 会自动构建并上传 Release 资产：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+也可以手动上传 `dist/` 下的 tar 包与 `SHA256SUMS`。
+
+---
+
+## 10. Git 仓库同步
 
 远程仓库：
 
@@ -264,7 +310,7 @@ git push
 
 ---
 
-## 10. 常见问题
+## 11. 常见问题
 
 ### 相机枚举不到
 
@@ -290,6 +336,6 @@ git push
 
 ---
 
-## 11. 许可与说明
+## 12. 许可与说明
 
 本仓库仅包含上位机软件代码与算法运行模块；训练数据集、模型权重不包含在仓库内。

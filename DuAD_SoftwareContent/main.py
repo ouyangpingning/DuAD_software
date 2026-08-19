@@ -1,5 +1,6 @@
 import os
 import sys
+import sysconfig
 from pathlib import Path
 
 # ── venv 解释器自检 ─────────────────────────────────────────────
@@ -23,12 +24,12 @@ if sys.prefix != str(_VENV_DIR):
 # onnxruntime-gpu 的 CUDA 运行时库（nvidia-*-cu13 pip 包，site-packages/
 # nvidia/*/lib）同理注入；未安装（无 GPU 机器）时自动跳过。
 _LIBS_DIR = Path(__file__).resolve().parent.parent / "backend" / "libs"
-_NVIDIA_LIBS = sorted(
-    (Path(sys.prefix) / "lib/python3.14/site-packages/nvidia").glob("*/lib"))
+_SITE_PACKAGES = Path(sysconfig.get_paths()["purelib"])
+_NVIDIA_LIBS = sorted((_SITE_PACKAGES / "nvidia").glob("*/lib"))
 _extra_ld = [_LIBS_DIR] if _LIBS_DIR.is_dir() else []
 _extra_ld += [d for d in _NVIDIA_LIBS if d.is_dir()]
 # TensorRT 库（tensorrt_cu13_libs 包，TensorrtExecutionProvider 依赖）
-_trt_libs = Path(sys.prefix) / "lib/python3.14/site-packages/tensorrt_libs"
+_trt_libs = _SITE_PACKAGES / "tensorrt_libs"
 if _trt_libs.is_dir():
     _extra_ld.append(_trt_libs)
 if _extra_ld:
