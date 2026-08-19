@@ -279,38 +279,7 @@ git push origin v1.0.0
 
 ---
 
-## 10. Git 仓库同步
-
-远程仓库：
-
-```text
-https://github.com/ouyangpingning/DuAD_software.git
-```
-
-首次同步：
-
-```bash
-cd DuAD_software
-git init -b main
-git remote add origin https://github.com/ouyangpingning/DuAD_software.git
-git add .
-git commit -m "init: DuAD software"
-git push -u origin main
-```
-
-后续更新：
-
-```bash
-git add .
-git commit -m "update"
-git push
-```
-
-> GitHub 推送时如果使用 HTTPS，请使用 Personal Access Token 作为密码。
-
----
-
-## 11. 常见问题
+## 10. 常见问题
 
 ### 相机枚举不到
 
@@ -336,6 +305,6 @@ git push
 
 ---
 
-## 12. 许可与说明
+## 11. 许可与说明
 
 本仓库仅包含上位机软件代码与算法运行模块；训练数据集、模型权重不包含在仓库内。
