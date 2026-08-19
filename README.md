@@ -148,6 +148,16 @@ python DuAD_SoftwareContent/main.py
 > 也可以使用虚拟环境中的解释器：
 > `DuAD_SoftwareContent/pyqml/bin/python DuAD_SoftwareContent/main.py`
 
+### 桌面图标（双击启动）
+
+解压发布包后执行一次：
+
+```bash
+bash install-desktop.sh
+```
+
+之后即可在应用菜单搜索 **DuAD** 双击启动。
+
 ### 相机诊断
 
 ```bash
@@ -252,6 +262,7 @@ $PY tests/test_mqtt_bridge.py
 - 发布两种 Linux x64 产物：
   - `DuAD_<版本>_Linux_x64_Installer.tar.gz`：应用 + 安装脚本，不含 Python 依赖。
   - `DuAD_<版本>_Linux_x64_CPU-Portable.tar.zst`：内置 CPU 推理 venv，解压即用。
+- 两种包均含 `run.sh` 启动脚本和 `install-desktop.sh` 桌面图标安装脚本。
 - 运行时若检测到 NVIDIA 驱动但当前环境只有 CPU 依赖，会在日志中提示升级。
 
 ### 本地打包

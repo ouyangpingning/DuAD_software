@@ -32,6 +32,9 @@ GPU 动态库，不适合直接打包：
      Python 版本（CI 构建于 ubuntu-24.04，即 Python 3.12 的
      `/usr/bin/python3`）。
 
+两种包都附带 `run.sh` 启动脚本和 `install-desktop.sh` 桌面图标安装脚本；
+解压后执行一次 `bash install-desktop.sh`，即可在应用菜单中双击启动 DuAD。
+
 两种包都附带 `SHA256SUMS` 校验和。
 
 ## 2. CPU / GPU 自动判断
@@ -179,6 +182,7 @@ sudo cp backend/config/99-galaxy-dev.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
+bash install-desktop.sh                 # 创建桌面图标（之后可在应用菜单双击启动）
 python DuAD_SoftwareContent/main.py
 ```
 
@@ -192,11 +196,19 @@ sudo cp backend/config/99-galaxy-dev.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
-DuAD_SoftwareContent/pyqml/bin/python DuAD_SoftwareContent/main.py
+bash install-desktop.sh                 # 创建桌面图标，之后双击即可启动
+./run.sh                               # 或从终端直接启动
 ```
 
 > `main.py` 检测到非项目 venv 解释器时会自动 `execv` 到 `pyqml/bin/python`，
 > 因此直接 `python3 DuAD_SoftwareContent/main.py` 通常也可以启动。
+>
+> 如果 CPU-Portable 包需要在本机使用 GPU 推理（需已装 NVIDIA 驱动）：
+>
+> ```bash
+> DuAD_SoftwareContent/pyqml/bin/python -m pip uninstall -y onnxruntime
+> DuAD_SoftwareContent/pyqml/bin/python -m pip install -r requirements-gpu.txt
+> ```
 
 ## 7. 常见问题与注意事项
 
