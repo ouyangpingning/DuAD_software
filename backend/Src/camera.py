@@ -1,3 +1,4 @@
+import os
 import numpy
 from PySide6.QtCore import Signal, QObject
 from _ctypes import addressof
@@ -10,8 +11,9 @@ try:
         GxOpenParam, GxAccessMode, GxOpenMode, gx_open_device, gx_close_device, gx_is_implemented, gx_is_readable, \
         gx_get_string, gx_get_int, gx_get_enum, gx_get_float, gx_get_bool, gx_is_writable, gx_set_string, gx_set_int, \
         gx_set_enum, gx_set_float, gx_set_bool, gx_send_command, GxFeatureID, GxPixelFormatEntry, dx_raw8_to_rgb24, \
-        DxBayerConvertType, DxPixelColorFilter, CAP_CALL, gx_register_capture_callback, gx_unregister_capture_callback
-except (ImportError, NameError, OSError) as e:
+        DxBayerConvertType, DxPixelColorFilter, GxPixelColorFilterEntry, CAP_CALL, \
+        gx_register_capture_callback, gx_unregister_capture_callback
+except (ImportError, NameError, OSError, KeyError) as e:
     # Fallback: SDK not available (e.g. dev machine without camera hardware)
     GxStatusList = type('GxStatusList', (), {'SUCCESS': 0, 'ERROR': -1})()
     _SDK_NAMES = [
@@ -45,6 +47,9 @@ except (ImportError, NameError, OSError) as e:
     DxBayerConvertType = type('DxBayerConvertType', (), {'NEIGHBOUR': 0})()
     DxPixelColorFilter = type('DxPixelColorFilter', (), {
         'NONE': 0, 'RG': 1, 'GB': 2, 'GR': 3, 'BG': 4,
+    })()
+    GxPixelColorFilterEntry = type('GxPixelColorFilterEntry', (), {
+        'NONE': 0, 'BAYER_RG': 1, 'BAYER_GB': 2, 'BAYER_GR': 3, 'BAYER_BG': 4,
     })()
     GxPixelFormatEntry = type('GxPixelFormatEntry', (), {
         'MONO8': 0x1080001, 'BAYER_RG8': 0x1080009, 'BAYER_GB8': 0x108000A,
@@ -103,6 +108,27 @@ _PIXEL_FORMAT_TO_BAYER = {
     GxPixelFormatEntry.BAYER_GB8: DxPixelColorFilter.GB,
     GxPixelFormatEntry.BAYER_GR8: DxPixelColorFilter.GR,
     GxPixelFormatEntry.BAYER_BG8: DxPixelColorFilter.BG,
+}
+
+# 传感器颜色滤镜排列（GX_ENUM_PIXEL_COLOR_FILTER，读自相机寄存器，跨平台一致）
+# → DxRaw8toRGB24 的 Bayer 参数。优先于 pixel_format 使用：某些环境/固件下
+# 相机上报的 pixel_format（BAYER_RG8 等）与传感器真实滤镜不一致，直接按
+# pixel_format 查表会把 R/B 通道转反（症状 = 黄蓝互换）。
+_COLOR_FILTER_TO_BAYER = {
+    GxPixelColorFilterEntry.BAYER_RG: DxPixelColorFilter.RG,
+    GxPixelColorFilterEntry.BAYER_GB: DxPixelColorFilter.GB,
+    GxPixelColorFilterEntry.BAYER_GR: DxPixelColorFilter.GR,
+    GxPixelColorFilterEntry.BAYER_BG: DxPixelColorFilter.BG,
+}
+
+# Windows 平台 R/B 交换（Windows 与 Linux 的 DxImageProc 对 bayer_type 语义相反）：
+# 实测同一相机（MER2，color_filter=RG）Linux 上 RG 正常、Windows 上 RG 黄蓝互换，
+# diag_bayer 逐排列验证 Windows 需用 BG。因此 Windows 下把 RG↔BG、GB↔GR 交换。
+_SWAP_RB_BAYER = {
+    DxPixelColorFilter.RG: DxPixelColorFilter.BG,
+    DxPixelColorFilter.BG: DxPixelColorFilter.RG,
+    DxPixelColorFilter.GB: DxPixelColorFilter.GR,
+    DxPixelColorFilter.GR: DxPixelColorFilter.GB,
 }
 
 
@@ -177,6 +203,7 @@ class CameraDevice(QObject):
         self.is_drawing_roi = False
         self.is_qinputdialog_set = False
         self.pixel_format = None
+        self.color_filter = None
         self._unsupported_pixel_format_warned = False
 
         try:
@@ -194,6 +221,10 @@ class CameraDevice(QObject):
             self.pixel_format = self.get_remote_feature("GX_ENUM_PIXEL_FORMAT", "enum")
             print(f"[camera] 当前像素格式: {self.pixel_format:#010x}"
                   if self.pixel_format is not None else "[camera] 无法读取像素格式")
+            self.color_filter = self.get_remote_feature("GX_ENUM_PIXEL_COLOR_FILTER", "enum")
+            if self.color_filter is not None:
+                print(f"[camera] 传感器颜色滤镜: {self.color_filter} "
+                      f"(1=RG 2=GB 3=GR 4=BG) — Bayer 转换以此为权威")
         except Exception as exception:
             print("错误:{}".format(exception))
 
@@ -384,9 +415,20 @@ class CameraDevice(QObject):
         w = int(frame_param.width)
         image_size = int(frame_param.image_size)
 
-        # ── 8bit Bayer：按帧内实际 pixel_format 选择正确的 Bayer 排列 ──
-        bayer_filter = _PIXEL_FORMAT_TO_BAYER.get(pixel_format)
+        # ── 8bit Bayer：优先按传感器颜色滤镜（GX_ENUM_PIXEL_COLOR_FILTER）选排列，
+        # 读不到时回退帧内 pixel_format 查表 ──
+        bayer_filter = None
+        if self.color_filter is not None:
+            bayer_filter = _COLOR_FILTER_TO_BAYER.get(self.color_filter)
+            if bayer_filter is None:
+                print(f"[camera] 未知颜色滤镜值 {self.color_filter}，回退 pixel_format 查表")
+        if bayer_filter is None:
+            bayer_filter = _PIXEL_FORMAT_TO_BAYER.get(pixel_format)
         if bayer_filter is not None:
+            # Windows：大恒 DxImageProc.dll 的 bayer_type 语义与 Linux 相反，
+            # 同一排列参数下 R/B 互换（黄蓝互换）。按诊断结果交换 RG↔BG、GB↔GR。
+            if os.name == "nt":
+                bayer_filter = _SWAP_RB_BAYER.get(bayer_filter, bayer_filter)
             output_buffer = (c_ubyte * image_size * 3)()
             status = dx_raw8_to_rgb24(
                 frame_param.image_buf,

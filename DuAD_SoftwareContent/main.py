@@ -3,44 +3,124 @@ import sys
 import sysconfig
 from pathlib import Path
 
-# ── venv 解释器自检 ─────────────────────────────────────────────
-# 系统 python3 也装有 PySide6 + onnxruntime（CPU 版 1.26.0），直接
-# `python3 main.py` 能跑通但推理走 CPU（无 CUDA、无 nvidia 库）。
-# 全部依赖（onnxruntime-gpu + CUDA 库）装在项目 venv（pyqml/）里，
+# ── PyInstaller 打包（windowed 无控制台）时 stdout/stderr 为 None，
+# 任何 print 都会抛 AttributeError。frozen 下重定向到日志文件方便排查。
+if getattr(sys, "frozen", False) and (sys.stdout is None or sys.stderr is None):
+    try:
+        _log = open(Path.home() / "DuAD_app.log", "a", encoding="utf-8", buffering=1)
+        sys.stdout = sys.stderr = _log
+    except Exception:
+        sys.stdout = sys.stderr = open(os.devnull, "w")
+
+# ── venv 解释器自检（跨平台）────────────────────────────────
+# 系统 python 也装有 PySide6 + onnxruntime（CPU 版），直接
+# 跑通但推理走 CPU（无 CUDA、无 nvidia 库）。
+# 全部依赖（onnxruntime-gpu + CUDA 库）装在项目 venv 里：
+#   Windows → pyqml_win/Scripts/python.exe
+#   Linux   → pyqml/bin/python
 # 检测到非 venv 解释器时自动切换到 venv python 重启。
 # 必须放在任何 onnxruntime/PySide6 import 之前。
-_VENV_DIR = Path(__file__).resolve().parent / "pyqml"
+_IS_WIN = os.name == "nt"
+_VENV_DIR = Path(__file__).resolve().parent / ("pyqml_win" if _IS_WIN else "pyqml")
 if sys.prefix != str(_VENV_DIR):
-    _venv_python = _VENV_DIR / "bin" / "python"
+    _venv_python = _VENV_DIR / (Path("Scripts", "python.exe") if _IS_WIN else Path("bin", "python"))
     if _venv_python.exists():
-        print(f"[INFO] 当前解释器非项目 venv（{sys.executable}），"
+        print(f"[INFO] 当前解释器非项目 venv（{sys.executable}，"
               f"切换到 {_venv_python}（推理需 GPU 库）")
         os.execv(str(_venv_python), [str(_venv_python), "-u"] + sys.argv)
 
-# ── 相机 SDK 本地库注入（backend/libs）──────────────────────────
+
+def _is_frozen() -> bool:
+    """是否 PyInstaller 打包运行（frozen）。"""
+    return getattr(sys, "frozen", False)
+
+
+def _content_dir() -> Path:
+    """QML 资源目录：打包后 = sys._MEIPASS（资源都打进 _internal/）。"""
+    if _is_frozen():
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent
+
+
+def _backend_root() -> Path:
+    if _is_frozen():
+        return Path(sys._MEIPASS) / "backend"
+    return _content_dir().parent / "backend"
+
+
+def _translations_root() -> Path:
+    if _is_frozen():
+        return Path(sys._MEIPASS) / "translations"
+    return Path(__file__).resolve().parent.parent / "translations"
+
+# ── 相机 SDK 本地库注入（仅 Linux）──────────────────────
 # glibc 的 dlopen 依赖解析只认进程启动时的 ld 搜索路径，运行时设置
 # LD_LIBRARY_PATH 无效（activate 脚本的注入只在 source 时生效，直接
 # 用 venv python 运行会漏）。检测缺失时自动重启进程完成注入。
 # onnxruntime-gpu 的 CUDA 运行时库（nvidia-*-cu13 pip 包，site-packages/
 # nvidia/*/lib）同理注入；未安装（无 GPU 机器）时自动跳过。
-_LIBS_DIR = Path(__file__).resolve().parent.parent / "backend" / "libs"
-_SITE_PACKAGES = Path(sysconfig.get_paths()["purelib"])
-_NVIDIA_LIBS = sorted((_SITE_PACKAGES / "nvidia").glob("*/lib"))
-_extra_ld = [_LIBS_DIR] if _LIBS_DIR.is_dir() else []
-_extra_ld += [d for d in _NVIDIA_LIBS if d.is_dir()]
-# TensorRT 库（tensorrt_cu13_libs 包，TensorrtExecutionProvider 依赖）
-_trt_libs = _SITE_PACKAGES / "tensorrt_libs"
-if _trt_libs.is_dir():
-    _extra_ld.append(_trt_libs)
-if _extra_ld:
-    _ld_path = os.environ.get("LD_LIBRARY_PATH", "")
-    _missing = [str(p) for p in _extra_ld if str(p) not in _ld_path.split(":")]
-    if _missing:
-        os.environ["LD_LIBRARY_PATH"] = ":".join(_missing) + \
-            ((":" + _ld_path) if _ld_path else "")
-        print(f"[INFO] 注入 LD_LIBRARY_PATH（{_missing}）并重启进程")
-        # -u 保证重启进程 stdout 无缓冲（否则管道下日志丢失）
-        os.execv(sys.executable, [sys.executable, "-u"] + sys.argv)
+# Windows 下 DLL 依赖由 onnxruntime/PySide6 通过加载路径自行处理，
+# 无需（也不能）用 LD_LIBRARY_PATH，故整段仅在 Linux 执行。
+if not _IS_WIN:
+    _LIBS_DIR = Path(__file__).resolve().parent.parent / "backend" / "libs"
+    _SITE_PACKAGES = Path(sysconfig.get_paths()["purelib"])
+    _NVIDIA_LIBS = sorted((_SITE_PACKAGES / "nvidia").glob("*/lib"))
+    _extra_ld = [_LIBS_DIR] if _LIBS_DIR.is_dir() else []
+    _extra_ld += [d for d in _NVIDIA_LIBS if d.is_dir()]
+    # TensorRT 库（tensorrt_cu13_libs 包，TensorrtExecutionProvider 依赖）
+    _trt_libs = _SITE_PACKAGES / "tensorrt_libs"
+    if _trt_libs.is_dir():
+        _extra_ld.append(_trt_libs)
+    if _extra_ld:
+        _ld_path = os.environ.get("LD_LIBRARY_PATH", "")
+        _missing = [str(p) for p in _extra_ld if str(p) not in _ld_path.split(":")]
+        if _missing:
+            os.environ["LD_LIBRARY_PATH"] = ":".join(_missing) + \
+                ((":" + _ld_path) if _ld_path else "")
+            print(f"[INFO] 注入 LD_LIBRARY_PATH（{_missing}）并重启进程")
+            # -u 保证重启进程 stdout 无缓冲（否则管道下日志丢失）
+            os.execv(sys.executable, [sys.executable, "-u"] + sys.argv)
+else:
+    # ── Windows：onnxruntime-gpu 的 CUDA 运行库（nvidia-cublas-cu13 /
+    # nvidia-cudnn-cu13 pip 包）DLL 不在 onnxruntime 包内，provider
+    # （onnxruntime_providers_cuda.dll）加载时按 PATH 解析 cublas64_13.dll /
+    # cudnn64_9.dll 等，缺失则静默回退 CPU。把 CUDA/TensorRT DLL 目录注入
+    # PATH（onnx_infer.py 里有同样的兜底，双保险）：
+    #   CUDA 运行库：开发 = site-packages/nvidia；打包(frozen) = exe 同目录 nvidia/
+    #   TensorRT   ：环境变量 TENSORRT_LIB_DIR；开发 = backend/libs_win_tensorrt/bin；
+    #                打包(frozen) = exe 同目录 tensorrt/（GPU 库可选项，不随 exe 打包）
+    _nvidia_dll_dirs = []
+
+    def _add_dll_dir(_d):
+        if _d and os.path.isdir(_d) and str(_d) not in _nvidia_dll_dirs:
+            _nvidia_dll_dirs.append(str(_d))
+
+    if _is_frozen():
+        _nv_roots = [Path(sys.executable).resolve().parent / "nvidia"]
+    else:
+        _nv_roots = [Path(sysconfig.get_paths()["purelib"]) / "nvidia"]
+    for _root in _nv_roots:
+        if not _root.is_dir():
+            continue
+        for _sub in sorted(_root.glob("*")):
+            for _rel in ("bin", "bin/x86_64"):
+                _add_dll_dir(_sub / _rel)
+    _add_dll_dir(os.environ.get("TENSORRT_LIB_DIR", ""))
+    if _is_frozen():
+        for _trt_root in (Path(sys.executable).resolve().parent / "tensorrt",
+                          Path(sys.executable).resolve().parent / "trt"):
+            if _trt_root.is_dir():
+                _add_dll_dir(_trt_root / "bin")
+                _add_dll_dir(_trt_root)
+    else:
+        _add_dll_dir(_backend_root() / "libs_win_tensorrt" / "bin")
+    if _nvidia_dll_dirs:
+        _path = os.environ.get("PATH", "")
+        _missing = [d for d in _nvidia_dll_dirs if d not in _path.split(";")]
+        if _missing:
+            os.environ["PATH"] = ";".join(_missing) + \
+                ((";" + _path) if _path else "")
+            print(f"[INFO] 注入 CUDA/TensorRT DLL 目录到 PATH（{_missing}）")
 
 from PySide6.QtGui import QGuiApplication, QFontDatabase, QFont
 from PySide6.QtQml import QQmlApplicationEngine
@@ -184,10 +264,15 @@ class AppBridge(QObject):
         self._settings.setValue("language", self._languageIndex)
 
     def _translations_dir(self) -> Path:
-        return Path(__file__).resolve().parent.parent / "translations"
+        return _translations_root()
 
 
 if __name__ == "__main__":
+    # 强制 Qt Quick Controls 使用 Fusion 样式：原生样式（Windows 等）不支持
+    # 自定义 background/contentItem（报 "current style does not support
+    # customization"），所有自绘控件会渲染空白。必须设默认环境变量（KDE
+    # 注入的 Breeze 样式与 Qt 6.11 QML 化控件不兼容，同此处理）。
+    os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "Fusion")
     # Qt 5 兼容模式：URL 在赋值时（而非消费时）解析，确保相对路径
     # 相对于赋值所在的 QML 文件解析，而非组件定义文件
     # 这对跨目录引用图标至关重要（如 MainWindow.ui.qml → components/NavButton.qml）
@@ -228,7 +313,7 @@ if __name__ == "__main__":
         print(f"[WARN] 安装 portal 桌面条目失败（原生对话框将回退自绘）: {e}")
 
     # 全局注册自定义字体（文泉驿微米黑），QML 中可直接 font.family 引用
-    content_dir = Path(__file__).resolve().parent
+    content_dir = _content_dir()
     font_file = content_dir / "fonts" / "wqy-microhei.ttc"
     font_id = QFontDatabase.addApplicationFont(str(font_file))
     if font_id >= 0:
@@ -256,7 +341,7 @@ if __name__ == "__main__":
     # 相机桥 — 后端相机驱动（backend/Src/camera_bridge.py）。
     # 注意：必须保持 Python 侧引用（变量 camera_bridge 存着），
     # 否则被 GC 后 QML 侧 CameraBridge 变 null、点击回调静默失败。
-    backend_root = content_dir.parent / "backend"
+    backend_root = _backend_root()
     detect_bridge = None
     collect_bridge = None
     light_bridge = None

@@ -26,15 +26,29 @@ if sys.platform == 'linux2' or sys.platform == 'linux':
     if dll is None:
         print('Cannot find libdximageproc.so or libgxiapi.so.')
 else:
-    try:
-        if (sys.version_info.major == 3 and sys.version_info.minor >= 8) or (sys.version_info.major > 3):
-            dll = WinDLL('DxImageProc.dll', winmode=0)
-
-        else:
-            dll = WinDLL('DxImageProc.dll')
-    except OSError:
-        print('Cannot find DxImageProc.dll.')
-        dll = None
+    dll = None
+    # ── Windows：优先项目本地 SDK（backend/libs_win/APIDll/Win64），回退 DLL 搜索路径 ──
+    _libs_win = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "libs_win")
+    _local_dx = os.path.join(_libs_win, "APIDll", "Win64", "DxImageProc.dll")
+    if os.path.isfile(_local_dx):
+        try:
+            if os.path.isdir(os.path.join(_libs_win, "APIDll", "Win64")):
+                os.add_dll_directory(os.path.join(_libs_win, "APIDll", "Win64"))
+            dll = WinDLL(_local_dx, winmode=0)
+            print(f"[dxwrapper] 从项目本地加载 DxImageProc.dll（{_libs_win}）")
+        except OSError as e:
+            print(f"[dxwrapper] 本地 DxImageProc.dll 加载失败: {e}；回退 DLL 搜索路径")
+            dll = None
+    if dll is None:
+        try:
+            if (sys.version_info.major == 3 and sys.version_info.minor >= 8) or (sys.version_info.major > 3):
+                dll = WinDLL('DxImageProc.dll', winmode=0)
+            else:
+                dll = WinDLL('DxImageProc.dll')
+        except OSError:
+            print('Cannot find DxImageProc.dll.')
+            dll = None
 
 def string_encoding(string):
     """

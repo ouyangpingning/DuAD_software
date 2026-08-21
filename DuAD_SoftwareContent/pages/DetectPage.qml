@@ -65,16 +65,16 @@ Item {
     }
     readonly property string _fullscreenSource: {
         if (root._fullscreenKind === "origin") {
-            if (root._testActive) return "file://" + root._testImagePath
+            if (root._testActive) return root._toFileUrl(root._testImagePath)
             return root._imageActive ? root._liveOriginSource : ""
         }
         if (root._fullscreenKind === "heatmap") {
             if (root._testActive) {
                 if (root._pixelMaskEnabled)
                     return root._testMaskPath.length > 0
-                        ? ("file://" + root._testMaskPath) : ""
+                        ? root._toFileUrl(root._testMaskPath) : ""
                 return root._testHeatmapPath.length > 0
-                    ? ("file://" + root._testHeatmapPath) : ""
+                    ? root._toFileUrl(root._testHeatmapPath) : ""
             }
             if (root._imageActive && AppBridge.algorithmEnabled)
                 return root._pixelMaskEnabled
@@ -93,6 +93,28 @@ Item {
     property string _testMaskPath: ""      // 二值掩模叠加图路径（异常像素红色高亮定位）
     property bool _pixelMaskEnabled: false // 像素阈值定位开关（默认关=显示热力图）
     property bool _pixelRefineEnabled: false // 精细定位（掩模阈值收窄到 max(F1,P99)）
+
+    // 本地路径 → file:// URL（Windows 盘符 / 反斜杠 → file:///C:/...，Linux → file:///home/...）
+    function _toFileUrl(p) {
+        if (p.length === 0)
+            return ""
+        var norm = p.replace(/\\/g, "/")
+        if (norm.indexOf("file://") === 0)
+            return norm
+        if (norm.charAt(0) !== "/")
+            norm = "/" + norm
+        return "file://" + norm
+    }
+
+    // FileDialog 返回的 file:// URL → 本地路径（Windows 的 file:///C:/... 要去掉盘符前的斜杠）
+    function _fromFileUrl(url) {
+        var s = url.toString()
+        if (s.indexOf("file://") === 0)
+            s = decodeURIComponent(s.slice(7))
+        if (/^\/[A-Za-z]:/.test(s))
+            s = s.slice(1)
+        return s
+    }
 
     // 应用 ROI：普通窗口与全屏窗口共用同一处理逻辑
     function _applyRoi(rect) {
@@ -338,7 +360,7 @@ Item {
                                     ? true
                                     : (root._imageActive && CameraBridge.frameIndex > 0)
                                 imageSource: root._testActive
-                                    ? ("file://" + root._testImagePath)
+                                    ? root._toFileUrl(root._testImagePath)
                                     : (root._imageActive ? root._liveOriginSource : "")
                                 aspectRatio: root._camRatio
                                 placeholderText: root._testActive ? ""
@@ -422,9 +444,9 @@ Item {
                             imageSource: root._testActive
                                 ? (root._pixelMaskEnabled
                                     ? (root._testMaskPath.length > 0
-                                        ? ("file://" + root._testMaskPath) : "")
+                                        ? root._toFileUrl(root._testMaskPath) : "")
                                     : (root._testHeatmapPath.length > 0
-                                        ? ("file://" + root._testHeatmapPath) : ""))
+                                        ? root._toFileUrl(root._testHeatmapPath) : ""))
                                 : (root._imageActive && AppBridge.algorithmEnabled
                                     ? (root._pixelMaskEnabled
                                         ? root._liveMaskSource : root._liveHeatmapSource)
@@ -894,13 +916,11 @@ Item {
     // 测试图片选择 — 系统原生 FileDialog
     FileDialog {
         id: imagePicker
-        currentFolder: _testImagePath.length > 0
-            ? ("file://" + _testImagePath) : AppBridge.homeDir
+        currentFolder: root._testImagePath.length > 0
+            ? root._toFileUrl(root._testImagePath) : root._toFileUrl(AppBridge.homeDir)
         nameFilters: ["Images (*.png *.jpg *.jpeg *.bmp)"]
         onAccepted: {
-            var p = imagePicker.selectedFile.toString()
-            if (p.startsWith("file://"))
-                p = decodeURIComponent(p.slice(7))
+            var p = root._fromFileUrl(imagePicker.selectedFile)
             // 换图即作废上一次在途测试推理，避免旧图结果返回后覆盖新选择
             root._testSession++
             root._testActiveSession = -1
@@ -918,14 +938,12 @@ Item {
         currentFolder: {
             var mp = AlgorithmBridge.modelPath
             if (mp.length > 0)
-                return "file://" + mp.split("/").slice(0, -1).join("/")
-            return AppBridge.homeDir
+                return root._toFileUrl(mp.split("/").slice(0, -1).join("/"))
+            return root._toFileUrl(AppBridge.homeDir)
         }
         nameFilters: ["ONNX 模型 (*.onnx)"]
         onAccepted: {
-            var p = modelPicker.selectedFile.toString()
-            if (p.startsWith("file://"))
-                p = decodeURIComponent(p.slice(7))
+            var p = root._fromFileUrl(modelPicker.selectedFile)
             if (p !== AlgorithmBridge.modelPath)
                 AlgorithmBridge.loadModel(p)
         }

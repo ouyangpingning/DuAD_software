@@ -17,9 +17,69 @@ ONNX 推理模块（无 torch 依赖）— 联调用轻量推理。
 """
 import json
 import os
+import sys
 
 import numpy as np
 from PIL import Image
+
+
+def _ensure_gpu_dll_path():
+    """Windows + onnxruntime-gpu：把 GPU 推理所需的 DLL 目录注入 PATH。
+
+    - CUDA 运行库：onnxruntime-gpu 的 provider（onnxruntime_providers_cuda.dll
+      等）加载时按 PATH 解析 cublas64_13.dll / cudnn64_9.dll 依赖；若找不到就
+      静默回退 CPUExecutionProvider（日志只有 EP Error）。Windows wheel 不自带
+      这些运行库，需 pip 装 nvidia-cublas-cu13 + nvidia-cudnn-cu13 +
+      nvidia-cuda-runtime（DLL 落在 site-packages/nvidia/）。
+    - TensorRT 库（nvinfer_10.dll 等）：无 pip 包（tensorrt wheel 不支持
+      cp314、tensorrt_cu13_libs 仅 Linux），需手动从 NVIDIA 下载
+      TensorRT 10.16.x Windows zip 解压。
+    - 打包（PyInstaller frozen）时 GPU 库不随 exe 打包：从 **exe 同目录**
+      的 nvidia/（cuBLAS/cuDNN）与 tensorrt/（TensorRT bin）加载，作为可选
+      外部 GPU 库；开发环境走 site-packages/nvidia + TENSORRT_LIB_DIR /
+      backend/libs_win_tensorrt/bin。
+    必须在 import onnxruntime / 创建 session 前调用（进程级、幂等）。
+    """
+    if os.name != "nt":
+        return
+    dirs = []
+
+    def add(d):
+        d = os.path.normpath(d)
+        if os.path.isdir(d) and d not in dirs:
+            dirs.append(d)
+
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        nv_roots = [os.path.join(exe_dir, "nvidia")]
+    else:
+        nv_roots = [os.path.join(sys.prefix, "Lib", "site-packages", "nvidia")]
+    for root in nv_roots:
+        if os.path.isdir(root):
+            for sub in ("cu13", "cudnn"):
+                for rel in ("bin/x86_64", "bin"):
+                    add(os.path.join(root, sub, *rel.split("/")))
+
+    add(os.environ.get("TENSORRT_LIB_DIR", ""))
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        for trt_root in (os.path.join(exe_dir, "tensorrt"),
+                         os.path.join(exe_dir, "trt")):
+            if os.path.isdir(trt_root):
+                add(os.path.join(trt_root, "bin"))
+                add(trt_root)
+    else:
+        _proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))))
+        add(os.path.join(_proj_root, "backend", "libs_win_tensorrt", "bin"))
+
+    if not dirs:
+        return
+    os.environ["PATH"] = ";".join(dirs) + ";" + os.environ.get("PATH", "")
+
+
+_ensure_gpu_dll_path()
+
 import onnxruntime as ort
 
 _IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)

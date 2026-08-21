@@ -61,6 +61,7 @@ DuAD_software/
 │   │   └── frame_provider.py        # QML ImageProvider
 │   ├── gxipy/                       # 大恒 Galaxy SDK Python wrapper
 │   ├── libs/                        # 大恒 Linux x86_64 动态库（已提取）
+│   ├── libs_win/                     # 大恒 Windows x64 动态库（自包含，已集成）
 │   ├── config/99-galaxy-dev.rules   # USB 权限规则
 │   ├── model_scales/                # 热力图固定显示尺度
 │   ├── alg/                         # DuAD 训练/导出/标定算法代码
@@ -68,7 +69,10 @@ DuAD_software/
 ├── tests/                           # 无相机/无硬件冒烟测试
 ├── scripts/
 │   ├── gen_translations.py          # i18n 翻译生成
-│   └── diag_camera.py               # 相机现场诊断工具
+│   ├── diag_camera.py               # 相机现场诊断工具
+│   ├── package_win.py               # Windows 主程序打包（--with-gpu 附带 GPU 支持包）
+│   ├── collect_gpu_dlls_win.py      # 收集/更新 Windows GPU 支持包
+│   └── DuAD_win.spec                # PyInstaller spec（排除 GPU 库）
 ├── translations/                    # 英/繁中翻译
 ├── docs/                            # 详细开发文档
 ├── setup_env.sh                     # 一键环境配置脚本
@@ -85,10 +89,8 @@ DuAD_software/
 ### 当前已验证平台
 
 ```text
-OS：Linux x86_64
-Python：3.14.6（3.10+ 理论上可尝试）
-GUI：PySide6 6.11.1
-推理：onnxruntime-gpu 1.28.0 + TensorRT
+Linux x86_64：Python 3.14.6、PySide6 6.11.1、onnxruntime-gpu 1.28.0 + TensorRT（开发机）
+Windows x64：Python 3.14.5、PySide6 6.11.1、onnxruntime-gpu 1.28.0 + nvidia-cublas-cu13/nvidia-cudnn-cu13（需 NVIDIA 驱动 ≥ 585）+ 可选 TensorRT 10.16（手动安装，TENSORRT_LIB_DIR 指定）
 相机：大恒 MER2-501-79U3C-L（USB3 Vision）
 光源：CH340 USB 串口控制器
 ```
@@ -139,14 +141,45 @@ sudo udevadm trigger
 
 重新插拔相机。
 
+### Windows 环境配置
+
+在 Windows 上重建 venv（同样适用于 Linux，只是目录名不同）：
+
+```powershell
+# 在仓库根目录执行，用 uv 或 python -m venv 创建 Windows venv
+uv venv DuAD_SoftwareContent/pyqml_win --python 3.14
+uv pip install --python DuAD_SoftwareContent/pyqml_win/Scripts/python.exe -r requirements.txt
+# 有 NVIDIA 显卡（驱动 ≥ 585）则加 GPU 推理依赖：
+# onnxruntime-gpu 主包 + CUDA 运行库（onnxruntime-gpu 的 Windows wheel 不自带 cuBLAS/cuDNN）
+uv pip install --python DuAD_SoftwareContent/pyqml_win/Scripts/python.exe onnxruntime-gpu==1.28.0
+uv pip install --python DuAD_SoftwareContent/pyqml_win/Scripts/python.exe nvidia-cublas-cu13 nvidia-cudnn-cu13 nvidia-cuda-runtime
+# 可选 TensorRT 10.16（Windows 无 pip 库包，需手动从 NVIDIA 官网下载 zip 解压），
+# 设置用户环境变量指向其 bin 目录（main.py/onnx_infer.py 会自动注入 PATH）：
+#   setx TENSORRT_LIB_DIR "解压路径\TensorRT-10.16.x\bin"
+```
+
+如果不用 uv，也可以用普通 pip： `python -m venv DuAD_SoftwareContent/pyqml_win` 后 `Scripts\python.exe -m pip install -r requirements.txt`。
+
+> Windows 相机 SDK 已随项目提供（`backend/libs_win/`），无需单独安装（见第 5 节）。
+
+
 ### 启动
+
+Linux:
 
 ```bash
 python DuAD_SoftwareContent/main.py
+# 或：DuAD_SoftwareContent/pyqml/bin/python DuAD_SoftwareContent/main.py
 ```
 
-> 也可以使用虚拟环境中的解释器：
-> `DuAD_SoftwareContent/pyqml/bin/python DuAD_SoftwareContent/main.py`
+Windows（在 `DuAD_SoftwareContent/` 目录内）:
+
+```powershell
+pyqml_win\Scripts\python.exe -u main.py
+```
+
+> main.py 顶部会按平台自动切换到对应 venv（Linux `pyqml/`、Windows `pyqml_win/`）；
+> Windows 下需先安装大恒 Windows 版 Galaxy 相机 SDK 并设置 `GALAXY_GENICAM_ROOT`（见第 5 节）。
 
 ### 桌面图标（双击启动）
 
@@ -177,10 +210,24 @@ DuAD_SoftwareContent/pyqml/bin/python scripts/diag_camera.py --fps-test
 | 平台 | 状态 |
 |---|---|
 | Linux x86_64 | ✅ 已开发验证 |
-| Windows x64 | ⚠️ 未测试；需要替换为大恒 Windows SDK 的 DLL/wrapper，并移除 `LD_LIBRARY_PATH` 注入逻辑 |
+| Windows x64 | ✅ 已适配并支持打包（Python 3.14 + PySide6/onnxruntime-gpu Windows wheel）；相机 SDK 已自包含于 `backend/libs_win/`，无需安装 SDK 或设环境变量；`main.py` 已跨平台（Windows 用 `pyqml_win/` venv）；GPU 推理需 NVIDIA 驱动 ≥ 585 + `nvidia-cublas-cu13`/`nvidia-cudnn-cu13`，TensorRT 可选 |
 | Linux ARM | ⚠️ 未测试；需要大恒 Linux ARM 版 `libgxiapi.so`、`.cti` 传输层和匹配的 `gxipy`，PySide6/onnxruntime 是否提供 ARM wheel 也需确认 |
 
-当前 `backend/libs/` 和 `backend/gxipy/` 均来自 **Galaxy Linux x86_64 SDK**，因此本仓库默认只保证 Linux x86_64。
+`backend/libs/` 和 `backend/gxipy/` 来自 **Galaxy Linux x86_64 SDK**（Linux 用）；Windows 走安装的大恒 Windows SDK（`GxIAPI.dll` + `GALAXY_GENICAM_ROOT`）。
+
+
+### Windows 相机设置（项目已自包含）
+
+Windows 大恒 SDK 已集成到项目 `backend/libs_win/`（`gxwrapper.py`/`dxwrapper.py` Windows 分支自动优先从这里加载 DLL 并设置环境变量），**无需手工安装 SDK 或设置任何环境变量**。
+
+`backend/libs_win/` 结构（与官方 Galaxy SDK 一致）：
+- `APIDll/Win64/` — `GxIAPI.dll`、`DxImageProc.dll` 及 VC 运行库
+- `GenICam/bin/Win64_x64/` — GenApi 等 GenICam 运行时
+- `GenTL/Win64/` — `.cti` 传输层（GxU3VTL 等）
+
+> 联动注意：GXInitLib 找 GenTL 传输层走环境变量 **`GENICAM_GENTL64_PATH`**（大恒官方安装器设置的就是这个名字，不是 `GX_` 前缀）；缺它 `gx_init_lib` 返回 -1、报 “Failed to get GenTL path”。项目里 `gxwrapper.py` 本地优先分支已自动设为 `backend/libs_win/GenTL/Win64`。
+
+> 降级说明：完全没放 `libs_win/` 时，程序仍正常启动，但相机功能自动不可用（降级 stub）。
 
 ---
 
@@ -287,6 +334,56 @@ git push origin v1.0.0
 ```
 
 也可以手动上传 `dist/` 下的 tar 包与 `SHA256SUMS`。
+
+### Windows 打包（PyInstaller onedir）
+
+> 详细说明书见 [docs/15-Windows打包与GPU加速.md](docs/15-Windows打包与GPU加速.md)。
+
+Windows 用 PyInstaller 打包成 onedir 文件夹（`DuAD.exe` 双击启动）。
+GPU 库（CUDA 运行库 / TensorRT / 驱动）**不随主程序打包**：内置 onnxruntime-gpu
+主包带 CUDA/TRT provider，无 GPU 库时自动回退 CPU；有 GPU 的目标机把「GPU 支持包」
+解压到 exe 同目录即可自动加速。
+
+```powershell
+# 在仓库根目录执行
+# 只打主程序（CPU-only，体积小）
+DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.0
+
+# 打主程序 + GPU 支持包
+DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.0 --with-gpu
+```
+
+产物输出到 `dist/`：
+
+```text
+dist\DuAD\                                    # onedir 应用（双击 DuAD.exe）
+dist\DuAD_1.0.0_Windows_x64.zip               # 主程序（CPU-only）
+dist\DuAD_GPU_runtime_1.0.0_Windows_x64.zip   # GPU 支持包（--with-gpu 时生成）
+dist\SHA256SUMS                               # 校验和
+```
+
+> GPU 支持包用法：解压得到 `nvidia\` 和 `tensorrt\`，放到 `DuAD.exe` 同级目录，
+> 启动日志出现 `模型预热完成（['TensorrtExecutionProvider', ...]）` 即启用 GPU；
+> 未放置支持包则回退 CPU，程序仍可运行。显卡驱动需 ≥585（CUDA 13 要求），
+> 须在目标机单独安装。
+>
+> 打包环境：需要 `pyqml_win` venv 里装 PyInstaller
+> （`pip install pyinstaller`）。exe 为 windowed 无控制台模式，运行日志写到
+> `%USERPROFILE%\DuAD_app.log`。相机 SDK（`backend/libs_win`）、QML、翻译均
+> 已内置。
+
+### 发布到 GitHub Release
+
+```bash
+git add -A
+git commit -m "release: 添加 Windows 打包"
+git push origin main
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+也可以在 GitHub 网页端 Release → Draft a new release，手动上传
+`dist/` 下的 Windows zip、Linux tar 包与 `SHA256SUMS`。
 
 ---
 

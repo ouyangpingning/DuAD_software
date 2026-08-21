@@ -44,25 +44,61 @@ if sys.platform == 'linux2' or sys.platform == 'linux':
     if dll is None:
         print("Cannot find libgxiapi.so.")
 else:
-    try:
-        env_dist = os.environ
-        GeniCam_AddPath32 = str(env_dist["GALAXY_GENICAM_ROOT"]) + r"\bin\Win32_i86"
-        GeniCam_AddPath64 = str(env_dist["GALAXY_GENICAM_ROOT"]) + r"\bin\Win64_x64"
-        GxiApi_AddPath32 = str(env_dist["GALAXY_GENICAM_ROOT"]).split("GenICam")[0] + r"\APIDll\Win32"
-        GxiApi_AddPath64 = str(env_dist["GALAXY_GENICAM_ROOT"]).split("GenICam")[0] + r"\APIDll\Win64"
+    dll = None
+    # ── Windows：优先项目本地 SDK（backend/libs_win，自包含），回退 GALAXY_GENICAM_ROOT ──
+    _libs_win = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "libs_win")
+    _local_candidates = [
+        # (DLL 目录, 说明)
+        (os.path.join(_libs_win, "APIDll", "Win64"), "APIDll/Win64"),
+        (os.path.join(_libs_win, "GenICam", "bin", "Win64_x64"), "GenICam/bin/Win64_x64"),
+        # GenTL 传输层 .cti：缺它 gx_init_lib 返回 -1、设备枚举永远 0 台
+        (os.path.join(_libs_win, "GenTL", "Win64"), "GenTL/Win64"),
+    ]
+    # 本地 SDK 存在时：把候选目录加入 DLL 搜索路径 + 设置环境变量（供 gxipy/GenTL 用）
+    _found_local = False
+    for _d, _label in _local_candidates:
+        if os.path.isdir(_d):
+            os.add_dll_directory(_d)
+            _found_local = True
+    if _found_local:
+        _local_genicam = os.path.join(_libs_win, "GenICam")
+        if os.path.isdir(_local_genicam) and "GALAXY_GENICAM_ROOT" not in os.environ:
+            os.environ["GALAXY_GENICAM_ROOT"] = _local_genicam
+        # GenTL 传输层路径：不加 GENICAM_GENTL64_PATH 时 GXInitLib 报
+        # "Failed to get GenTL path"、gx_init_lib 返回 -1（设备枚举永远 0 台）。
+        # 大恒官方安装器设置的正是 GENICAM_GENTL64_PATH（非 GX_ 前缀）。
+        _local_gentl = os.path.join(_libs_win, "GenTL", "Win64")
+        if os.path.isdir(_local_gentl) and "GENICAM_GENTL64_PATH" not in os.environ:
+            os.environ["GENICAM_GENTL64_PATH"] = _local_gentl
+        try:
+            dll = WinDLL(os.path.join(_libs_win, "APIDll", "Win64", "GxIAPI.dll"), winmode=0)
+            print(f"[gxwrapper] 从项目本地加载 GxIAPI.dll（{_libs_win}）")
+        except OSError as e:
+            print(f"[gxwrapper] 本地 GxIAPI.dll 加载失败: {e}；回退环境变量路径")
+            dll = None
+    # 回退：系统环境变量 GALAXY_GENICAM_ROOT（大恒官方安装器设置）
+    if dll is None:
+        try:
+            env_dist = os.environ
+            GeniCam_AddPath32 = str(env_dist["GALAXY_GENICAM_ROOT"]) + r"\bin\Win32_i86"
+            GeniCam_AddPath64 = str(env_dist["GALAXY_GENICAM_ROOT"]) + r"\bin\Win64_x64"
+            GxiApi_AddPath32 = str(env_dist["GALAXY_GENICAM_ROOT"]).split("GenICam")[0] + r"\APIDll\Win32"
+            GxiApi_AddPath64 = str(env_dist["GALAXY_GENICAM_ROOT"]).split("GenICam")[0] + r"\APIDll\Win64"
 
-        if (sys.version_info.major == 3 and sys.version_info.minor >= 8) or (sys.version_info.major > 3):
-            os.add_dll_directory(GeniCam_AddPath32)
-            os.add_dll_directory(GeniCam_AddPath64)
-            os.add_dll_directory(GxiApi_AddPath32)
-            os.add_dll_directory(GxiApi_AddPath64)
-            
-            dll = WinDLL('GxIAPI.dll', winmode=0)
-        else:
-            dll = WinDLL('GxIAPI.dll')
-    except OSError:
-        print('Cannot find GxIAPI.dll.')
-        dll = None
+            if (sys.version_info.major == 3 and sys.version_info.minor >= 8) or (sys.version_info.major > 3):
+                os.add_dll_directory(GeniCam_AddPath32)
+                os.add_dll_directory(GeniCam_AddPath64)
+                os.add_dll_directory(GxiApi_AddPath32)
+                os.add_dll_directory(GxiApi_AddPath64)
+                dll = WinDLL('GxIAPI.dll', winmode=0)
+            else:
+                dll = WinDLL('GxIAPI.dll')
+        except (OSError, KeyError):
+            # KeyError: GALAXY_GENICAM_ROOT 未设置（SDK 未安装/未配置）
+            # OSError:  找不到 GxIAPI.dll（SDK 装了但路径不对）
+            print('Cannot find GxIAPI.dll. 请安装大恒 Galaxy 相机 SDK 并设置 GALAXY_GENICAM_ROOT，或在 backend/libs_win 放置 Windows SDK。')
+            dll = None
 
 
 # Error code

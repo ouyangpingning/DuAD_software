@@ -153,13 +153,20 @@ Item {
         var p = path
         if (p.length > 0 && p.indexOf("~") === 0)
             p = AppBridge.homeDir + p.slice(1)
+        // 反斜杠→正斜杠；保证根前一个斜杠（Windows 盘符 → file:///C:/...，Linux → file:///home/...）
+        p = p.replace(/\\/g, "/")
+        if (p.charAt(0) !== "/")
+            p = "/" + p
         return "file://" + p
     }
 
     function _folderUrlToPath(url) {
         var s = url.toString()
-        if (s.startsWith("file://"))
+        if (s.indexOf("file://") === 0)
             s = decodeURIComponent(s.slice(7))
+        // Windows 盘符：file:///C:/... → /C:/... 去掉盘符前的斜杠
+        if (/^\/[A-Za-z]:/.test(s))
+            s = s.slice(1)
         return s
     }
 

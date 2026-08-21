@@ -3,6 +3,9 @@
 本文档说明如何把 DuAD 上位机打成可发布到 GitHub Release 的 Linux x64 安装包，
 以及 CPU/GPU 推理依赖的自动选择策略。
 
+> Windows 打包（PyInstaller onedir + 可选 GPU 支持包）见
+> [15-Windows打包与GPU加速.md](15-Windows打包与GPU加速.md)。
+
 ## 1. 打包策略
 
 开发机上的 `DuAD_SoftwareContent/pyqml/` 虚拟环境约 **7GB**，其中绝大部分是
