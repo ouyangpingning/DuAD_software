@@ -18,6 +18,7 @@ ONNX 推理模块（无 torch 依赖）— 联调用轻量推理。
 """
 import json
 import os
+import platform
 import sys
 
 import numpy as np
@@ -141,11 +142,21 @@ class ONNXAnomalyDetector:
 
     def __init__(self, onnx_path: str, target_size: int = 518):
         self.target_size = target_size
-        # provider 优先级：TensorRT（算子融合，1650 Ti 实测 69ms vs CUDA 283ms）
+        # provider 优先级：默认 TensorRT（算子融合，1650 Ti 实测 69ms vs CUDA 283ms）
         # → CUDA → CPU。无 TRT 库/无 GPU 时 get_available_providers 自动过滤。
-        providers = [p for p in ('TensorrtExecutionProvider', 'CUDAExecutionProvider',
-                                 'CPUExecutionProvider')
-                     if p in ort.get_available_providers()]
+        # ⚠ Jetson（aarch64）例外：JetPack 6.2 自带的 TRT 10.3 对 DINOv2 类模型
+        # 数值错误（实测 fp32 引擎门控误触发→分数恒 1e10、fp16 引擎溢出→65504，
+        # trtexec 直接构建同样错误，非 ORT 问题），默认改用 CUDA EP（实测
+        # 366ms/帧且数值正确）；设 DUAD_PREFER_TRT=1 可强制 TRT 优先（供调试/
+        # 升级 TRT 后验证）。x86 保持 TRT 优先。
+        if (os.name != "nt" and platform.machine() in ("aarch64", "arm64")
+                and os.environ.get("DUAD_PREFER_TRT") != "1"):
+            _provider_pref = ('CUDAExecutionProvider', 'TensorrtExecutionProvider',
+                              'CPUExecutionProvider')
+        else:
+            _provider_pref = ('TensorrtExecutionProvider', 'CUDAExecutionProvider',
+                              'CPUExecutionProvider')
+        providers = [p for p in _provider_pref if p in ort.get_available_providers()]
 
         # 运行时 GPU 自动判断：检测到 NVIDIA 驱动、但 onnxruntime 没有
         # CUDA/TensorRT provider（说明装的是 CPU 包或 GPU 依赖缺失），给出

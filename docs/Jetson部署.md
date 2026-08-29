@@ -91,21 +91,29 @@ QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_mqtt_b
 
 ## 已知限制
 
-- **TensorRT 不可用（当前模型）**：`bottle_k4_s0_full.onnx` 含 5 个 `If` 控制流节点
-  （DINOv2 注意力掩模的动态控制流导出产物），分支输出形状不一致（`[-1,1536]` vs
-  `[-1,1,1536]`），Jetson 版 ORT 1.24 的 TRT EP 在分区时直接抛异常（x86 ORT 1.28
-  会静默回退）。`onnx_infer.py` 已加**逐级降级**：TRT → CUDA → CPU，任何模型都
-  不会崩。实测 CUDA EP **~700ms/帧**（518px，fp32；x86 TRT 为 69ms）。
-  想要 TRT 加速需在训练侧重新导出**不含 If 控制流**的 ONNX（固定尺寸、
-  消除动态 mask 分支），可参考算法仓库（https://github.com/ouyangpingning/DuAD）的 `deploy/export_onnx.py`。
-- **fp16 加速不可用（当前模型）**：onnxconverter-common 自动转 fp16 时因 If
-  分支内 Cast 类型不一致而失败；手动转风险高，未采用。
+- **TensorRT 数值不可用（TRT 10.3 / JetPack 6.2，已验证）**：
+  - 旧模型（含 5 个 `If` 控制流）→ ORT 1.24 的 TRT EP 分区直接抛异常；
+  - 新模型（`export_onnx.py` 已静态化：无 If/无 CumSum/GatherElements，后处理内化）
+    → TRT 可以建引擎，但**计算结果错误**：fp32 引擎（任意 builder 级别，
+    `--noTF32` 也试过）把内部质量门控算反 → 分数恒 1e10 哨兵值；fp16 引擎
+    直接溢出（65504）。用 `trtexec` 绕过 ORT 直接构建，结果同样错误 →
+    确认是 Jetson 自带 TRT 10.3.0.30 的内核问题，不是 ORT 层问题。
+  - 对策：`onnx_infer.py` 在 **aarch64 上默认优先 CUDAExecutionProvider**
+    （x86 仍 TRT 优先；设环境变量 `DUAD_PREFER_TRT=1` 可强制 TRT 供验证）。
+  - 实测 CUDA EP **366ms/帧**（新模型后处理内化，比旧模型 690ms 快 1.9 倍），
+    数值与训练侧 PyTorch 一致（000.png score 1.7789，旧模型 1.7799）。
+  - 后续如升级 JetPack（更新的 TRT 版本修复内核问题）可重新验证 TRT：
+    用 `DUAD_PREFER_TRT=1` + 对比 CUDA 分数一致后再改默认。
+- **fp16 不可用**：onnxconverter-common 自动转换报 Cast 类型不一致（新模型
+  无 If 后仍失败）；trtexec --fp16 引擎数值溢出，勿用。
 - **像素格式**：Bayer8（去马赛克走自实现 C）与 Mono8 正常；RGB8/BGR8 直通；
   Bayer10/12 等高比特格式未处理（与 x86 一致，请选 8bit 格式）。
 - **性能实测（Orin NX 8GB）**：相机 2448×2048 BayerRG8 **~67fps** 连续采集；
-  实时推理稳态 ~700ms/帧（首帧含 CUDA 初始化 ~5s）；Bayer 去马赛克 C 实现
+  实时推理稳态 ~366ms/帧（首帧含 CUDA 初始化 ~1s）；Bayer 去马赛克 C 实现
   ~50ms/5MP（DVFS 满载时更快）。
 - 阈值/尺度 metadata 与标定文件机制与 x86 完全一致（metadata > *.threshold.json >
-  默认 1.7；热力图尺度 metadata > *.scale.json > 逐图百分位）。
+  默认 1.7；热力图尺度 metadata > *.scale.json > 逐图百分位）。新模型后处理内化
+  （双线性上采样 + 高斯平滑在 ONNX 图内完成），旧模型仍走部署端 numpy 平滑，
+  两者分数一致（±1e-3），标定阈值无需重标。
 - log4cplus 报 `could not open file /etc/Galaxy/cfg/log4cplus.properties` 为
   SDK 日志配置缺失的无害告警（x86 无此文件同样工作），可忽略。
