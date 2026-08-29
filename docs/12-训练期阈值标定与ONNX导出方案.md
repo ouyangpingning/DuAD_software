@@ -29,12 +29,12 @@
 
 ## 2. 服务器端改动（5 个文件）
 
-> 服务器 `backend/alg/` 的 `main.py` / `DuAD.py` / `export_onnx.py` 是训练/导出入口。
+> 服务器算法仓库（https://github.com/ouyangpingning/DuAD）的 `main.py` / `DuAD.py` / `export_onnx.py` 是训练/导出入口。
 > 改动后训练产物 ckpt 自带 `deploy` 字段，导出产物 onnx 自带 metadata。
 
 ### 2.1 新增 `threshold_utils.py`（核心，纯 numpy，无 torch/sklearn 依赖）
 
-放在 `backend/alg/threshold_utils.py`（与 `main.py` 同级），训练端与 `calibrate_threshold.py` 共用：
+放在算法仓库的 `threshold_utils.py`（与 `main.py` 同级），训练端与 `calibrate_threshold.py` 共用：
 
 ```python
 """
@@ -325,7 +325,7 @@ from alg.threshold_utils import (
 
 ## 3. 本地端改动（已完成，2 个文件）
 
-### 3.1 `backend/alg/deploy/onnx_infer.py`
+### 3.1 `backend/Src/onnx_infer.py`
 
 `__init__` 建 session 后，读 metadata 暴露阈值：
 
@@ -358,11 +358,12 @@ from alg.threshold_utils import (
 ## 5. 服务器端自测
 
 ```bash
+# 以下命令在算法仓库（https://github.com/ouyangpingning/DuAD）中执行。
 # 1. 训练（跑完后看日志里的 "Deploy thresholds embedded into checkpoint"）
-python backend/alg/main.py --categories bottle
+python main.py --categories bottle
 
 # 2. 导出（跑完后看 "[INFO] Deploy thresholds written to ONNX metadata"）
-python backend/alg/deploy/export_onnx.py --category bottle
+python deploy/export_onnx.py --category bottle
 
 # 3. 验证 metadata 已写入
 python -c "

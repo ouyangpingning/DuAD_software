@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import onnxruntime as ort
 
-# 与 backend/alg/deploy/onnx_infer.py 保持一致
+# 与 backend/Src/onnx_infer.py 保持一致
 TARGET_SIZE = 518
 
 

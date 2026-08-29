@@ -74,7 +74,7 @@ bash run_jetson.sh                     # SSH 下自动弹到桌面 :0
 ~/micromamba/envs/duad/bin/python -c "import onnxruntime as ort; print(ort.get_available_providers())"
 
 # 单图推理自检（bottle 模型 + 测试图，应打印 CUDA provider 与 score）
-~/micromamba/envs/duad/bin/python -u backend/alg/deploy/onnx_infer.py \
+~/micromamba/envs/duad/bin/python -u backend/Src/onnx_infer.py \
     models/bottle_k4_s0_full.onnx models/000.png
 
 # 无相机冒烟（6 个套件，全部 PASS）
@@ -97,7 +97,7 @@ QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_mqtt_b
   会静默回退）。`onnx_infer.py` 已加**逐级降级**：TRT → CUDA → CPU，任何模型都
   不会崩。实测 CUDA EP **~700ms/帧**（518px，fp32；x86 TRT 为 69ms）。
   想要 TRT 加速需在训练侧重新导出**不含 If 控制流**的 ONNX（固定尺寸、
-  消除动态 mask 分支），可参考 `alg/deploy/export_onnx.py`。
+  消除动态 mask 分支），可参考算法仓库（https://github.com/ouyangpingning/DuAD）的 `deploy/export_onnx.py`。
 - **fp16 加速不可用（当前模型）**：onnxconverter-common 自动转 fp16 时因 If
   分支内 Cast 类型不一致而失败；手动转风险高，未采用。
 - **像素格式**：Bayer8（去马赛克走自实现 C）与 Mono8 正常；RGB8/BGR8 直通；

@@ -112,7 +112,7 @@ DuAD\
 
 ## 6. GPU DLL 加载机制（frozen 路径约定）
 
-打包后的程序在启动时（`main.py` 与 `backend/alg/deploy/onnx_infer.py` 双保险）
+打包后的程序在启动时（`main.py` 与 `backend/Src/onnx_infer.py` 双保险）
 把以下目录注入 `PATH`：
 
 ```text

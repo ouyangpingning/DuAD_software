@@ -84,7 +84,7 @@ provider，因此：
 |---|---|
 | `setup_env.sh` | 增加 NVIDIA 驱动自动检测，默认 `DUAD_INSTALL_GPU=auto` |
 | `DuAD_SoftwareContent/main.py` | 去掉硬编码 `lib/python3.14/site-packages`，改用 `sysconfig` 获取路径 |
-| `backend/alg/deploy/onnx_infer.py` | 有驱动但无 GPU provider 时输出一次性升级提示 |
+| `backend/Src/onnx_infer.py` | 有驱动但无 GPU provider 时输出一次性升级提示 |
 | `scripts/package.sh` | 新增：一键打包 Installer 包与 CPU-Portable 包 |
 | `.github/workflows/release.yml` | 新增：推送 `v*` 标签时自动构建并发布 Release |
 | `README.md` | 增加“打包与 GitHub Release”章节 |

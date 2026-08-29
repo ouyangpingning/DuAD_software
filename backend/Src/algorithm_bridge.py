@@ -27,7 +27,7 @@ import numpy as np
 from PIL import Image
 from PySide6.QtCore import QObject, Slot, Signal, Property
 
-from alg.deploy.onnx_infer import ONNXAnomalyDetector
+from Src.onnx_infer import ONNXAnomalyDetector
 
 
 def _release_memory():

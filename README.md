@@ -58,14 +58,15 @@ DuAD_software/
 │   │   ├── collect_bridge.py        # 图像采集保存管线
 │   │   ├── light_bridge.py          # 光源串口桥
 │   │   ├── mqtt_bridge.py           # MQTT 云服务器桥
+│   │   ├── onnx_infer.py            # ONNX 推理（前/后处理，无 torch）
 │   │   └── frame_provider.py        # QML ImageProvider
 │   ├── gxipy/                       # 大恒 Galaxy SDK Python wrapper
 │   ├── libs/                        # 大恒 Linux x86_64 动态库（已提取）
 │   ├── libs_win/                     # 大恒 Windows x64 动态库（自包含，已集成）
 │   ├── config/99-galaxy-dev.rules   # USB 权限规则
 │   ├── model_scales/                # 热力图固定显示尺度
-│   ├── alg/                         # DuAD 训练/导出/标定算法代码
 │   └── env.py                       # 测试脚本 SDK 环境注入
+│   （训练/导出/标定算法代码在算法仓库：https://github.com/ouyangpingning/DuAD）
 ├── tests/                           # 无相机/无硬件冒烟测试
 ├── scripts/
 │   ├── gen_translations.py          # i18n 翻译生成

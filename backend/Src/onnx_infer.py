@@ -2,7 +2,7 @@
 """
 ONNX 推理模块（无 torch 依赖）— 联调用轻量推理。
 
-加载 backend/alg/deploy/export_onnx.py 导出的模型（优先 PCA 内联模式）：
+加载算法仓库（https://github.com/ouyangpingning/DuAD）的 export_onnx.py 导出的模型（优先 PCA 内联模式）：
     输入  image [B, 3, target_size, target_size] float32（ImageNet 归一化）
     输出  heatmaps [B, H, W]（patch 级，未上采样）+ image_scores [B]
 
