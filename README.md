@@ -211,7 +211,7 @@ DuAD_SoftwareContent/pyqml/bin/python scripts/diag_camera.py --fps-test
 |---|---|
 | Linux x86_64 | ✅ 已开发验证 |
 | Windows x64 | ✅ 已适配并支持打包（Python 3.14 + PySide6/onnxruntime-gpu Windows wheel）；相机 SDK 已自包含于 `backend/libs_win/`，无需安装 SDK 或设环境变量；`main.py` 已跨平台（Windows 用 `pyqml_win/` venv）；GPU 推理需 NVIDIA 驱动 ≥ 585 + `nvidia-cublas-cu13`/`nvidia-cudnn-cu13`，TensorRT 可选 |
-| Linux ARM | ⚠️ 未测试；需要大恒 Linux ARM 版 `libgxiapi.so`、`.cti` 传输层和匹配的 `gxipy`，PySide6/onnxruntime 是否提供 ARM wheel 也需确认 |
+| Linux ARM（Jetson） | ✅ 已适配验证（JetPack 6.2 / Orin NX：conda-forge PySide6 + NVIDIA Jetson 版 onnxruntime-gpu（CUDA/TensorRT EP）、arm64 大恒 SDK + 自实现 Bayer 去马赛克；详见 `docs/Jetson部署.md`，启动 `run_jetson.sh`） |
 
 `backend/libs/` 和 `backend/gxipy/` 来自 **Galaxy Linux x86_64 SDK**（Linux 用）；Windows 走安装的大恒 Windows SDK（`GxIAPI.dll` + `GALAXY_GENICAM_ROOT`）。
 

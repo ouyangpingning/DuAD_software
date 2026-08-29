@@ -1,6 +1,7 @@
 import os
 import sys
 import sysconfig
+import platform
 from pathlib import Path
 
 # ── PyInstaller 打包（windowed 无控制台）时 stdout/stderr 为 None，
@@ -63,6 +64,11 @@ def _translations_root() -> Path:
 # 无需（也不能）用 LD_LIBRARY_PATH，故整段仅在 Linux 执行。
 if not _IS_WIN:
     _LIBS_DIR = Path(__file__).resolve().parent.parent / "backend" / "libs"
+    # Jetson（aarch64）用 arm64 版大恒 SDK（backend/libs_arm64），不存在时回退 libs
+    if platform.machine() in ("aarch64", "arm64"):
+        _LIBS_ARM = _LIBS_DIR.parent / "libs_arm64"
+        if _LIBS_ARM.is_dir():
+            _LIBS_DIR = _LIBS_ARM
     _SITE_PACKAGES = Path(sysconfig.get_paths()["purelib"])
     _NVIDIA_LIBS = sorted((_SITE_PACKAGES / "nvidia").glob("*/lib"))
     _extra_ld = [_LIBS_DIR] if _LIBS_DIR.is_dir() else []

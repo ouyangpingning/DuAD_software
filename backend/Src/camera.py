@@ -2,7 +2,36 @@ import os
 import numpy
 from PySide6.QtCore import Signal, QObject
 from _ctypes import addressof
-from ctypes import c_ubyte
+from ctypes import c_ubyte, c_void_p, c_int
+
+
+def _load_bayer_demosaic_c():
+    """加载 libbayer_demosaic.so（arm64 上编译的 Bayer 去马赛克加速，~3ms/5MP）。
+
+    失败（库不存在/架构不符）返回 None，调用方回退 numpy 实现。
+    """
+    try:
+        import ctypes as _ct
+        import platform as _pf
+        from pathlib import Path as _P
+    except ImportError:
+        return None
+    base = _P(__file__).resolve().parent.parent
+    libdir = base / ("libs_arm64" if _pf.machine() in ("aarch64", "arm64") else "libs")
+    so = libdir / "libbayer_demosaic.so"
+    if not so.exists():
+        return None
+    try:
+        lib = _ct.CDLL(str(so))
+        lib.bayer_demosaic_rgb24.argtypes = [_ct.c_void_p, _ct.c_void_p,
+                                             _ct.c_int, _ct.c_int, _ct.c_int]
+        lib.bayer_demosaic_rgb24.restype = _ct.c_int
+        return lib.bayer_demosaic_rgb24
+    except OSError:
+        return None
+
+
+_BAYER_DEMOSAIC_C = _load_bayer_demosaic_c()
 
 _SDK_MISSING_MSG = "Galaxy Camera SDK (libgxiapi.so) not found. Camera functions unavailable."
 
@@ -10,9 +39,16 @@ try:
     from gxipy import gx_init_lib, GxStatusList, gx_close_lib, gx_update_device_list, gx_get_all_device_base_info, \
         GxOpenParam, GxAccessMode, GxOpenMode, gx_open_device, gx_close_device, gx_is_implemented, gx_is_readable, \
         gx_get_string, gx_get_int, gx_get_enum, gx_get_float, gx_get_bool, gx_is_writable, gx_set_string, gx_set_int, \
-        gx_set_enum, gx_set_float, gx_set_bool, gx_send_command, GxFeatureID, GxPixelFormatEntry, dx_raw8_to_rgb24, \
+        gx_set_enum, gx_set_float, gx_set_bool, gx_send_command, GxFeatureID, GxPixelFormatEntry, \
         DxBayerConvertType, DxPixelColorFilter, GxPixelColorFilterEntry, CAP_CALL, \
         gx_register_capture_callback, gx_unregister_capture_callback
+    try:
+        # arm64（Jetson）SDK 不带 DxImageProc 库（libgxiapi.so 不导出
+        # DxRaw8toRGB24）：gxipy 里不存在该函数，Bayer 帧走 numpy 去马赛克
+        from gxipy import dx_raw8_to_rgb24
+    except ImportError:
+        dx_raw8_to_rgb24 = None
+        print("[camera] SDK 无 DxImageProc（dx_raw8_to_rgb24 缺失），Bayer 帧将用 numpy 去马赛克")
 except (ImportError, NameError, OSError, KeyError) as e:
     # Fallback: SDK not available (e.g. dev machine without camera hardware)
     GxStatusList = type('GxStatusList', (), {'SUCCESS': 0, 'ERROR': -1})()
@@ -140,6 +176,83 @@ def adjust_to_step(value, step, min_val=None, max_val=None):
     if max_val is not None and adjusted > max_val:
         adjusted = (max_val // step) * step
     return adjusted
+
+
+def _bayer_demosaic_numpy(raw, bayer_filter):
+    """numpy 双线性 Bayer 去马赛克（arm64 SDK 无 DxImageProc 时的兜底）。
+
+    bayer_filter: DxPixelColorFilter（RG=1/GB=2/GR=3/BG=4，Linux 语义）。
+    算法：对每个颜色通道，在已知采样相位上先边缘复制 padding，再对
+    水平/垂直/对角邻域取均值填补其余相位（与 DxImageProc NEIGHBOUR
+    插值一致）。返回 [h, w, 3] uint8 RGB。
+    """
+    h, w = raw.shape
+    p00, p01, p10, p11 = raw[0::2, 0::2], raw[0::2, 1::2], raw[1::2, 0::2], raw[1::2, 1::2]
+    # 各 Bayer 排列下 RGB 通道对应的相位（(采样网格, oy, ox)）
+    if bayer_filter == DxPixelColorFilter.RG:            # RGGB
+        r_s, r_oy, r_ox = p00, 0, 0
+        g1_s, g1_oy, g1_ox = p01, 0, 1
+        g2_s, g2_oy, g2_ox = p10, 1, 0
+        b_s, b_oy, b_ox = p11, 1, 1
+    elif bayer_filter == DxPixelColorFilter.GB:          # GBRG
+        r_s, r_oy, r_ox = p10, 1, 0
+        g1_s, g1_oy, g1_ox = p00, 0, 0
+        g2_s, g2_oy, g2_ox = p11, 1, 1
+        b_s, b_oy, b_ox = p01, 0, 1
+    elif bayer_filter == DxPixelColorFilter.GR:          # GRBG
+        r_s, r_oy, r_ox = p01, 0, 1
+        g1_s, g1_oy, g1_ox = p00, 0, 0
+        g2_s, g2_oy, g2_ox = p11, 1, 1
+        b_s, b_oy, b_ox = p10, 1, 0
+    else:                                                # BGGR
+        r_s, r_oy, r_ox = p11, 1, 1
+        g1_s, g1_oy, g1_ox = p01, 0, 1
+        g2_s, g2_oy, g2_ox = p10, 1, 0
+        b_s, b_oy, b_ox = p00, 0, 0
+
+    def _fill(samples, oy, ox):
+        """已知采样在 (oy,ox) 相位（步长 2），补全全分辨率网格。
+
+        以相位网格为基准（p 是边缘复制 pad 后的相位网格）。输出行/列与
+        相位网格索引一一对应：
+        - 已知相位：out[2i+oy, 2j+ox] = samples[i,j]
+        - 水平邻（同行、x 异相位）：相位列 (j,j+1)（ox=0）或 (j-1,j)（ox=1）
+        - 垂直邻（y 异相位、同列）：相位行 (i,i+1)（oy=0）或 (i-1,i)（oy=1）
+        - 对角邻：上述行对与列对的 4 组合
+        维度为奇数时右侧/下侧多 pad 1 列/行（复制边缘），使最后一对邻居
+        可取值（相机分辨率恒为偶数，此处仅兜底）。
+        """
+        sh, sw = samples.shape
+        out = numpy.zeros((h, w), dtype=numpy.uint16)
+        p = numpy.pad(samples.astype(numpy.uint16),
+                      ((1, 1 + h % 2), (1, 1 + w % 2)), mode="edge")
+        out[oy::2, ox::2] = samples
+        # 水平邻的 p 列对；垂直邻的 p 行对；中心行/列（同行同列插值的基准）
+        if ox == 0:
+            cL, cR = slice(1, 1 + sw), slice(2, 2 + sw)
+        else:
+            cL, cR = slice(0, sw + w % 2), slice(1, 1 + sw + w % 2)
+        if oy == 0:
+            rU, rD = slice(1, 1 + sh), slice(2, 2 + sh)
+        else:
+            rU, rD = slice(0, sh + h % 2), slice(1, 1 + sh + h % 2)
+        rowC, colC = slice(1, 1 + sh), slice(1, 1 + sw)
+        # 水平插值（同行相邻列）
+        t = out[oy::2, 1 - ox::2]
+        t[...] = ((p[rowC, cL] + p[rowC, cR]) >> 1)[:t.shape[0], :t.shape[1]]
+        # 垂直插值（同列相邻行）
+        t = out[1 - oy::2, ox::2]
+        t[...] = ((p[rU, colC] + p[rD, colC]) >> 1)[:t.shape[0], :t.shape[1]]
+        # 对角（4 邻域均值）
+        t = out[1 - oy::2, 1 - ox::2]
+        t[...] = ((p[rU, cL] + p[rU, cR] + p[rD, cL] + p[rD, cR]) >> 2)[
+            :t.shape[0], :t.shape[1]]
+        return out
+
+    r = _fill(r_s, r_oy, r_ox)
+    g = (_fill(g1_s, g1_oy, g1_ox) + _fill(g2_s, g2_oy, g2_ox)) >> 1
+    b = _fill(b_s, b_oy, b_ox)
+    return numpy.stack([r, g, b], axis=2).astype(numpy.uint8)
 
 
 class CameraManager:
@@ -429,20 +542,39 @@ class CameraDevice(QObject):
             # 同一排列参数下 R/B 互换（黄蓝互换）。按诊断结果交换 RG↔BG、GB↔GR。
             if os.name == "nt":
                 bayer_filter = _SWAP_RB_BAYER.get(bayer_filter, bayer_filter)
-            output_buffer = (c_ubyte * image_size * 3)()
-            status = dx_raw8_to_rgb24(
-                frame_param.image_buf,
-                addressof(output_buffer),
-                w,
-                h,
-                DxBayerConvertType.NEIGHBOUR,
-                bayer_filter,
-                False
-            )
-            if status == GxStatusList.SUCCESS:
-                numpy_img = numpy.frombuffer(
-                    output_buffer, dtype=numpy.uint8).reshape(h, w, 3)
-                self.image_captured.emit(numpy_img)
+            if dx_raw8_to_rgb24 is not None:
+                output_buffer = (c_ubyte * image_size * 3)()
+                status = dx_raw8_to_rgb24(
+                    frame_param.image_buf,
+                    addressof(output_buffer),
+                    w,
+                    h,
+                    DxBayerConvertType.NEIGHBOUR,
+                    bayer_filter,
+                    False
+                )
+                if status == GxStatusList.SUCCESS:
+                    numpy_img = numpy.frombuffer(
+                        output_buffer, dtype=numpy.uint8).reshape(h, w, 3)
+                    self.image_captured.emit(numpy_img)
+                return
+            # arm64（Jetson）SDK 无 DxImageProc：优先 C 加速去马赛克
+            # （libs_arm64/libbayer_demosaic.so，仅支持偶数尺寸），
+            # 失败/奇数尺寸回退 numpy 双线性实现。
+            # 注意此时 bayer_filter 是 Linux 语义（无 Windows R/B 交换）。
+            if _BAYER_DEMOSAIC_C is not None and w % 2 == 0 and h % 2 == 0:
+                out_buf = (c_ubyte * (image_size * 3))()
+                rc = _BAYER_DEMOSAIC_C(frame_param.image_buf, out_buf, w, h,
+                                       int(bayer_filter))
+                if rc == 0:
+                    self.image_captured.emit(
+                        numpy.frombuffer(out_buf, dtype=numpy.uint8).reshape(h, w, 3))
+                    return
+                print(f"[camera] C 去马赛克失败(rc={rc})，回退 numpy")
+            raw = numpy.frombuffer(
+                (c_ubyte * image_size).from_address(frame_param.image_buf),
+                dtype=numpy.uint8).reshape(h, w).copy()
+            self.image_captured.emit(_bayer_demosaic_numpy(raw, bayer_filter))
             return
 
         # ── Mono8：灰度扩展为 RGB ──

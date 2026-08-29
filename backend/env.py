@@ -6,9 +6,15 @@ glibc 的 dlopen 依赖解析只认进程启动时的 ld 路径，运行时设�
 """
 import os
 import sys
+import platform
 from pathlib import Path
 
+# 按架构选择 SDK 库目录：aarch64（Jetson）→ libs_arm64，其余 → libs
 _LIBS_DIR = Path(__file__).resolve().parent / "libs"
+if platform.machine() in ("aarch64", "arm64"):
+    _ARM_DIR = _LIBS_DIR.parent / "libs_arm64"
+    if _ARM_DIR.is_dir():
+        _LIBS_DIR = _ARM_DIR
 
 
 def ensure_sdk_paths():

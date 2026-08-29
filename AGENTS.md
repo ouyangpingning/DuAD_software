@@ -11,6 +11,12 @@ source DuAD_SoftwareContent/pyqml/bin/activate
 python DuAD_SoftwareContent/main.py
 ```
 
+Jetson（aarch64 / JetPack 6.2，详见 `docs/Jetson部署.md`）:
+
+```bash
+bash run_jetson.sh      # 环境在 ~/micromamba/envs/duad（conda-forge PySide6 + NVIDIA Jetson ORT-GPU）
+```
+
 Windows:
 
 ```powershell
@@ -79,6 +85,15 @@ DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.
 - **AppBridge（main.py）**：`setLanguage()` / `homeDir`（~展开）/ `isDir(path)`（目录校验）/ **跨页状态中枢**：`cameraConnected`（CameraPage 写）、**`collectingOwner`（采集会话互斥仲裁，"" / "collect" / "detect"，后按者抢占，`collecting` 只读派生跟随）**、`algorithmEnabled`（DetectPage 算法开关，后端推理线程轮询防卡死）。QML 里 AppBridge 引用失败时界面静默失效——Python 侧对象必须保持引用防 GC。
 - **DetectPage 图像区**：已联调真实相机。原图 = `image://camera/original?t=<CameraBridge.frameIndex>`；热力图/定位图 = `image://camera/heatmap|mask?t=<DetectBridge.resultCounter|maskCounter>`（`CameraFrameProvider` 只存最近一帧）。`RoiOverlay` 归一化坐标 → `CameraBridge.applyRoi`（宽 8/高 2 步进对齐，先 OFFSET 后 WIDTH/HEIGHT）；绘制时实时显示像素范围，松开后[确定]/[重绘]；原图标题栏有 ROI/↺恢复全幅/⛶ 图标按钮，热力图标题栏有 ⛶；原图全屏层同样带 ROI 按钮并可放大框选，⛶ 点击进入占满 DetectPage 的全屏层，再点退出。**ROI 写入时若正在采集会先 stopGather，写完读回校验后延迟 200ms 自动 startGather（失败重试 2 次）**（大恒 Continuous 流中直接改 ROI 不生效/INVALID_ACCESS；STOP 后立刻 START 也可能失败）；main.py 还有 1.5s 兜底恢复，仍失败会释放 collectingOwner 让按钮可点；**首次 ROI 前会记录当前几何，恢复全幅回到该设置值而非传感器最大分辨率**；ROI 归一化按 ImageView 实际图像内容区（剔除黑边）换算；归一化坐标相对当前显示画面，后端会叠加当前 OFFSET 换算成传感器绝对坐标。**页面自带自锁"开始采集"按钮（申请 collectingOwner="detect"）**，真正的 startGather/stopGather 由 main.py 的 owner 仲裁统一执行；数据采集（CollectPage，owner="collect"）与实时检测采集互斥。**实时采集优先于测试推理**：开始采集会自增 `_testSession` 作废旧测试请求，在途 inferenceReady/maskReady 返回后直接丢弃；采集中测试推理区按钮禁用并显示提示。“精细定位”开关不再要求先打开“F1 阈值定位”：始终可点击，开启时自动打开定位显示；侧栏含**测试推理区**（文件选图 → AlgorithmBridge.inferImage 后台推理 → 结果切换显示在原图/热力图窗口），并可 **unloadModel 卸载 ONNX** 释放 session 内存。
 - 全局字体 `fonts/wqy-microhei.ttc` 由 main.py 注册为默认字体，QML 中无需指定 family。
+
+## Jetson（aarch64）关键事实（更多见 docs/Jetson部署.md）
+
+- **环境不是 pyqml venv**：Jetson 用 `~/micromamba/envs/duad`（conda-forge PySide6 6.11.2 + pip `onnxruntime_gpu==1.24.0`（NVIDIA 索引 `pypi.jetson-ai-lab.io/jp6/cu126`，cp310）+ numpy 2.2.6）。pip 的 PySide6 aarch64 wheel 是 manylinux_2_39（需 glibc 2.39），Jetson 只有 2.35 **装不了**；conda 自带 glib 2.88 解决 g_once_init_enter_pointer。`pyqml/` 目录不要建（main.py 的 venv 自检会检测到并 execv 过去）。
+- **相机 SDK 按架构选库**：`gxwrapper.py`/`dxwrapper.py`/`main.py`/`env.py` 在 `platform.machine()` 为 aarch64 时用 `backend/libs_arm64/`（Galaxy_Linux-arm64 2.4.2507.8231），否则 `backend/libs/`。改加载逻辑时保持这个分支。
+- **arm64 SDK 没有 DxImageProc**：libgxiapi.so 不导出 DxRaw8toRGB24 → gxipy 里 `dx_raw8_to_rgb24` 不存在。camera.py 的 Bayer 路径优先走 `libs_arm64/libbayer_demosaic.so`（自编 C，仅支持偶数尺寸），失败回退 `_bayer_demosaic_numpy`（含奇数尺寸兜底）。两者与 DxImageProc NEIGHBOUR 双线性语义一致（边缘复制），有逐像素验证测试。改 bayer 逻辑时必须同步改 .c 重编译：`gcc -shared -fPIC -O2 -o backend/libs_arm64/libbayer_demosaic.so backend/libs_arm64/bayer_demosaic.c`。
+- **TRT EP 会整 session 失败**（Jetson ORT 1.24 + 含 If 控制流的模型，如 bottle_k4_s0_full.onnx 的 5 个注意力掩模 If 分支形状不一致）：`onnx_infer.py` 已做逐级降级 TRT→CUDA→CPU（打印 `构建 session 失败（providers=...）` 后重试，属正常日志）。实测 CUDA ~700ms/帧。不要试图用 ORT_ENABLE_ALL 预处理再喂 TRT（会引入 com.microsoft 的 BiasGelu 融合、TRT 无插件更失败），也不要转 fp16（If 分支 Cast 类型不一致）。
+- 相机实测：MER2-501-79U3C-L 枚举/打开/回调/67fps 采集正常；`/etc/udev/rules.d/99-galaxy-dev.rules` 必须装且重新插拔（否则枚举 0 台）；log4cplus 的 `/etc/Galaxy/cfg` 告警无害。
+- 测试脚本 `tests/` 里 PROJECT_ROOT 已改为按 `DUAD_PROJECT_ROOT` 环境变量回退到仓库根，不要再写死开发机路径。
 
 ## i18n：新增 qsTr 文本必做（否则英文/繁体缺翻译）
 

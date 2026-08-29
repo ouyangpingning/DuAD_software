@@ -184,10 +184,35 @@ class ONNXAnomalyDetector:
                     {"device_id": 0, "gpu_mem_limit": 3 * 1024 * 1024 * 1024})
             else:
                 provider_options.append({})
-        self.session = ort.InferenceSession(
-            onnx_path, sess_options=so,
-            providers=providers, provider_options=provider_options,
-        )
+
+        # ── 带降级重试的 session 构建 ─────────────────────────────
+        # 某些模型（含 If 控制流、分支形状不一致，如 torch 动态控制流导出的
+        # DINOv2 模型）在旧版 ORT 的 TensorRT EP 上分区失败，会直接抛异常
+        # （Jetson 的 onnxruntime_gpu 1.24 实测如此；x86 ORT 1.28 会静默
+        # 回退）。这里逐级降级：全 providers → 去掉 TRT → 仅 CPU，保证任何
+        # 模型都不至于让上位机崩溃（与"相机 SDK 缺失不崩溃"同一原则）。
+        self.session = None
+        attempt_lists = [providers]
+        if 'TensorrtExecutionProvider' in providers:
+            attempt_lists.append(
+                [p for p in providers if p != 'TensorrtExecutionProvider'])
+        attempt_lists.append(['CPUExecutionProvider'])
+        for attempt in attempt_lists:
+            opts = [provider_options[providers.index(p)] if p in providers else {}
+                    for p in attempt]
+            try:
+                self.session = ort.InferenceSession(
+                    onnx_path, sess_options=so,
+                    providers=attempt, provider_options=opts,
+                )
+                break
+            except Exception as e:
+                last_err = e
+                print(f"[onnx_infer] 构建 session 失败（providers={attempt}）: "
+                      f"{str(e)[:200]}")
+        if self.session is None:
+            raise RuntimeError(f"ONNX 模型无法加载（所有 provider 均失败）: "
+                               f"{last_err}")
         # PCA 内联模式输入只有 image；旧 ckpt 导出需额外 mask
         self.pca_inline = len(self.session.get_inputs()) == 1
         self._mask = np.ones((1, (target_size // 14) ** 2), dtype=np.bool_)

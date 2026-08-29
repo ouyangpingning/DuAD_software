@@ -29,3 +29,6 @@ tmp/
 Thumbs.db
 .idea/
 .vscode/
+
+# 模型与测试图片（用户自行放置，不提交）
+models/

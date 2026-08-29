@@ -7,7 +7,9 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from PySide6.QtGui import QGuiApplication
 
-PROJECT = "/run/media/lxb/Soft/资料/刘祥宾/研究生论文/算法对应上位机/DuAD_Software"
+PROJECT = os.environ.get(
+    "DUAD_PROJECT_ROOT",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(PROJECT, "backend"))
 
 import Src.mqtt_bridge as mod

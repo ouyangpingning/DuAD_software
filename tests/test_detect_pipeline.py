@@ -9,7 +9,9 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 from PySide6.QtCore import QObject, Signal, QTimer, QEventLoop
 from PySide6.QtGui import QGuiApplication, QImage
 
-PROJECT_ROOT = "/run/media/lxb/Soft/资料/刘祥宾/研究生论文/算法对应上位机/DuAD_Software"
+PROJECT_ROOT = os.environ.get(
+    "DUAD_PROJECT_ROOT",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "backend"))
 
 import ctypes

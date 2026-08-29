@@ -6,15 +6,27 @@ from ctypes import *
 import ctypes
 import sys
 import os
+import platform
 
 NODE_FEATURE_RESERVED_16 = 16
 
+# 本地 SDK 库目录按架构选择：Jetson（aarch64）用 backend/libs_arm64
+# （Galaxy_Linux-arm64 SDK），x86_64 用 backend/libs。arm64 目录不存在时
+# 回退 libs（诊断/部分场景共用）。
+def _pick_local_libs(base_dir):
+    if platform.machine() in ("aarch64", "arm64"):
+        arm_dir = os.path.join(base_dir, "libs_arm64")
+        if os.path.isdir(arm_dir):
+            return arm_dir
+    return os.path.join(base_dir, "libs")
+
 if sys.platform == 'linux2' or sys.platform == 'linux':
     dll = None
-    # 优先从项目本地 SDK 库目录加载（backend/libs，无需 root 安装），
-    # 回退系统路径 /usr/lib（大恒官方安装器 Galaxy_camera.run 的目标位置）。
-    _local_libs = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "libs")
+    # 优先从项目本地 SDK 库目录加载（backend/libs / backend/libs_arm64，
+    # 无需 root 安装），回退系统路径 /usr/lib（大恒官方安装器
+    # Galaxy_camera.run 的目标位置）。
+    _local_libs = _pick_local_libs(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if os.path.isdir(_local_libs):
         # dlopen 依赖解析按 soname 走 ld 搜索路径：把本地 libs 目录注入
         # LD_LIBRARY_PATH（glibc 每次 dlopen 都重新解析该变量），
@@ -32,6 +44,9 @@ if sys.platform == 'linux2' or sys.platform == 'linux':
             return None
 
         _load("libgxlogutil.so", [os.path.join(_local_libs, "libgxlogutil.so")])
+        # 新版 SDK（arm64）日志库改名 liblog4cplus_gx.so；加载后
+        # libgxiapi.so 的该依赖才能经 LD_LIBRARY_PATH 解析
+        _load("liblog4cplus_gx.so", [os.path.join(_local_libs, "liblog4cplus_gx.so")])
         dll = _load("libgxiapi.so",
                     [os.path.join(_local_libs, "libgxiapi.so"), "/usr/lib/libgxiapi.so"])
         _load("libdxmediaproc.so", [os.path.join(_local_libs, "libdxmediaproc.so")])

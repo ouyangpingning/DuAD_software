@@ -6,11 +6,22 @@
 from ctypes import *
 import sys
 import os
+import platform
+
+def _pick_local_libs(base_dir):
+    if platform.machine() in ("aarch64", "arm64"):
+        arm_dir = os.path.join(base_dir, "libs_arm64")
+        if os.path.isdir(arm_dir):
+            return arm_dir
+    return os.path.join(base_dir, "libs")
 
 if sys.platform == 'linux2' or sys.platform == 'linux':
-    # 本地 SDK 库优先（backend/libs），兼容新旧库名（libdximageproc / libdxmediaproc）
-    _local_libs = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "libs")
+    # 本地 SDK 库优先（backend/libs / backend/libs_arm64），兼容新旧库名
+    # （libdximageproc / libdxmediaproc）。⚠ arm64 SDK 不带 DxImageProc
+    # 库（libgxiapi.so 也不导出 DxRaw8toRGB24），dx_raw8_to_rgb24 在
+    # gxipy 中不会被定义，camera.py 对 Bayer 帧走 numpy 去马赛克兜底。
+    _local_libs = _pick_local_libs(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     dll = None
     for name in ('libdximageproc.so', 'libdxmediaproc.so', 'libgxiapi.so'):
         for base in (_local_libs, '/usr/lib'):
