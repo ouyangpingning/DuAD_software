@@ -4,12 +4,13 @@ ONNX 推理模块（无 torch 依赖）— 联调用轻量推理。
 
 加载算法仓库（https://github.com/ouyangpingning/DuAD）的 export_onnx.py 导出的模型（优先 PCA 内联模式）：
     输入  image [B, 3, target_size, target_size] float32（ImageNet 归一化）
-    输出  heatmaps [B, H, W]（patch 级，未上采样）+ image_scores [B]
+    输出  heatmaps [B, 1, target_size, target_size]（上采样+高斯平滑后的 amap）
+          + image_scores [B] patch 级最大值
 
 预处理与训练 transform 一致（dataset/mvtec.py::get_transform）：
     Resize(target_size) + CenterCrop(target_size) + Normalize(ImageNet)
-后处理与 DINOv2AnomalyDetector._upsample_masks 一致：
-    双线性上采样到 target_size + 高斯平滑（sigma=4）
+后处理（双线性上采样到 target_size + 高斯平滑 sigma=4）已内化在 ONNX 图内，
+与 Predictor._upsample_masks 一致；部署端不再重复做，直接使用输出的 heatmaps。
 
 用法：
     det = ONNXAnomalyDetector("model.onnx", target_size=518)
@@ -296,11 +297,18 @@ class ONNXAnomalyDetector:
             heatmaps, scores = self.session.run(
                 None, {'image': x, 'mask': self._mask})
 
-        # ── 后处理：patch 级 → 上采样到 target_size + 高斯平滑 ──
-        hm = heatmaps[0]                      # [H, W]
-        hm_img = Image.fromarray(hm.astype(np.float32)).resize(
-            (self.target_size, self.target_size), Image.BILINEAR)
-        hm_smooth = _gaussian_blur(np.asarray(hm_img, dtype=np.float32), sigma=4.0)
+        # ── 后处理：模型已内化上采样 + 高斯平滑（见 export_onnx.py）──
+        # 新模型输出 heatmaps [B, 1, target, target]，已是上采样+模糊后的 amap，
+        # 直接作为 hm_smooth；旧模型输出 patch 级 [B, H_patch, W_patch]，向后
+        # 兼容仍在此上采样 + 高斯平滑。
+        hm = np.asarray(heatmaps[0], dtype=np.float32)
+        if hm.ndim == 3 and hm.shape[0] == 1:
+            hm_smooth = hm[0]                       # [target, target] 已内化后处理
+        else:
+            # 旧模型（patch 级）：双线性上采样到 target_size + numpy 高斯平滑
+            hm_img = Image.fromarray(hm).resize(
+                (self.target_size, self.target_size), Image.BILINEAR)
+            hm_smooth = _gaussian_blur(np.asarray(hm_img, dtype=np.float32), sigma=4.0)
 
         # ── 1. 像素级二值化（原始尺度，必须先于归一化 —— 契约 3.2）──
         anomaly_mask = self._pixel_mask(hm_smooth, pixel_threshold, refine_quantile)
