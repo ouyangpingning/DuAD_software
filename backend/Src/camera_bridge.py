@@ -230,10 +230,24 @@ class CameraBridge(QObject):
         prev_w = self._featureInt("GX_INT_WIDTH")
         prev_h = self._featureInt("GX_INT_HEIGHT")
 
-        ok = self.setFeature("GX_INT_OFFSET_X", x)
-        ok = self.setFeature("GX_INT_OFFSET_Y", y) and ok
-        ok = self.setFeature("GX_INT_WIDTH", w) and ok
-        ok = self.setFeature("GX_INT_HEIGHT", h) and ok
+        # 大恒相机约束：offset + 当前宽 <= 传感器最大宽。若相机当前是全幅
+        # （或新尺寸更小），先写 OFFSET 会因 offset+当前宽 > 最大宽而
+        # INVALID_ACCESS（ROI 带非零 offset 时实测 680+2448>2448 被拒）。
+        # 故按是否「缩小」自适应写序：
+        #   - 缩小/不变（新 W/H <= 当前）：先 WIDTH/HEIGHT 再 OFFSET
+        #     （缩小后 offset+新宽 <= 最大宽）
+        #   - 放大（恢复全幅）：先 OFFSET 再 WIDTH/HEIGHT（先把 offset 归位）
+        shrink = (w <= prev_w) and (h <= prev_h)
+        if shrink:
+            ok = self.setFeature("GX_INT_WIDTH", w)
+            ok = self.setFeature("GX_INT_HEIGHT", h) and ok
+            ok = self.setFeature("GX_INT_OFFSET_X", x) and ok
+            ok = self.setFeature("GX_INT_OFFSET_Y", y) and ok
+        else:
+            ok = self.setFeature("GX_INT_OFFSET_X", x)
+            ok = self.setFeature("GX_INT_OFFSET_Y", y) and ok
+            ok = self.setFeature("GX_INT_WIDTH", w) and ok
+            ok = self.setFeature("GX_INT_HEIGHT", h) and ok
         if ok:
             self._refreshGeometry()
             actual_w = self._featureInt("GX_INT_WIDTH")
@@ -311,6 +325,8 @@ class CameraBridge(QObject):
         if w < 8 or h < 2:
             self.cameraError.emit(f"ROI 尺寸过小（{w}×{h}），请重新框选")
             return
+        print(f"[CameraBridge] applyRoi 注入: in(n={nx:.3f},{ny:.3f},{nw:.3f},{nh:.3f}) "
+              f"cur={cur_w}x{cur_h}+({base_x},{base_y}) -> pixel({x},{y},{w}x{h})")
 
         # 首次 ROI 前记录当前几何，恢复全幅时回到这个“设置值”，
         # 而不是永远回到传感器最大分辨率。
