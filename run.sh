@@ -12,6 +12,16 @@ if [ ! -f "$MAIN_PY" ]; then
     exit 1
 fi
 
+# 大分辨率（2448×2048）采集需要足够的 USB 缓冲内存：
+# usbfs_memory_mb 过小（内核默认 16MB）时大恒 U3VTL 会以 -1010 拒绝启动采集。
+if [ -r /sys/module/usbcore/parameters/usbfs_memory_mb ]; then
+    _usbfs="$(cat /sys/module/usbcore/parameters/usbfs_memory_mb 2>/dev/null || echo 0)"
+    if [ "${_usbfs:-0}" -lt 64 ]; then
+        echo "[run] ⚠️ 内核 USB 缓冲内存上限仅 ${_usbfs}MB（全幅 2448×2048 可能无法启动采集）。" >&2
+        echo "[run]    请执行: sudo bash $ROOT_DIR/scripts/set_usbfs.sh" >&2
+    fi
+fi
+
 if [ -x "$VENV_PY" ]; then
     exec "$VENV_PY" -u "$MAIN_PY" "$@"
 fi

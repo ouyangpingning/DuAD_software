@@ -68,6 +68,13 @@ if [ -f "$RULES" ]; then
     fi
 fi
 
+# ── 5. 提升内核 USB 缓冲上限（全幅 2448×2048 采集必需）──────
+# 内核默认 16MB，U3VTL 分配大负载缓冲环可能失败（-1010 开采失败，
+# 大恒官方 FAQ 解法 = SetUSBStack.sh）。无 sudo 权限时仅打印提示，不中断。
+if [ -f "$ROOT_DIR/scripts/set_usbfs.sh" ]; then
+    bash "$ROOT_DIR/scripts/set_usbfs.sh" >/dev/null 2>&1 || true
+fi
+
 echo
 echo "═══════════════════════════════════════════════════════"
 echo " 安装完成（默认 CPU 推理）。"

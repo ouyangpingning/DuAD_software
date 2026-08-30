@@ -32,6 +32,9 @@ bash setup_env.sh                          # 自动检测 NVIDIA 驱动 → 装 
 sudo cp backend/config/99-galaxy-dev.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
 
+# 提升内核 USB 缓冲上限（2448×2048 全幅采集必需；不提升则 U3VTL 报 -1010 启动失败）
+sudo bash scripts/set_usbfs.sh
+
 source DuAD_SoftwareContent/pyqml/bin/activate
 python DuAD_SoftwareContent/main.py
 ```

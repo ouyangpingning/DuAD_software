@@ -111,10 +111,11 @@ DUAD_PREFER_TRT=1 ~/micromamba/envs/duad/bin/python -u backend/Src/onnx_infer.py
   1. **分辨率/ROI 变更后流缓冲未刷新**（板子会遇到的场景）：负载从半幅(1224×1024)恢复全幅(2448×2048)
      时 START 被拒。**修复**：`CameraBridge.startGather` 失败时自动「重注册采集回调」重建
      流缓冲并重试一次（板端验证有效）。
-  2. **x86 Linux U3VTL 传输层负载上限**（开发机专属）：GxU3VTL 对 >~1.74MB 单帧负载
-     拒绝启动（全幅 2448×2048 无法采集，1224×1024 正常；与帧率无关，1fps 也一样；
-     重连/物理拔插无效）。已核实**最新官方 x86 SDK（2.6.2606，lib 2.0.2604.8241）与
-     仓库内置完全一致**，属上游 x86 Linux U3VTL 行为，**不存在换新 SDK 的修复路径**；
-     arm64（2.4.2507）与 Windows 传输层均无此问题。应用侧：x86+超大负载时
-     `CameraBridge.startGather` 直接给出明确中文提示（不再无意义重试）。
+  2. **内核 usbfs_memory_mb=16MB 过小**（开发机 x86 全幅必现；大恒官方 FAQ
+     「USB3 相机开采失败」的根因与解法）：U3VTL 分配缓冲环时被 USB 缓冲内存上限
+     卡住 → -1010。**修复**：`sudo bash scripts/set_usbfs.sh`
+     （等价官方 `SetUSBStack.sh`：`echo 1000 > /sys/module/usbcore/parameters/usbfs_memory_mb`，
+     重启失效，可写 GRUB 参数 `usbcore.usbfs_memory_mb=1000` 持久化）。
+     arm64 单相机在 16MB 下恰好够用（板子一直正常），多相机场景同样需要提升。
+     应用侧：-1010+大负载时直接提示执行 `set_usbfs.sh`（不再无意义重试）。
 - **诊断**：`gather_start` 失败现在会打印原始错误串（`[camera] ACQUISITION_START 失败 — code=-1010 …`）。

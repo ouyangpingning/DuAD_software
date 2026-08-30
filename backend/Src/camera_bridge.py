@@ -16,7 +16,6 @@ CameraBridge — QML 与后端相机驱动的桥接层。
     - 采集会话（startGather/stopGather）由 main.py 根据 AppBridge.collectingOwner
       仲裁后驱动（本桥只提供原语，不自行决策）
 """
-import platform
 import time
 
 import numpy as np
@@ -506,15 +505,15 @@ class CameraBridge(QObject):
             if not ok:
                 err_code = getattr(self._device, "last_start_error", 0)
                 payload = self._imageWidth * self._imageHeight
-                is_arm = platform.machine() in ("aarch64", "arm64")
-                # x86 Linux SDK 的 U3VTL 传输层对单帧负载 >~1.74MB 拒绝启动
-                # （-1010，已验证最新官方 2.6.2606 同样存在；与帧率无关）。
-                # 这是上游 SDK 限制，重注册回调也救不了 → 直接给出明确提示。
-                if err_code == -1010 and not is_arm and payload > 1700 * 1024:
+                # 大恒官方 FAQ：USB3 相机开采失败 = 内核 usbfs_memory_mb 过小
+                # （默认 16MB），U3VTL 无法为大负载分配缓冲环 → -1010
+                # "TL Error: Unable to start acquisition"。大分辨率直接给出
+                # 可执行解法（等价的官方 SetUSBStack.sh），不做无意义重试。
+                if err_code == -1010 and payload > 1700 * 1024:
                     self.cameraError.emit(
-                        "当前 x86 Linux SDK 的 USB3 传输层不支持全幅 2448×2048 启动"
-                        "（单帧负载上限 ~1.7MB，与帧率无关）。请改用 Jetson(arm64) "
-                        "采集全幅，或在此机器上切换到 1224×1024。")
+                        "大分辨率启动失败：内核 USB 缓冲内存上限（usbfs_memory_mb=16MB）"
+                        "不足。请执行 sudo bash scripts/set_usbfs.sh 提升后重试"
+                        "（大恒官方 FAQ 解法，等价 SetUSBStack.sh）。")
                     return False
                 # ── 自愈：重注册回调重建流缓冲后重试一次 ──
                 print("[CameraBridge] 采集启动失败，重注册采集回调重建流缓冲后重试...")

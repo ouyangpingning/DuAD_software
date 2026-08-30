@@ -19,6 +19,15 @@ if [ ! -x "$PY" ]; then
     exit 1
 fi
 
+# 大分辨率（2448×2048）采集需要足够的 USB 缓冲内存：usbfs_memory_mb 过小
+# （内核默认 16MB，arm64 单相机恰好够用）时 U3VTL 可能以 -1010 拒绝启动采集。
+if [ -r /sys/module/usbcore/parameters/usbfs_memory_mb ]; then
+    _usbfs="$(cat /sys/module/usbcore/parameters/usbfs_memory_mb 2>/dev/null || echo 0)"
+    if [ "${_usbfs:-0}" -lt 64 ]; then
+        echo "[run] ⚠️ 内核 USB 缓冲内存上限仅 ${_usbfs}MB。$ROOT_DIR/scripts/set_usbfs.sh 可提升（需 sudo）。" >&2
+    fi
+fi
+
 # 无显示时回退到本地桌面 :0（SSH 会话中直接弹出到桌面）
 if [ -z "${DISPLAY:-}" ] && [ -S /tmp/.X11-unix/X0 ]; then
     export DISPLAY=:0
