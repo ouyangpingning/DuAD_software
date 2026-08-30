@@ -57,6 +57,7 @@ tar -C "$ROOT_DIR" \
     --exclude='.git' \
     --exclude='dist' \
     --exclude='DuAD_SoftwareContent/pyqml' \
+    --exclude='DuAD_SoftwareContent/pyqml_win' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     --exclude='*.pyo' \
