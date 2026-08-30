@@ -1,5 +1,9 @@
 # Jetson（ARM64）部署
 
+> **当前已升级至 JetPack 7.2（TRT 10.13 / CUDA 13）**：TRT 数值错误已修复，`run_jetson.sh` 默认
+> `DUAD_PREFER_TRT=1` 使用 TRT。升级过程与联调问题清单见
+> [16-Jetson问题与修复.md](16-Jetson问题与修复.md)。以下为最初 JetPack 6.2 环境的部署记录与差异说明。
+
 在 **NVIDIA Jetson Orin NX**（JetPack 6.2 / L4T r36.5.2 / Ubuntu 22.04 / CUDA 12.6 /
 TensorRT 10.3 / cuDNN 9.3）上运行 DuAD 上位机，已验证相机采集与 GPU 推理全链路。
 
@@ -73,18 +77,6 @@ bash run_jetson.sh                     # SSH 下自动弹到桌面 :0
 # GPU 推理自检（应打印三个 provider）
 ~/micromamba/envs/duad/bin/python -c "import onnxruntime as ort; print(ort.get_available_providers())"
 
-# 单图推理自检（bottle 模型 + 测试图，应打印 CUDA provider 与 score）
-~/micromamba/envs/duad/bin/python -u backend/Src/onnx_infer.py \
-    models/bottle_k4_s0_full.onnx models/000.png
-
-# 无相机冒烟（6 个套件，全部 PASS）
-QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_camera_bridge.py
-QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_camera_link.py
-QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_detect_pipeline.py
-QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_collect_pipeline.py
-QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_light_bridge.py
-QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_mqtt_bridge.py
-
 # 相机诊断
 ~/micromamba/envs/duad/bin/python scripts/diag_camera.py
 ```
@@ -102,8 +94,9 @@ QT_QPA_PLATFORM=offscreen ~/micromamba/envs/duad/bin/python -u tests/test_mqtt_b
     （x86 仍 TRT 优先；设环境变量 `DUAD_PREFER_TRT=1` 可强制 TRT 供验证）。
   - 实测 CUDA EP **366ms/帧**（新模型后处理内化，比旧模型 690ms 快 1.9 倍），
     数值与训练侧 PyTorch 一致（000.png score 1.7789，旧模型 1.7799）。
-  - 后续如升级 JetPack（更新的 TRT 版本修复内核问题）可重新验证 TRT：
-    用 `DUAD_PREFER_TRT=1` + 对比 CUDA 分数一致后再改默认。
+  - ✅ **已解决**：升级 JetPack 7.2（TRT 10.13）后 TRT 数值正确（差 ~0.001）、
+    ~140–190ms/帧，`run_jetson.sh` 已默认 `DUAD_PREFER_TRT=1`。详见
+    [16-Jetson问题与修复.md](16-Jetson问题与修复.md) 第 1、2 条。
 - **fp16 不可用**：onnxconverter-common 自动转换报 Cast 类型不一致（新模型
   无 If 后仍失败）；trtexec --fp16 引擎数值溢出，勿用。
 - **像素格式**：Bayer8（去马赛克走自实现 C）与 Mono8 正常；RGB8/BGR8 直通；

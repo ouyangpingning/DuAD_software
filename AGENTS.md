@@ -11,7 +11,7 @@ source DuAD_SoftwareContent/pyqml/bin/activate
 python DuAD_SoftwareContent/main.py
 ```
 
-Jetson（aarch64 / JetPack 6.2，详见 `docs/Jetson部署.md`）:
+Jetson（aarch64 / JetPack 7.2，TRT 可用；部署见 `docs/Jetson部署.md`、问题修复见 `docs/16-Jetson问题与修复.md`）:
 
 ```bash
 bash run_jetson.sh      # 环境在 ~/micromamba/envs/duad（conda-forge PySide6 + NVIDIA Jetson ORT-GPU）
@@ -48,7 +48,7 @@ pyqml_win\Scripts\python.exe -u main.py
   - ⚠️ **训练/导出/标定代码不在此仓库**：原 `backend/alg/`（torch 训练 `main.py`/`DuAD.py`、`deploy/export_onnx.py`、`calibrate_threshold.py`/`calibrate_scale.py`、`threshold_utils.py` 等）与算法仓库 https://github.com/ouyangpingning/DuAD 相同，已从本上位机仓库删除；需要训练/导出/标定请用算法仓库。
   - ⚠️ **加载前提**：`pyqml/bin/activate` 已注入 `LD_LIBRARY_PATH=backend/libs`（glibc dlopen 依赖解析只认进程启动时的 ld 路径，运行时设置无效）；activate 脚本里 VIRTUAL_ENV 是改名前的硬编码旧路径，**不要依赖它**
   - **Windows 相机 SDK（自包含）**：Windows SDK 已集成到项目 `backend/libs_win/`（与 Linux 的 `libs/` 平行，不互拆），保持官方目录结构：`APIDll/Win64/`（GxIAPI.dll、DxImageProc.dll 及 VC 运行库）、`GenICam/bin/Win64_x64/`（GenApi 等 GenICam 运行时）、`GenTL/Win64/`（.cti 传输层）。`gxwrapper.py`/`dxwrapper.py` Windows 分支已改为**本地优先**：检测到 `libs_win/` 就自动 `add_dll_directory` + 设置环境变量，**无需手动设置任何环境变量。关键：GXInitLib 找 GenTL 传输层走的是 `GENICAM_GENTL64_PATH`（大恒安装器设的变量名，非 `GX_` 前缀），缺它 gx_init_lib 返回 -1、报 “Failed to get GenTL path”。gxwrapper 已在本地优先分支自动设 `GENICAM_GENTL64_PATH` 指向 `libs_win/GenTL/Win64`。
-- `tests/` — 冒烟回归脚本（offscreen + QTest，**防 /tmp 清理丢失**）：`test_camera_bridge.py`（无相机路径）、`test_camera_link.py`（mock 相机全链路）、`test_detect_pipeline.py`（实时检测 provider/队列/分数链路）、`test_collect_pipeline.py`（采集保存节流写盘）、`test_light_bridge.py`（光源协议/串口指令）、`test_mqtt_bridge.py`（MQTT 登录/TLS/发布订阅）、`fake_bridges.py`（共享 fake）
+- `scripts/` — 翻译/诊断/打包：`gen_translations.py`、`diag_camera.py`、`diag_bayer.py`、`package_win.py`+`DuAD_win.spec`（PyInstaller）、`package.sh` 等（冒烟测试脚本 `tests/` 已于仓库清理时移除）
 - `scripts/gen_translations.py` + `translations/` — i18n 工作流（见下）
 - `scripts/diag_camera.py` — 相机现场诊断：sysfs 速度/设备节点 → SDK init/枚举 → 像素格式 + 吞吐量限制特征（7.2fps 与黄蓝互换问题定位）
 - `scripts/diag_bayer.py` — Bayer 排列逐项诊断：抓一帧用 RG/GB/GR/BG 各转一张对比图 + 打印 pixel_format/color_filter（黄蓝互换定位，Windows 需用 BG 的结论来源）
@@ -99,7 +99,6 @@ DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.
   - `onnx_infer.py` 在 aarch64 已启用 **TRT 引擎缓存**（`~/.cache/duad_trt_engine`）：首次构建 ~43s 落盘，之后启动 ~1.3s；x86 保持最小 provider_options 不回退 CPU。
   - 旧模型（含 If）在 ORT 1.24 上 TRT 分区抛异常，已有逐级降级 TRT→CUDA→CPU 兜底，任何模型不崩。
 - 相机实测：MER2-501-79U3C-L 枚举/打开/回调/67fps 采集正常；`/etc/udev/rules.d/99-galaxy-dev.rules` 必须装且重新插拔（否则枚举 0 台）；log4cplus 的 `/etc/Galaxy/cfg` 告警无害。
-- 测试脚本 `tests/` 里 PROJECT_ROOT 已改为按 `DUAD_PROJECT_ROOT` 环境变量回退到仓库根，不要再写死开发机路径。
 
 ## i18n：新增 qsTr 文本必做（否则英文/繁体缺翻译）
 
