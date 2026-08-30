@@ -451,8 +451,22 @@ class CameraDevice(QObject):
             print("[camera] 读取目标帧率失败，使用相机当前默认值")
 
         ok = self.set_remote_feature("GX_COMMAND_ACQUISITION_START", "command", None)
+        if not ok:
+            # 失败时带出传输层（U3VTL）原始错误，便于定位：
+            # 常见 -1010 "TL Error: Unable to start acquisition"（负载/流状态问题）
+            print(f"[camera] ACQUISITION_START 失败 — {self._last_error_str()}")
         self.is_gathering = ok
         return ok
+
+    def _last_error_str(self) -> str:
+        """读取 SDK 上次错误（gx_get_last_error）的文本，失败返回空。"""
+        try:
+            from gxipy import gx_get_last_error
+            ret, code, msg = gx_get_last_error(512)
+            msg = (msg or "").strip()
+            return f"code={code} {msg}" if msg else f"code={code}"
+        except Exception as e:
+            return f"(get_last_error 不可用: {e})"
 
     def _disable_throughput_limit(self):
         """关闭相机 USB 链路吞吐量限制。

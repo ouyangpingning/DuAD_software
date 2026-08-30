@@ -103,3 +103,16 @@ DUAD_PREFER_TRT=1 ~/micromamba/envs/duad/bin/python -u backend/Src/onnx_infer.py
 # 相机采集与分辨率链路
 ~/micromamba/envs/duad/bin/python scripts/diag_camera.py
 ```
+## 15. 采集启动失败（TL -1010 "Unable to start acquisition"）
+
+- **现象**：`开始采集` 无反应，日志 `[CameraBridge] 相机错误: 相机采集启动失败`；
+  原始错误为 U3VTL 传输层 -1010（`gx_get_last_error`：`TL Error: Unable to start acquisition`）。
+- **两类根因**（务必区分）：
+  1. **分辨率/ROI 变更后流缓冲未刷新**（板子会遇到的场景）：负载从半幅(1224×1024)恢复全幅(2448×2048)
+     时 START 被拒。**修复**：`CameraBridge.startGather` 失败时自动「重注册采集回调」重建
+     流缓冲并重试一次（板端验证有效）。
+  2. **x86 SDK 传输层负载上限**（开发机专属）：仓库自带 `backend/libs/` 的 GxU3VTL 对
+     >~1.7MB 单帧负载拒绝启动（全幅 2448×2048 无法采集，1224×1024 正常；与帧率无关，
+     1fps 也一样）。这是**该版本 x86 SDK 的限制**，不是应用 bug：全幅采集请用板子
+     （arm64 SDK 2.4.2507.8231 正常，实测 79fps）或更换更新的 Linux x86 SDK。
+- **诊断**：`gather_start` 失败现在会打印原始错误串（`[camera] ACQUISITION_START 失败 — code=-1010 …`）。

@@ -22,7 +22,8 @@ import numpy as np
 from PySide6.QtCore import QObject, Slot, Signal, Property, QTimer
 from PySide6.QtGui import QImage
 
-from Src.camera import CameraManager, CameraDevice, adjust_to_step
+from Src.camera import CameraManager, CameraDevice, adjust_to_step, \
+    gx_unregister_capture_callback, gx_register_capture_callback
 from Src.frame_provider import CameraFrameProvider
 
 
@@ -487,7 +488,12 @@ class CameraBridge(QObject):
     # ── 采集（原语，由 main.py 的 AppBridge 采集仲裁方驱动）──────
     @Slot(result=bool)
     def startGather(self) -> bool:
-        """开始连续采集。成功返回 True；相机未连接/采集启动失败返回 False。"""
+        """开始连续采集。成功返回 True；相机未连接/采集启动失败返回 False。
+
+        失败自愈：大恒 U3VTL 在分辨率/ROI 变更（尤其负载从半幅恢复全幅）后，
+        可能因流缓冲未刷新报 -1010 "TL Error: Unable to start acquisition"。
+        首次失败时自动「重注册采集回调」重建流缓冲并重试一次（板端已验证可行）。
+        """
         if self._device is None:
             print("[CameraBridge] startGather 失败: 相机未连接")
             return False
@@ -496,14 +502,29 @@ class CameraBridge(QObject):
             return True
         try:
             ok = self._device.gather_start()
-            if ok:
-                self._gathering = True
-                self._restartAfterGeometry = False
-                self.gatheringChanged.emit()
-                print("[CameraBridge] 采集已启动")
-            else:
-                self.cameraError.emit("相机采集启动失败")
-            return ok
+            if not ok:
+                # ── 自愈：重注册回调重建流缓冲后重试一次 ──
+                print("[CameraBridge] 采集启动失败，重注册采集回调重建流缓冲后重试...")
+                dev = self._device
+                try:
+                    gx_unregister_capture_callback(dev.cam)
+                    time.sleep(0.2)
+                    gx_register_capture_callback(dev.cam, dev.callback)
+                    time.sleep(0.3)
+                except Exception as e:
+                    print(f"[CameraBridge] 重注册回调异常: {e}")
+                ok = self._device.gather_start()
+                if not ok:
+                    self.cameraError.emit(
+                        "相机采集启动失败（传输层拒绝，已自动重试1次；"
+                        "若持续出现请查看日志中的 ACQUISITION_START 错误码）")
+                    return False
+                print("[CameraBridge] 重注册后采集启动成功")
+            self._gathering = True
+            self._restartAfterGeometry = False
+            self.gatheringChanged.emit()
+            print("[CameraBridge] 采集已启动")
+            return True
         except Exception as e:
             print(f"[CameraBridge] startGather 异常: {e}")
             self.cameraError.emit(f"启动采集失败: {e}")
