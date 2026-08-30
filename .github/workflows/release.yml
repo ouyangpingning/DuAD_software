@@ -26,6 +26,10 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           bash scripts/package.sh "$VERSION"
+          bash scripts/package_jetson.sh "$VERSION"
+          # 两个打包脚本各自覆写 dist/SHA256SUMS，最后统一重新生成，
+          # 保证校验和覆盖全部产物（Linux x64 ×2 + Jetson aarch64 ×1）
+          cd dist && rm -f SHA256SUMS && sha256sum *.tar.* > SHA256SUMS
 
       - name: Publish GitHub Release
         env:
@@ -34,6 +38,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             dist/*_Installer.tar.gz \
             dist/*_CPU-Portable.tar.zst \
+            dist/*_Jetson_aarch64.tar.gz \
             dist/SHA256SUMS \
             --target "$GITHUB_SHA" \
             --title "$GITHUB_REF_NAME" \
