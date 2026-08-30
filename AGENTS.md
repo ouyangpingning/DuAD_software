@@ -92,7 +92,12 @@ DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.
 - **环境不是 pyqml venv**：Jetson 用 `~/micromamba/envs/duad`（conda-forge PySide6 6.11.2 + pip `onnxruntime_gpu==1.24.0`（NVIDIA 索引 `pypi.jetson-ai-lab.io/jp6/cu126`，cp310）+ numpy 2.2.6）。pip 的 PySide6 aarch64 wheel 是 manylinux_2_39（需 glibc 2.39），Jetson 只有 2.35 **装不了**；conda 自带 glib 2.88 解决 g_once_init_enter_pointer。`pyqml/` 目录不要建（main.py 的 venv 自检会检测到并 execv 过去）。
 - **相机 SDK 按架构选库**：`gxwrapper.py`/`dxwrapper.py`/`main.py`/`env.py` 在 `platform.machine()` 为 aarch64 时用 `backend/libs_arm64/`（Galaxy_Linux-arm64 2.4.2507.8231），否则 `backend/libs/`。改加载逻辑时保持这个分支。
 - **arm64 SDK 没有 DxImageProc**：libgxiapi.so 不导出 DxRaw8toRGB24 → gxipy 里 `dx_raw8_to_rgb24` 不存在。camera.py 的 Bayer 路径优先走 `libs_arm64/libbayer_demosaic.so`（自编 C，仅支持偶数尺寸），失败回退 `_bayer_demosaic_numpy`（含奇数尺寸兜底）。两者与 DxImageProc NEIGHBOUR 双线性语义一致（边缘复制），有逐像素验证测试。改 bayer 逻辑时必须同步改 .c 重编译：`gcc -shared -fPIC -O2 -o backend/libs_arm64/libbayer_demosaic.so backend/libs_arm64/bayer_demosaic.c`。
-- **Jetson 上不要用 TRT EP**（JetPack 6.2 自带 TRT 10.3.0.30 对 DINOv2 类模型数值错误）：新模型（无 If/CumSum，TRT 结构兼容）fp32 引擎分数恒 1e10（门控误触发）、fp16 引擎溢出 65504，`--noTF32`/builder level 0 无效，`trtexec` 直建同样错误 → 是 TRT 内核问题。`onnx_infer.py` 已在 aarch64 默认 `CUDAExecutionProvider` 优先（x86 仍 TRT 优先；`DUAD_PREFER_TRT=1` 覆盖）。CUDA 实测 366ms/帧、数值与训练侧一致。若升级 JetPack 换新 TRT 后再用该变量重新验证。旧模型（含 If）在 ORT 1.24 上 TRT 分区抛异常，已有逐级降级 TRT→CUDA→CPU 兜底，任何模型不崩。
+- **Jetson 上 TRT 依 JetPack 版本而定**：`onnx_infer.py` 在 aarch64 默认优先 `CUDAExecutionProvider`（x86 仍 TRT 优先；`DUAD_PREFER_TRT=1` 覆盖）。
+  - **JetPack 6.2（TRT 10.3.0.30）**：TRT 对 DINOv2 数值错误（新模型 fp32 分数恒 1e10、fp16 溢出 65504，`--noTF32`/builder level 0 无效，`trtexec` 直建同样错误 → TRT 内核问题），**勿用 TRT**，走 CUDA（实测 366ms/帧、数值与训练侧一致）。
+  - **JetPack 7.2+（TRT 10.13+）**：TRT 数值**正确**（zip 实测 缺陷/好图 与 CUDA 分数差 ~0.001、无哨兵，TRT ~140~190ms/帧）。开 `DUAD_PREFER_TRT=1` 即可用（`run_jetson.sh` 已默认设）。
+  - ⚠️ **JP7.2 是 CUDA 13**：官方索引 `pypi.jetson-ai-lab.io` 无 JP7/CUDA13 的 onnxruntime（只有 jp6/cu12x）。用 onnxruntime-gpu 1.24（为 CUDA 12.6 编）需补装 `nvidia-cublas-cu12 / nvidia-cudnn-cu12 / nvidia-cuda-runtime-cu12 / nvidia-cufft-cu12 / nvidia-curand-cu12 / nvidia-nvrtc-cu12`，并把 `site-packages/nvidia/*/lib` 注入 `LD_LIBRARY_PATH`（main.py 已自动 `nvidia/*/lib` glob + 重启进程；不装则 CUDA/TRT EP 加载失败回退 CPU）。这是“拼装”方案，等官方出 JP7 包后再换正式版。
+  - `onnx_infer.py` 在 aarch64 已启用 **TRT 引擎缓存**（`~/.cache/duad_trt_engine`）：首次构建 ~43s 落盘，之后启动 ~1.3s；x86 保持最小 provider_options 不回退 CPU。
+  - 旧模型（含 If）在 ORT 1.24 上 TRT 分区抛异常，已有逐级降级 TRT→CUDA→CPU 兜底，任何模型不崩。
 - 相机实测：MER2-501-79U3C-L 枚举/打开/回调/67fps 采集正常；`/etc/udev/rules.d/99-galaxy-dev.rules` 必须装且重新插拔（否则枚举 0 台）；log4cplus 的 `/etc/Galaxy/cfg` 告警无害。
 - 测试脚本 `tests/` 里 PROJECT_ROOT 已改为按 `DUAD_PROJECT_ROOT` 环境变量回退到仓库根，不要再写死开发机路径。
 
