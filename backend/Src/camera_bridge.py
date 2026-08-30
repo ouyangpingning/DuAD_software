@@ -356,39 +356,66 @@ class CameraBridge(QObject):
             if was_gathering and self._device is not None:
                 self._scheduleGatherRestart()
 
-    @Slot(int, int)
+    @Slot(int, int, result=bool)
     def applyResolution(self, w: int, h: int) -> bool:
-        """应用相机设置的分辨率（居中裁剪写 WIDTH/HEIGHT+OFFSET），
-        并记录为「设定分辨率」：之后 ROI 的"恢复全幅"回到这里，
-        而不是传感器最大分辨率（避免采集恢复后跳到 2448 导致推理变慢）。
+        """应用相机设置的分辨率（预设 2448×2048 全幅 / 1224×1024 半幅）。
+
+        与老项目（pyqt5 的 RESOLUTION_MAP + GX_INT_BINNING_*）一致，分辨率
+        切换走 **BINNING**：相邻 N×N 像素合成输出 1 像素，输出尺寸 = 传感器/N，
+        但视野(FOV)保持全幅不变——画面只是变模糊（省带宽、推理更快）。
+
+        不能写 OFFSET+WIDTH 窗口裁剪：那只会读出传感器中间一块，画面被放大
+        （“分辨率一改屏幕就缩放”，两侧视野丢失）——老项目实测 binning 才是
+        用户期望的“变糊但不缩放”。
+
+        成功后记录为「设定分辨率」（含 binning 状态）：ROI 的"恢复全幅"
+        回到它，而不是传感器最大分辨率（避免采集恢复后跳到 2448 推理变慢）。
         """
         if self._device is None:
             return False
-        max_w = self._featureInt("GX_INT_WIDTH_MAX")
-        max_h = self._featureInt("GX_INT_HEIGHT_MAX")
-        if max_w <= 0:
-            max_w = 2448
-        if max_h <= 0:
-            max_h = 2048
-        w = max(8, min(w, (max_w // 8) * 8))
-        h = max(2, min(h, (max_h // 2) * 2))
-        # 居中裁剪 offset（8/2 步进）
-        x = max(0, ((max_w - w) // 2 // 8) * 8)
-        y = max(0, ((max_h - h) // 2 // 2) * 2)
+        # sensor 尺寸与 binning 无关，binning 系数据此推算（预设 2448→1、1224→2）
+        sensor_w = self._featureInt("GX_INT_SENSOR_WIDTH")
+        sensor_h = self._featureInt("GX_INT_SENSOR_HEIGHT")
+        if sensor_w <= 0:
+            sensor_w = 2448
+        if sensor_h <= 0:
+            sensor_h = 2048
+        w = max(8, min(int(w), sensor_w))
+        h = max(2, min(int(h), sensor_h))
+        bx = max(1, round(sensor_w / float(w)))
+        by = max(1, round(sensor_h / float(h)))
+        prev_bx = self.getFeature("GX_INT_BINNING_HORIZONTAL")
+        prev_by = self.getFeature("GX_INT_BINNING_VERTICAL")
 
         was_gathering = self._gathering
         if was_gathering and self._device is not None:
             self.stopGather()
             self._waitGatherStopped()
             self._restartAfterGeometry = True
+        out_w = out_h = 0
         try:
-            ok = self._writeGeometry(x, y, w, h, "分辨率应用")
+            ok = self.setFeature("GX_INT_BINNING_HORIZONTAL", bx)
+            ok = self.setFeature("GX_INT_BINNING_VERTICAL", by) and ok
+            if ok:
+                # 设完 binning 后 WidthMax 动态更新（bin=2 → 1224），据此钳定输出
+                bin_max_w = self._featureInt("GX_INT_WIDTH_MAX")
+                bin_max_h = self._featureInt("GX_INT_HEIGHT_MAX")
+                out_w = max(8, min(w, bin_max_w if bin_max_w > 0 else w))
+                out_h = max(2, min(h, bin_max_h if bin_max_h > 0 else h))
+                # offset 恒为 0（binning 覆盖全幅），WIDTH/HEIGHT 写到 binning 后最大
+                ok = self._writeGeometry(0, 0, out_w, out_h, "分辨率应用")
         finally:
             if was_gathering and self._device is not None:
                 self._scheduleGatherRestart()
         if ok:
             # 记录为设定分辨率：ROI 恢复全幅回到它
-            self._roiBaseline = {"x": x, "y": y, "w": w, "h": h}
+            self._roiBaseline = {"x": 0, "y": 0, "w": out_w, "h": out_h}
+        else:
+            # 尽量恢复原 binning，避免相机停在半写入状态
+            if prev_bx > 0:
+                self.setFeature("GX_INT_BINNING_HORIZONTAL", int(prev_bx))
+            if prev_by > 0:
+                self.setFeature("GX_INT_BINNING_VERTICAL", int(prev_by))
         return ok
 
     @Slot()

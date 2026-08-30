@@ -117,7 +117,8 @@ Item {
         if (gv >= 0) root.gammaValue = gv
     }
 
-    // 应用分辨率预设：交给 CameraBridge.applyResolution 做居中裁剪 + 步进对齐，
+    // 应用分辨率预设：交给 CameraBridge.applyResolution 走 BINNING
+    // （与老项目 pyqt5 一致：整幅视野、画面变糊、屏幕不缩放），
     // 并把该分辨率记录为「设定分辨率」（ROI 恢复全幅时回到它，而非传感器最大）。
     function _applyResolution(index) {
         var w = _resPresets[index][0], h = _resPresets[index][1]
@@ -169,12 +170,12 @@ Item {
                 }
             SectionHeader { text: qsTr("图像") }
 
-            // 分辨率预设可调（写入相机：OFFSET 居中 + WIDTH/HEIGHT，8/2 步进对齐）
+            // 分辨率预设可调（BINNING 切换：整幅视野不变，仅变模糊）
             ComboRow {
                 label: qsTr("分辨率")
                 model: ["2448 × 2048", "1224 × 1024"]
                 currentIndex: root._resIndex
-                onActivated: root._applyResolution(index)
+                onActivated: function(index) { root._applyResolution(index) }
             }
             ComboRow {
                 label: qsTr("像素格式")
@@ -182,7 +183,7 @@ Item {
                 currentIndex: _pixelIndex(root.pixelFormat)
                 // 写入相机（枚举 int 值）；采集回调按帧内实际 pixel_format
                 // 选择对应的 DxRaw8toRGB24 Bayer 排列，不再写死 BG。
-                onActivated: {
+                onActivated: function(index) {
                     root.pixelFormat = model[index]
                     var ids = [0x1080009, 0x108000A, 0x1080008, 0x108000B, 0x1080001]
                     CameraBridge.setFeature("GX_ENUM_PIXEL_FORMAT", ids[index])
@@ -210,7 +211,7 @@ Item {
                 model: ["SRGB", "User"]
                 currentIndex: root.gammaMode === "SRGB" ? 0 : 1
                 enabled: root.gammaEnabled
-                onActivated: {
+                onActivated: function(index) {
                     root.gammaMode = model[index]
                     CameraBridge.setFeature("GX_ENUM_GAMMA_MODE", index)  // 0=SRGB 1=User
                 }
@@ -267,7 +268,7 @@ Item {
                 label: qsTr("采集模式")
                 model: ["Continuous", "SingleFrame"]
                 currentIndex: root.acqMode === "Continuous" ? 0 : 1
-                onActivated: {
+                onActivated: function(index) {
                     root.acqMode = model[index]
                     // 大恒枚举: 0=SingleFrame 2=Continuous
                     CameraBridge.setFeature("GX_ENUM_ACQUISITION_MODE", index === 0 ? 2 : 0)
