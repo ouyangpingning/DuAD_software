@@ -66,6 +66,7 @@ bash run_jetson.sh        # 环境 ~/micromamba/envs/duad（conda-forge PySide6 
 - JP7.2（CUDA 13）无官方 ORT 包，需 cu12 pip 运行库补丁（见文档）。
 - 相机权限：`sudo cp backend/config/99-galaxy-dev.rules /etc/udev/rules.d/` + reload + 重新插拔。
 - 像素格式请选 8bit（`BayerRG8`/`Mono8`）。
+- **打包分发给别的板卡**：`bash scripts/package_jetson.sh 1.0.0` → `dist/DuAD_1.0.0_Jetson_aarch64.tar.gz`（默认 CPU 推理：`bash install.sh` → `bash run_jetson.sh`；GPU 加速可选 `bash enable_gpu.sh` 加载 ONNX(CUDA)/TRT 依赖，详见 `docs/14` 第 8 节）。
 - 部署步骤见 `docs/Jetson部署.md`；联调问题与修复见 `docs/16-Jetson问题与修复.md`。
 
 ---

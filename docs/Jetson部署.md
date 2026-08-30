@@ -110,3 +110,24 @@ bash run_jetson.sh                     # SSH 下自动弹到桌面 :0
   两者分数一致（±1e-3），标定阈值无需重标。
 - log4cplus 报 `could not open file /etc/Galaxy/cfg/log4cplus.properties` 为
   SDK 日志配置缺失的无害告警（x86 无此文件同样工作），可忽略。
+
+## 打包与分发（CPU 默认 + 可选 GPU）
+
+给其他 Jetson 板卡分发时用 `scripts/package_jetson.sh`（不打包 Python 环境，
+aarch64 的 PySide6 只能 conda-forge 装，见 `docs/14` 第 8 节）：
+
+```bash
+bash scripts/package_jetson.sh 1.0.0     # → dist/DuAD_1.0.0_Jetson_aarch64.tar.gz
+```
+
+目标机使用（解压后）：
+
+| 步骤 | 命令 | 说明 |
+|---|---|---|
+| ① 安装（CPU 默认） | `bash install.sh` | micromamba + conda-forge PySide6 6.11 + ORT（无 cu12 补丁 → 自动回退 CPU） |
+| ② 启动 | `bash run_jetson.sh` | 无 GPU 依赖时纯 CPU 推理 |
+| ③ GPU 加速（可选） | `bash enable_gpu.sh` | 加载 ONNX(CUDA)/TRT 依赖：装 cu12 运行库补丁，main.py 自动注入 LD_LIBRARY_PATH |
+
+- JetPack ≥ 7.2 才启用 TRT（`run_jetson.sh` 默认 `DUAD_PREFER_TRT=1`）；
+  JetPack 6.2 的 TRT 10.3 数值错误，请注释该行（仍可 CUDA）。
+- 三个脚本也可在仓库内直接运行（`scripts/install_jetson.sh` / `scripts/enable_gpu_jetson.sh`）。

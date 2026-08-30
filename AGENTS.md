@@ -48,7 +48,7 @@ pyqml_win\Scripts\python.exe -u main.py
   - ⚠️ **训练/导出/标定代码不在此仓库**：原 `backend/alg/`（torch 训练 `main.py`/`DuAD.py`、`deploy/export_onnx.py`、`calibrate_threshold.py`/`calibrate_scale.py`、`threshold_utils.py` 等）与算法仓库 https://github.com/ouyangpingning/DuAD 相同，已从本上位机仓库删除；需要训练/导出/标定请用算法仓库。
   - ⚠️ **加载前提**：`pyqml/bin/activate` 已注入 `LD_LIBRARY_PATH=backend/libs`（glibc dlopen 依赖解析只认进程启动时的 ld 路径，运行时设置无效）；activate 脚本里 VIRTUAL_ENV 是改名前的硬编码旧路径，**不要依赖它**
   - **Windows 相机 SDK（自包含）**：Windows SDK 已集成到项目 `backend/libs_win/`（与 Linux 的 `libs/` 平行，不互拆），保持官方目录结构：`APIDll/Win64/`（GxIAPI.dll、DxImageProc.dll 及 VC 运行库）、`GenICam/bin/Win64_x64/`（GenApi 等 GenICam 运行时）、`GenTL/Win64/`（.cti 传输层）。`gxwrapper.py`/`dxwrapper.py` Windows 分支已改为**本地优先**：检测到 `libs_win/` 就自动 `add_dll_directory` + 设置环境变量，**无需手动设置任何环境变量。关键：GXInitLib 找 GenTL 传输层走的是 `GENICAM_GENTL64_PATH`（大恒安装器设的变量名，非 `GX_` 前缀），缺它 gx_init_lib 返回 -1、报 “Failed to get GenTL path”。gxwrapper 已在本地优先分支自动设 `GENICAM_GENTL64_PATH` 指向 `libs_win/GenTL/Win64`。
-- `scripts/` — 翻译/诊断/打包：`gen_translations.py`、`diag_camera.py`、`diag_bayer.py`、`package_win.py`+`DuAD_win.spec`（PyInstaller）、`package.sh` 等（冒烟测试脚本 `tests/` 已于仓库清理时移除）
+- `scripts/` — 翻译/诊断/打包：`gen_translations.py`、`diag_camera.py`、`diag_bayer.py`、`package_win.py`+`DuAD_win.spec`（PyInstaller）、`package.sh`（Linux x64）、`package_jetson.sh`+`install_jetson.sh`+`enable_gpu_jetson.sh`（**Jetson 打包：默认 CPU 推理；`enable_gpu.sh` 装 cu12 补丁加载 ONNX(CUDA)/TRT 依赖**）等（冒烟测试脚本 `tests/` 已于仓库清理时移除）
 - `scripts/gen_translations.py` + `translations/` — i18n 工作流（见下）
 - `scripts/diag_camera.py` — 相机现场诊断：sysfs 速度/设备节点 → SDK init/枚举 → 像素格式 + 吞吐量限制特征（7.2fps 与黄蓝互换问题定位）
 - `scripts/diag_bayer.py` — Bayer 排列逐项诊断：抓一帧用 RG/GB/GR/BG 各转一张对比图 + 打印 pixel_format/color_filter（黄蓝互换定位，Windows 需用 BG 的结论来源）

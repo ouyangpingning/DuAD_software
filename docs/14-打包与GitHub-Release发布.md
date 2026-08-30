@@ -241,3 +241,41 @@ bash install-desktop.sh                 # 创建桌面图标，之后双击即�
    当前 CPU-Portable 包预计几百 MB，Installer 包约 11MB，均低于 2GB 限制。
    如果未来要发布 GPU 离线包，请使用分卷（`split`）或多文件上传，不要上传
    单个 6GB 压缩包。
+
+## 8. Jetson（aarch64）打包
+
+> 适用 NVIDIA Jetson Orin NX 等 ARM 板卡。打包脚本 `scripts/package_jetson.sh`，
+> 与 x86 的 `package.sh` 平行。
+
+```bash
+bash scripts/package_jetson.sh 1.0.0
+# 产物：dist/DuAD_1.0.0_Jetson_aarch64.tar.gz + SHA256SUMS（约 24MB，纯源码+脚本，不含环境）
+```
+
+### 8.1 为什么不像 x86 那样内置 venv？
+
+aarch64 的 PySide6 pip wheel 要求 glibc ≥ 2.39，Jetson 只有 2.35 装不了；
+PySide6 只能从 conda-forge 装。因此 Jetson 包**不内置环境**，由安装脚本在
+目标机用 micromamba（用户态）现场创建。
+
+### 8.2 用户侧使用（目标机）
+
+```bash
+tar -xzf DuAD_1.0.0_Jetson_aarch64.tar.gz && cd DuAD_1.0.0_Jetson_aarch64
+
+bash install.sh          # ① CPU 默认：micromamba + conda-forge PySide6 + ORT（回退 CPU）
+bash run_jetson.sh       # ② 启动
+
+# 需要 GPU 加速时（可选）：
+bash enable_gpu.sh       # ③ 加载 ONNX(CUDA)/TRT 依赖（cu12 运行库补丁）
+```
+
+- **默认只有 CPU 推理**：aarch64 唯一可用的 ORT 是 NVIDIA Jetson 索引的
+  `onnxruntime_gpu 1.24.0`；`install.sh` **刻意不装 cu12 运行库** → CUDA/TRT EP
+  初始化失败 → onnxruntime 自动回退 `CPUExecutionProvider`（代码零改动）。
+- **enable_gpu.sh = 加载 ONNX(CUDA)/TRT 依赖**：装 6 个 `nvidia-*-cu12` 运行库，
+  随后 `main.py` 自动 glob `site-packages/nvidia/*/lib` 注入 `LD_LIBRARY_PATH` 重启。
+  JetPack ≥ 7.2（TRT 10.13 数值正确）下 `run_jetson.sh` 的 `DUAD_PREFER_TRT=1`
+  自动让 TRT 优先（首个 TRT 引擎构建 ~43s 落盘，之后 ~1.3s）。
+- JetPack 6.2 不允许用 TRT（10.3 对 DINOv2 数值错误），请注释
+  `run_jetson.sh` 的 `DUAD_PREFER_TRT=1`（仍可 CUDA）。
