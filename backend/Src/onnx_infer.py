@@ -188,9 +188,22 @@ class ONNXAnomalyDetector:
         # RSS 会累积膨胀；单图推理场景的分配开销可忽略。
         so.enable_cpu_mem_arena = False
         provider_options = []
+        _is_aarch64 = platform.machine() in ("aarch64", "arm64")
         for p in providers:
             if p == 'TensorrtExecutionProvider':
-                provider_options.append({"device_id": 0})
+                # 默认仅 device_id（在 x86 ORT 1.28 + TRT 10.16 下多加
+                # trt_engine_cache_*/trt_max_workspace_size 会静默回退 CPU）。
+                # Jetson（onnxruntime 1.24 + TRT 10.13）可安全启用引擎缓存：
+                # 首次构建 ~43s 并落盘，之后每次启动 ~1.3s 秒配，避免重复构建。
+                _opts = {"device_id": 0}
+                if _is_aarch64:
+                    _cache = os.path.join(os.path.expanduser("~"),
+                                          ".cache", "duad_trt_engine")
+                    os.makedirs(_cache, exist_ok=True)
+                    _opts = {"device_id": 0,
+                             "trt_engine_cache_enable": "True",
+                             "trt_engine_cache_path": _cache}
+                provider_options.append(_opts)
             elif p == 'CUDAExecutionProvider':
                 provider_options.append(
                     {"device_id": 0, "gpu_mem_limit": 3 * 1024 * 1024 * 1024})
