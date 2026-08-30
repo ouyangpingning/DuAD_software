@@ -74,6 +74,81 @@ bash run_jetson.sh        # 环境 ~/micromamba/envs/duad（conda-forge PySide6 
 
 ---
 
+## Release 包下载后使用（GPU / TensorRT 启用）
+
+> GitHub Release 每次发布 3 个安装包 + `SHA256SUMS`（先 `sha256sum -c SHA256SUMS` 可校验完整性）。
+> 推理后端说明：程序按 `onnxruntime.get_available_providers()` 自动选择——有 TensorRT 就 TRT 优先、
+> 只有 CUDA 就 CUDA、都没有才 CPU；**无需手动切换**。GPU/TRT 是否真正生效，唯一凭证是
+> 加载模型并开始推理后，启动日志的 `模型预热完成（['TensorrtExecutionProvider', 'CUDAExecutionProvider', ...]）`。
+
+### Linux x64 — Installer 包（推荐正式安装）
+
+```bash
+tar -xzf DuAD_<版本>_Linux_x64_Installer.tar.gz && cd DuAD_<版本>_Linux_x64
+
+bash setup_env.sh        # 自动检测 NVIDIA 驱动：有 → 装 GPU 依赖（onnxruntime-gpu + TensorRT + CUDA 13 库）；
+                         #                   无 → 装 CPU 依赖。可 DUAD_INSTALL_GPU=0/1 强制。
+# 相机 USB 权限（之后重新插拔相机）
+sudo cp backend/config/99-galaxy-dev.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger
+# 提升内核 USB 缓冲上限（2448×2048 全幅采集必需）
+sudo bash scripts/set_usbfs.sh
+
+bash run.sh              # 启动；也可 python DuAD_SoftwareContent/main.py
+```
+
+- **GPU 机器**：`setup_env.sh` 装好后直接 TRT 加速（日志 `模型预热完成（['TensorrtExecutionProvider', ...]）` 即生效）。
+- **显卡驱动需 ≥ 585**（CUDA 13 要求）；驱动不足会回退 CPU（日志只有 EP Error，属正常降级）。
+
+### Linux x64 — CPU-Portable 包（解压即用 + 可选 GPU 升级）
+
+```bash
+tar --zstd -xf DuAD_<版本>_Linux_x64_CPU-Portable.tar.zst && cd DuAD_<版本>_Linux_x64
+./run.sh                 # 内置 CPU venv，直接跑 CPU 推理
+                         # ⚠️ 内置环境与构建机 Python 版本绑定：目标机版本不同时首次运行会自动
+                         # 用本机 python3 重建（需联网约 3~5 分钟），之后正常
+
+# 可选：在同一包内启用 GPU / TRT（检测到 NVIDIA 驱动则装 GPU 依赖到内置 venv）
+bash setup_env.sh
+sudo bash scripts/set_usbfs.sh
+./run.sh
+```
+
+### Jetson（aarch64）— 默认 CPU，`enable_gpu.sh` 加载 GPU/TRT 依赖
+
+```bash
+tar -xzf DuAD_<版本>_Jetson_aarch64.tar.gz && cd DuAD_<版本>_Jetson_aarch64
+
+bash install.sh          # ① 建环境（micromamba + conda-forge PySide6 + ORT）——默认 CPU 推理
+sudo bash scripts/set_usbfs.sh    # 全幅 2448 采集建议执行
+bash run_jetson.sh       # ② 启动（CPU）
+
+# ③ 可选：加载 ONNX(CUDA)/TensorRT 依赖（JP7.2 的 cu12 运行库补丁，
+#    main.py 自动注入 LD_LIBRARY_PATH，无需手动设环境变量）
+bash enable_gpu.sh        # 完成后打印 provider：['TensorrtExecutionProvider', 'CUDAExecutionProvider', ...]
+bash run_jetson.sh        # 重启生效，TRT ~140–190ms/帧（带引擎缓存，首次构建 ~43s）
+```
+
+- **JetPack ≥ 7.2（TRT 10.13）数值正确**，`run_jetson.sh` 已默认 `DUAD_PREFER_TRT=1` 优先 TRT。
+- ❗ **JetPack 6.2 的 TRT 10.3 对 DINOv2 数值错误**（分数恒 1e10）：请注释 `run_jetson.sh` 中 `export DUAD_PREFER_TRT=1`（仍可用 CUDA）。
+- 像素格式选 8bit（`BayerRG8`/`Mono8`）。
+
+### Windows（后续发布）— onedir 主程序 + GPU 支持包
+
+```powershell
+# 解压 DuAD_<版本>_Windows_x64.zip → 双击 DuAD.exe（默认 CPU 推理）
+# GPU 加速（可选）：解压 DuAD_GPU_runtime_<版本>_Windows_x64.zip，
+#   把其中 nvidia\ 与 tensorrt\ 放到 DuAD.exe 同级目录（不放置则自动回退 CPU）
+#   需显卡驱动 ≥ 585；TRT 生效看 %USERPROFILE%\DuAD_app.log 的 模型预热完成（[...]）
+```
+
+### 模型与检测
+
+- 模型文件不随包分发：在「异常检测页 → 选择模型」加载自己的 `.onnx`（新模型自带阈值/尺度 metadata）。
+- 全幅采集：Linux 需先 `sudo bash scripts/set_usbfs.sh`；分辨率预设 2448/1224 走 BINNING（视野不变、画面变糊省带宽）。
+
+---
+
 ## 模型
 
 - 模型文件不入库（`*.onnx` 等已 gitignore）；在「异常检测页 → 选择模型」手动加载 `.onnx`。
@@ -83,7 +158,7 @@ bash run_jetson.sh        # 环境 ~/micromamba/envs/duad（conda-forge PySide6 
 ## 打包发布
 
 - Windows：`DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.0 [--with-gpu]`（详见 `docs/15-Windows打包与GPU加速.md`）
-- Linux：`bash scripts/package.sh 1.0.0`（Installter 包 / CPU-Portable 解压即用包；**CPU-Portable 内置环境与构建机 Python 版本绑定，目标机版本不同时 `run.sh` 首次运行会自动用本机 python3 重建环境（需联网约 3~5 分钟）**，详见 `docs/14-打包与GitHub-Release发布.md`）
+- Linux：`bash scripts/package.sh 1.0.0`（Installer 包 / CPU-Portable 解压即用包；**CPU-Portable 内置环境与构建机 Python 版本绑定，目标机版本不同时 `run.sh` 首次运行会自动用本机 python3 重建环境（需联网约 3~5 分钟）**，详见 `docs/14-打包与GitHub-Release发布.md`）
 - Jetson：`bash scripts/package_jetson.sh 1.0.0`（默认 CPU，`enable_gpu.sh` 可选 GPU，详见 `docs/14` 第 8 节）
 - 推送 `v*` 标签触发 GitHub Actions 自动构建 Release（含 Linux x64 ×2 + Jetson ×1 + SHA256SUMS）
 
