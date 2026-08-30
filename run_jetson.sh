@@ -40,5 +40,11 @@ fi
 # ~43s 落盘，之后每次启动 ~1.3s。
 export DUAD_PREFER_TRT=1
 
+# fp16 引擎（实测 ~190ms→~92ms，2 倍提速；分数偏差 <0.02，数值可用）：
+# ✅ JetPack 7.2（TRT 10.13）已验证正确（zipper 模型，见 docs/16-Jetson问题与修复.md）
+# ❌ JetPack 6.2（TRT 10.3）fp16 溢出 65504 —— 若在 6.2 请改 DUAD_TRT_FP16=0 或注释
+# 引擎缓存自动分目录存放（~/.cache/duad_trt_engine_fp16），与 fp32 互不干扰。
+export DUAD_TRT_FP16=1
+
 cd "$ROOT_DIR"
 exec "$PY" -u DuAD_SoftwareContent/main.py "$@"

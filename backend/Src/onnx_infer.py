@@ -196,13 +196,23 @@ class ONNXAnomalyDetector:
                 # Jetson（onnxruntime 1.24 + TRT 10.13）可安全启用引擎缓存：
                 # 首次构建 ~43s 并落盘，之后每次启动 ~1.3s 秒配，避免重复构建。
                 _opts = {"device_id": 0}
+                # fp16 引擎（可选，DUAD_TRT_FP16=1）：ORM 用 fp16 精度构建 TRT
+                # 引擎，通常 ~1.5~2× 提速（Tensor Cores）。⚠️ JetPack 6.2 的
+                # TRT 10.3 fp16 溢出（65504）禁用；JP7.2（TRT 10.13+）可用，
+                # 需用 DUAD_PREFER_TRT=1 + 对比 fp32 分数确认数值一致后启用。
+                # 引擎缓存按 fp16 与否分目录存放：ORT 缓存名不含 fp16 标记，
+                # 混用会用错引擎（fp32 缓存被 fp16 复用/反之）。
+                _fp16 = os.environ.get("DUAD_TRT_FP16") == "1"
+                if _fp16:
+                    _opts["trt_fp16_enable"] = "True"
                 if _is_aarch64:
+                    _cache_dir = ("duad_trt_engine_fp16" if _fp16
+                                  else "duad_trt_engine")
                     _cache = os.path.join(os.path.expanduser("~"),
-                                          ".cache", "duad_trt_engine")
+                                          ".cache", _cache_dir)
                     os.makedirs(_cache, exist_ok=True)
-                    _opts = {"device_id": 0,
-                             "trt_engine_cache_enable": "True",
-                             "trt_engine_cache_path": _cache}
+                    _opts["trt_engine_cache_enable"] = "True"
+                    _opts["trt_engine_cache_path"] = _cache
                 provider_options.append(_opts)
             elif p == 'CUDAExecutionProvider':
                 provider_options.append(

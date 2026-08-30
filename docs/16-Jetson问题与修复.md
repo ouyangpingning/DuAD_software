@@ -119,3 +119,21 @@ DUAD_PREFER_TRT=1 ~/micromamba/envs/duad/bin/python -u backend/Src/onnx_infer.py
      arm64 单相机在 16MB 下恰好够用（板子一直正常），多相机场景同样需要提升。
      应用侧：-1010+大负载时直接提示执行 `set_usbfs.sh`（不再无意义重试）。
 - **诊断**：`gather_start` 失败现在会打印原始错误串（`[camera] ACQUISITION_START 失败 — code=-1010 …`）。
+
+## 16. TRT fp16 引擎（JP7.2 已实测可用，2 倍提速）
+
+- **背景**：JetPack 6.2（TRT 10.3）时 fp16 引擎数值溢出（65504），文档记载「勿用」。
+  升级 JP7.2（TRT 10.13）后 TRT 版本完全不同，fp16 是否可用需重新验证。
+- **实测（zipper_k4_s0_full.onnx，6 张 缺陷/好图 ×5 次）**：
+
+  | 指标 | TRT fp32 | TRT fp16 |
+  |---|---|---|
+  | 推理耗时 | ~180–195ms/帧 | **~91–93ms/帧（≈2.07× 提速）** |
+  | 分数偏差 | — | 最大 |Δ| ≈ 0.012（远小于阈值判别，无哨兵/溢出） |
+
+- **启用**：`export DUAD_TRT_FP16=1`（`run_jetson.sh` 已默认设置；onnx_infer.py 据此给
+  TRT provider 加 `trt_fp16_enable=True`）。
+- **引擎缓存分目录**：fp16 走 `~/.cache/duad_trt_engine_fp16`，fp32 走
+  `~/.cache/duad_trt_engine`——ORT 缓存名不含 fp16 标记，混用目录会用错引擎，勿改。
+- ⚠️ JetPack 6.2 勿开（TRT 10.3 fp16 溢出）；每个新模型建议先用
+  `DUAD_TRT_FP16=0` 跑基准分，再开 fp16 对比偏差 <0.05 再采用。

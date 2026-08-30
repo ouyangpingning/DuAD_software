@@ -97,8 +97,11 @@ bash run_jetson.sh                     # SSH 下自动弹到桌面 :0
   - ✅ **已解决**：升级 JetPack 7.2（TRT 10.13）后 TRT 数值正确（差 ~0.001）、
     ~140–190ms/帧，`run_jetson.sh` 已默认 `DUAD_PREFER_TRT=1`。详见
     [16-Jetson问题与修复.md](16-Jetson问题与修复.md) 第 1、2 条。
-- **fp16 不可用**：onnxconverter-common 自动转换报 Cast 类型不一致（新模型
-  无 If 后仍失败）；trtexec --fp16 引擎数值溢出，勿用。
+- **fp16**：JetPack 6.2（TRT 10.3）不可用（onnxconverter Cast 报错、
+  trtexec --fp16 溢出 65504）；**JetPack 7.2（TRT 10.13）已实测可用**：zipper 模型
+  fp16 引擎 ~190ms→~92ms（2× 提速）、分数偏差 <0.02 无哨兵。
+  启用：`run_jetson.sh` 设 `DUAD_TRT_FP16=1`（引擎缓存自动分目录，见
+  docs/16-Jetson问题与修复.md 第 16 条）。
 - **像素格式**：Bayer8（去马赛克走自实现 C）与 Mono8 正常；RGB8/BGR8 直通；
   Bayer10/12 等高比特格式未处理（与 x86 一致，请选 8bit 格式）。
 - **性能实测（Orin NX 8GB）**：相机 2448×2048 BayerRG8 **~67fps** 连续采集；
