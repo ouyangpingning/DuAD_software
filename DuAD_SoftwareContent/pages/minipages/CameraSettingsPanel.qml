@@ -48,8 +48,8 @@ Item {
     property real _gainReset: 0
     property real _fpsReset: 1.0
 
-    // 分辨率预设（与相机最大分辨率同比例，全幅 = 2448×2048）
-    property var _resPresets: [[2448, 2048], [1836, 1536], [1224, 1024], [612, 512]]
+    // 分辨率预设（全幅与半幅，与相机最大分辨率同比例）
+    property var _resPresets: [[2448, 2048], [1224, 1024]]
 
     // ============================================================
     // 辅助函数
@@ -117,28 +117,13 @@ Item {
         if (gv >= 0) root.gammaValue = gv
     }
 
-    // 应用分辨率预设：居中裁剪写 GX_INT_WIDTH/HEIGHT + OFFSET_X/Y
-    // 步进对齐与老项目 _apply_roi_to_camera 一致（宽 8、高 2 的倍数）；
-    // 大恒要求先设 OFFSET 再设 WIDTH/HEIGHT，否则越界报错
+    // 应用分辨率预设：交给 CameraBridge.applyResolution 做居中裁剪 + 步进对齐，
+    // 并把该分辨率记录为「设定分辨率」（ROI 恢复全幅时回到它，而非传感器最大）。
     function _applyResolution(index) {
         var w = _resPresets[index][0], h = _resPresets[index][1]
-        var wMax = CameraBridge.getFeature("GX_INT_WIDTH_MAX")
-        var hMax = CameraBridge.getFeature("GX_INT_HEIGHT_MAX")
-        if (wMax <= 0) wMax = 2448
-        if (hMax <= 0) hMax = 2048
-
-        w = Math.max(8, Math.min(w, Math.floor(wMax / 8) * 8))
-        h = Math.max(2, Math.min(h, Math.floor(hMax / 2) * 2))
-        var x = Math.max(0, Math.floor((wMax - w) / 2 / 8) * 8)
-        var y = Math.max(0, Math.floor((hMax - h) / 2 / 2) * 2)
-
-        CameraBridge.setFeature("GX_INT_OFFSET_X", x)
-        CameraBridge.setFeature("GX_INT_OFFSET_Y", y)
-        CameraBridge.setFeature("GX_INT_WIDTH", w)
-        CameraBridge.setFeature("GX_INT_HEIGHT", h)
-
-        root.resolutionText = w + " × " + h
-        console.log("[CameraSettingsPanel] 分辨率应用:", w, "×", h, "(offset", x, y + ")")
+        var ok = CameraBridge.applyResolution(w, h)
+        if (ok) root.resolutionText = w + " × " + h
+        console.log("[CameraSettingsPanel] 分辨率应用:", w, "×", h, ok ? "(已记录为设定分辨率)" : "(失败)")
     }
 
     // ============================================================
@@ -187,7 +172,7 @@ Item {
             // 分辨率预设可调（写入相机：OFFSET 居中 + WIDTH/HEIGHT，8/2 步进对齐）
             ComboRow {
                 label: qsTr("分辨率")
-                model: ["2448 × 2048", "1836 × 1536", "1224 × 1024", "612 × 512"]
+                model: ["2448 × 2048", "1224 × 1024"]
                 currentIndex: root._resIndex
                 onActivated: root._applyResolution(index)
             }

@@ -356,6 +356,41 @@ class CameraBridge(QObject):
             if was_gathering and self._device is not None:
                 self._scheduleGatherRestart()
 
+    @Slot(int, int)
+    def applyResolution(self, w: int, h: int) -> bool:
+        """应用相机设置的分辨率（居中裁剪写 WIDTH/HEIGHT+OFFSET），
+        并记录为「设定分辨率」：之后 ROI 的"恢复全幅"回到这里，
+        而不是传感器最大分辨率（避免采集恢复后跳到 2448 导致推理变慢）。
+        """
+        if self._device is None:
+            return False
+        max_w = self._featureInt("GX_INT_WIDTH_MAX")
+        max_h = self._featureInt("GX_INT_HEIGHT_MAX")
+        if max_w <= 0:
+            max_w = 2448
+        if max_h <= 0:
+            max_h = 2048
+        w = max(8, min(w, (max_w // 8) * 8))
+        h = max(2, min(h, (max_h // 2) * 2))
+        # 居中裁剪 offset（8/2 步进）
+        x = max(0, ((max_w - w) // 2 // 8) * 8)
+        y = max(0, ((max_h - h) // 2 // 2) * 2)
+
+        was_gathering = self._gathering
+        if was_gathering and self._device is not None:
+            self.stopGather()
+            self._waitGatherStopped()
+            self._restartAfterGeometry = True
+        try:
+            ok = self._writeGeometry(x, y, w, h, "分辨率应用")
+        finally:
+            if was_gathering and self._device is not None:
+                self._scheduleGatherRestart()
+        if ok:
+            # 记录为设定分辨率：ROI 恢复全幅回到它
+            self._roiBaseline = {"x": x, "y": y, "w": w, "h": h}
+        return ok
+
     @Slot()
     def resetRoi(self):
         """ROI 恢复全幅（先清零 OFFSET，再写最大 WIDTH/HEIGHT）。"""
