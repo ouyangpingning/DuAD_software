@@ -23,6 +23,22 @@ if [ -r /sys/module/usbcore/parameters/usbfs_memory_mb ]; then
 fi
 
 if [ -x "$VENV_PY" ]; then
+    # CPU-Portable 内置 venv 是构建机 Python 版本锁定的（如 CI 为 3.12）。
+    # 目标机默认 python3 版本不同（如 3.14）时，venv 的
+    # lib/python3.x/site-packages 不匹配 → PySide6/onnxruntime 导入失败。
+    # 自愈：检测到不兼容就用本机 python3 原地重建 venv（首次需联网装依赖）。
+    if ! "$VENV_PY" -c "import PySide6, onnxruntime" >/dev/null 2>&1; then
+        echo "[run] 内置 Python 环境与当前系统不兼容，正在用本机 python3 重建"
+        echo "[run]   （首次运行需联网下载依赖，约 3~5 分钟）..." >&2
+        rm -rf "$ROOT_DIR/DuAD_SoftwareContent/pyqml"
+        if ! python3 -m venv "$ROOT_DIR/DuAD_SoftwareContent/pyqml" 2>/dev/null; then
+            echo "[run] 重建失败：本机缺少 python3-venv。请先运行 Installer 包或安装 venv 后重试" >&2
+            exit 1
+        fi
+        "$ROOT_DIR/DuAD_SoftwareContent/pyqml/bin/python" -m pip install --upgrade pip
+        "$ROOT_DIR/DuAD_SoftwareContent/pyqml/bin/python" -m pip install -r "$ROOT_DIR/requirements-cpu.txt"
+        echo "[run] 环境重建完成"
+    fi
     exec "$VENV_PY" -u "$MAIN_PY" "$@"
 fi
 

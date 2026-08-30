@@ -83,8 +83,9 @@ bash run_jetson.sh        # 环境 ~/micromamba/envs/duad（conda-forge PySide6 
 ## 打包发布
 
 - Windows：`DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.0 [--with-gpu]`（详见 `docs/15-Windows打包与GPU加速.md`）
-- Linux：`bash scripts/package.sh 1.0.0`（详见 `docs/14-打包与GitHub-Release发布.md`）
-- 推送 `v*` 标签触发 GitHub Actions 自动构建 Release
+- Linux：`bash scripts/package.sh 1.0.0`（Installter 包 / CPU-Portable 解压即用包；**CPU-Portable 内置环境与构建机 Python 版本绑定，目标机版本不同时 `run.sh` 首次运行会自动用本机 python3 重建环境（需联网约 3~5 分钟）**，详见 `docs/14-打包与GitHub-Release发布.md`）
+- Jetson：`bash scripts/package_jetson.sh 1.0.0`（默认 CPU，`enable_gpu.sh` 可选 GPU，详见 `docs/14` 第 8 节）
+- 推送 `v*` 标签触发 GitHub Actions 自动构建 Release（含 Linux x64 ×2 + Jetson ×1 + SHA256SUMS）
 
 ## 文档
 
