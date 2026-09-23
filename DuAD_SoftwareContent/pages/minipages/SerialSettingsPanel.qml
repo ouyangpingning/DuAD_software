@@ -9,6 +9,7 @@ import "../components"
 */
 Item {
     id: root
+    objectName: "serialPanel"
 
     // ============================================================
     // 公有 API
@@ -18,7 +19,9 @@ Item {
     // 串口参数（ports 由 LightBridge 每 2s 扫描结果注入）
     property var ports: []
     property string portName:      "/dev/ttyUSB0"
-    property string baudRate:      "9600"
+    // ⚠ 波特率来自后端唯一事实源（手册四.1 规定 19200，且真机实测 9600 无应答）。
+    //   不要在 QML 里再写一遍字面量 —— 两处数字迟早漂移，而漂移是静默的。
+    property string baudRate:      String(LightBridge.defaultBaud)
     property string dataBits:      "8"
     property string stopBits:      "1"
     property string parity:        "NONE"

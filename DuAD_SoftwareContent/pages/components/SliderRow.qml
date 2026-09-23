@@ -31,7 +31,35 @@ RowLayout {
     property real resetValue: NaN          // 重置目标值；NaN 时不显示重置按钮
     property var snapTicks: []             // 拖动时吸附的标准刻度（当前值单位）
     property real wheelStep: 0             // 滚轮微调步长；0 = 自动(range/1000)
+    property bool logScale: false          // ★ true = 轨道按**对数**分布（低值区占更多行程）
     property bool _commitFlash: false      // 提交后短暂显示 ✓，确认值已发送后端
+
+    /* ── 值 ↔ 轨道位置 的映射（2026-09-13 新增 logScale）──────────────
+       为什么需要：`加减速` 这种参数**低值区变化剧烈、高值区几乎无差别**
+       （1 和 2 的手感差得很远，190 和 200 分不出来），线性滑块把 1~200 平铺在一条
+       200px 的轨道上，低端根本拖不准。对数分布把行程按比例分给低值区：
+       `from=1, to=200` 时 **1~50 占掉约 74% 的轨道**（线性只有 25%）。
+
+       ⚠ 这两个函数是**唯一的映射定义**：手柄位置、刻度线、拖动、滚轮都必须走它们。
+         谁再自己写一遍 `(v-from)/(to-from)`，对数刻度就会"手柄和刻度对不上"。 */
+    function ratioOf(v) {
+        if (!logScale)
+            return to > from ? (v - from) / (to - from) : 0
+        var lo = Math.log(Math.max(1e-6, from))
+        var hi = Math.log(Math.max(1e-6, to))
+        return (Math.log(Math.max(1e-6, v)) - lo) / (hi - lo)
+    }
+
+    function valueOf(r) {
+        if (!logScale)
+            return from + r * (to - from)
+        var lo = Math.log(Math.max(1e-6, from))
+        var hi = Math.log(Math.max(1e-6, to))
+        return Math.exp(lo + r * (hi - lo))
+    }
+
+    // 给测试用的观测量：`from~50` 这段占轨道的比例（对数刻度下应当远大于线性）
+    readonly property real _lowShare: ratioOf(Math.min(50, to))
 
     function commitValue() {
         rowRoot.released(sliderValue)
@@ -81,8 +109,8 @@ RowLayout {
         Layout.fillWidth: true
         implicitHeight: 30   // 触摸友好：有效热区约 40px
 
-        readonly property real ratio: (to > from)
-            ? (sliderValue - from) / (to - from) : 0
+        // ⚠ 必须走 rowRoot.ratioOf()（对数刻度时线性算会错位）
+        readonly property real ratio: rowRoot.ratioOf(sliderValue)
 
         // 轨道
         Rectangle {
@@ -112,8 +140,7 @@ RowLayout {
                 height: track.height + 4
                 radius: 0.5
                 x: {
-                    var ratio = (modelData - rowRoot.from) / (rowRoot.to - rowRoot.from)
-                    var px = ratio * track.width - width / 2
+                    var px = rowRoot.ratioOf(modelData) * track.width - width / 2
                     return Math.max(0, Math.min(track.width - width, px))
                 }
                 anchors.verticalCenter: track.verticalCenter
@@ -160,8 +187,10 @@ RowLayout {
                 var step = wheelStep > 0
                     ? wheelStep
                     : Math.max((to - from) / 1000, Math.pow(10, -decimals))
+                // ⚠ Ctrl 细调要**保底一个显示精度**：decimals=0 的滑块上
+                //   `step*0.1` 再经 normalizeValue 取整会回到原值 —— 表现是"按住 Ctrl 滚轮没反应"。
                 if (wheel.modifiers & Qt.ControlModifier)
-                    step *= 0.1          // Ctrl = 更细
+                    step = Math.max(step * 0.1, Math.pow(10, -decimals))
                 else if (wheel.modifiers & Qt.ShiftModifier)
                     step *= 10           // Shift = 更粗
 
@@ -173,9 +202,8 @@ RowLayout {
 
             function setValue(mx) {
                 var r = Math.max(0, Math.min(1, mx / track.width))
-                var raw = from + r * (to - from)
-                // 拖动/触摸：靠近标准刻度时自动锁定
-                sliderValue = snapValue(raw)
+                // 拖动/触摸：靠近标准刻度时自动锁定（valueOf 负责反解对数刻度）
+                sliderValue = snapValue(rowRoot.valueOf(r))
             }
         }
     }

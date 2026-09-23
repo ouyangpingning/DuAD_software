@@ -138,6 +138,19 @@ LANG_FILES = {
     2: "app_zh_TW",    # 繁体中文
 }
 
+# ── 相机采集会话的所有权取值（跨页互斥的**唯一事实源**）────────────────
+# 相机只有一台，同一时刻只能有一个页面持有采集。页面写
+# `AppBridge.collectingOwner = "xxx"`，这里校验合法性，
+# 真正的 startGather/stopGather 由 `_on_collecting_owner_changed` 统一执行。
+#
+# ⚠ 新增一个 owner 要同时改**两处**：这个元组 + `_on_collecting_owner_changed`
+#    的分支。踩过的坑：加平台页的实时预览时只加了仲裁分支，漏了这个元组，
+#    于是 `collectingOwner = "stage"` 被**静默丢弃** —— 表现成"预览开关点了没反应"，
+#    而且连一行日志都没有，只能靠读代码找。
+#    现在未知 owner 会明确打印警告，不再静默；`tests/test_stage_page.py` 里
+#    还有一条静态校验：页面里写到的每个 owner 都必须在这个元组里。
+COLLECTING_OWNERS = ("collect", "detect", "stage")
+
 
 class AppBridge(QObject):
     """QML 可调用的 Python 桥接层 — 语言切换等跨层操作。"""
@@ -225,11 +238,16 @@ class AppBridge(QObject):
         return self._collectingOwner
 
     def _setCollectingOwner(self, value: str):
-        """采集会话互斥仲裁：相机只有一台，采集入口（数据采集/实时检测）同时
-        只能有一个持有者（"" / "collect" / "detect"）。后按者抢占，先按者自动停止。
+        """采集会话互斥仲裁：相机只有一台，采集入口（数据采集/实时检测/平台预览）
+        同时只能有一个持有者（见 COLLECTING_OWNERS）。后按者抢占，先按者自动停止。
         collecting 作为只读派生状态跟随 owner。"""
         v = str(value) if value else ""
-        if v not in ("", "collect", "detect"):
+        if v and v not in COLLECTING_OWNERS:
+            # ⚠ 这里**不能静默 return**。之前漏了 "stage" 时就是静默丢弃，
+            #   现象是"按钮点了没反应"且无任何日志 —— 最难查的一类。
+            print(f"[AppBridge] 忽略未知的 collectingOwner={v!r}；"
+                  f"合法值只有 {COLLECTING_OWNERS}。"
+                  f"新增 owner 要同时改 COLLECTING_OWNERS 与 _on_collecting_owner_changed")
             return
         if self._collectingOwner != v:
             self._collectingOwner = v
@@ -354,6 +372,7 @@ if __name__ == "__main__":
     mqtt_bridge = None
     camera_bridge = None
     algorithm_bridge = None
+    stage_bridge = None
     if backend_root.exists():
         sys.path.insert(0, str(backend_root))
         from Src.camera_bridge import CameraBridge
@@ -411,6 +430,14 @@ if __name__ == "__main__":
         engine.rootContext().setContextProperty("MqttBridge", mqtt_bridge)
         _BRIDGES.append(mqtt_bridge)
 
+        # 二轴相机平台（ESP32 + 两台 PD42S1，走 WiFi/TCP）。
+        # 独立于相机/算法链路：板子不在线时页面照样能打开，只是连不上。
+        from Src.stage_bridge import StageBridge
+
+        stage_bridge = StageBridge()
+        engine.rootContext().setContextProperty("StageBridge", stage_bridge)
+        _BRIDGES.append(stage_bridge)
+
         # ── 采集会话仲裁（跨页互斥）────────────────────────
         # DetectPage 只负责写 AppBridge.collectingOwner；真正的
         # CameraBridge.startGather/stopGather 与实时推理启停在这里集中执行，
@@ -444,6 +471,14 @@ if __name__ == "__main__":
                     collect_bridge.start()
                 else:
                     collect_bridge.stop()
+                    bridge.collectingOwner = ""
+            elif owner == "stage":
+                # 平台控制页的实时预览：只要画面，既不推理也不存盘。
+                # 单独一个 owner 是为了和 Detect/Collect 正常互斥 —— 相机只能被
+                # 一个会话抓着，否则 startGather/stopGather 会互相打断。
+                detect_bridge.stop()
+                collect_bridge.stop()
+                if not _start_gather_for("stage"):
                     bridge.collectingOwner = ""
             else:
                 detect_bridge.stop()
@@ -494,6 +529,18 @@ if __name__ == "__main__":
             light_bridge.disconnectSerial()
         if mqtt_bridge is not None:
             mqtt_bridge.disconnectServer()
+        if stage_bridge is not None:
+            # ⚠ 不是简单的 disconnect：`parkAndDisconnect()` 会**先把台面开回零点角**，
+            #   再把"停在哪儿"记进 settings —— 下次开机靠它核对"我们不在的时候
+            #   台面被动过没有"（见 StageBridge._check_park）。
+            #   ⚠ 它**不是**"保住基准"的手段：驱动器只要不断电就一直数着位置，
+            #     不回零点基准照样有效；这一步的价值是"留一个已知姿态"。
+            #   内部有 8s 上限，失败只记日志，绝不拖住退出。
+            try:
+                stage_bridge.parkAndDisconnect()
+            except Exception as e:
+                print(f"[WARN] 退出回零点失败: {e}")
+                stage_bridge.disconnectDevice()
         if camera_bridge is not None:
             try:
                 if camera_bridge.cameraConnected:

@@ -23,6 +23,9 @@ RowLayout {
         text: label
         font.pixelSize: 12
         color: Colors.textPrimary
+        // 同 ReadonlyRow：标签也要能收缩，否则英文翻译变长时会撑宽整列
+        Layout.maximumWidth: 140
+        elide: Text.ElideRight
     }
 
     RowLayout {

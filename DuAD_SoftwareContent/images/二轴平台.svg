@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 二轴平台图标：中心滑座 + 四向箭头。
+     单色（#cdcdcd），由 IconImage 的 ColorOverlay 跟随主题染色，改色只改这里不用改页面。 -->
+<svg viewBox="0 0 1024 1024" width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#cdcdcd">
+    <!-- 中心滑座（相机所在的十字滑台） -->
+    <rect x="384" y="384" width="256" height="256" rx="36" fill="none" stroke="#cdcdcd" stroke-width="48"/>
+    <!-- 上（+Y 向里） -->
+    <rect x="488" y="196" width="48" height="104"/>
+    <polygon points="512,84 456,190 568,190"/>
+    <!-- 下（−Y） -->
+    <rect x="488" y="724" width="48" height="104"/>
+    <polygon points="512,940 456,834 568,834"/>
+    <!-- 左（−X） -->
+    <rect x="196" y="488" width="104" height="48"/>
+    <polygon points="84,512 190,456 190,568"/>
+    <!-- 右（+X） -->
+    <rect x="724" y="488" width="104" height="48"/>
+    <polygon points="940,512 834,456 834,568"/>
+  </g>
+</svg>

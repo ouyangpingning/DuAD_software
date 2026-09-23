@@ -72,6 +72,12 @@ Row {
                     collapsed: row.sidebarCollapsed
                 }
                 NavButton {
+                    id: btnStage
+                    text: qsTr("平台控制")
+                    iconsource: "images/二轴平台.svg"
+                    collapsed: row.sidebarCollapsed
+                }
+                NavButton {
                     id: btnComm
                     text: qsTr("通信设置")
                     iconsource: "images/MQTT.svg"
@@ -101,7 +107,7 @@ Row {
 
                 ButtonGroup {
                     id: navGroup
-                    buttons: [btnCamera, btnLight, btnComm, btnDetect, btnCollect, settings]
+                    buttons: [btnCamera, btnLight, btnStage, btnComm, btnDetect, btnCollect, settings]
                 }
             }
         }
@@ -123,10 +129,11 @@ Row {
 
             CameraPage {} // 0 — 相机设置
             LightPage {} // 1 — 光照设置
-            CommPage {} // 2 — 通信设置
-            DetectPage {} // 3 — 异常检测
-            CollectPage {} // 4 — 图像采集
-            SettingsPage {} // 5 — 设置
+            StagePage {} // 2 — 平台控制（二轴相机平台，WiFi 远程）
+            CommPage {} // 3 — 通信设置
+            DetectPage {} // 4 — 异常检测
+            CollectPage {} // 5 — 图像采集
+            SettingsPage {} // 6 — 设置
         }
     }
 }

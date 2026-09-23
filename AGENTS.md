@@ -39,8 +39,17 @@ pyqml_win\Scripts\python.exe -u main.py
   - `Src/frame_provider.py` — **CameraFrameProvider**：`image://camera/original|heatmap|mask` 的最新帧缓存（线程安全，QML 重取图）
   - `Src/realtime_detect_bridge.py` — **RealtimeDetectBridge（实时检测管线）**：消费 `CameraBridge.rawFrameReady`，maxsize=1 队列只留最新帧；后台线程调 `AlgorithmBridge.predict_frame`（复用同一 ONNX session），结果写 provider 后自增 resultCounter/maskCounter 通知 QML；`scoreReady(score)` 更新分数。启停由 main.py 根据 `AppBridge.collectingOwner`/`cameraConnected` 集中仲裁
   - `Src/collect_bridge.py` — **CollectBridge（图像采集保存管线）**：`configure(path,prefix,fmt,interval)` 配置；消费 `CameraBridge.rawFrameReady`，maxsize=1 最新帧队列 + 后台 PIL 节流写盘；`saving/savedCount/lastSavedPath/saveError` 供 QML。main.py 在 owner=="collect" 时启停，与 detect 互斥
-  - `Src/light_bridge.py` — **LightBridge（光源控制器）**：pyserial CH340 串口；每 2s 扫描 `/dev/ttyUSB*`、`/dev/ttyCH341USB*`；`connectSerial(port,baud,data,stop,parity)` / `setLightValue(channel,value)`；协议 `$L{通道}={亮度}#`（0~3，0~255），发送后读 10ms 短响应
+  - `Src/light_bridge.py` — **LightBridge（光源控制器，RS-232）**：pyserial 串口，每 2s 扫描 `/dev/ttyUSB*`、`/dev/ttyCH341USB*`；`connectSerial(port,baud,data,stop,parity)` / `setLightValue(通道,亮度)` / `queryAll()` / `setTrigMode` / `setLightTime` / `setChannelEnable` / `saveToDevice()`，参数经 `channelValues`/`channelCount`/`trigMode`/`deviceInfo` 回 QML。协议照手册《数字控制器使用说明书》四章 + **2026-09-22 真机实测**（/dev/ttyUSB1，4 通道机型）：**波特率必须 19200**（8N1，RS-232 半双工；实测 9600/38400/115200 控制器一个字都不回，而 `serial.Serial()` 打开串口永远成功 → 界面显示"已连接"却怎么点都没反应），指令 `$L{n}={v}#`（n=0~7，L0=面板通道1）、`$T{n}`、`$F{n}`、`$TR={0..3}`、`$RD={n}`/`$RD=9999#`、`$LC`、`$SA=1#`、`$RS=1#`，应答 `+OK` / `E1~ER` / `$...=...#`。三条**不要动**的约定：①`connectSerial` 打开串口后必须用 `$RD=9999#` 校验链路，收不到就当连接失败（否则又是静默的"已连接没反应"）；②`_read_reply` 只在超时到期才放弃，**收到半截不许缩短等待**（真机 241 字节应答分 7 片、跨 161ms；截断的残留字节会粘到下一条 `+OK` 上，把成功报成失败）；③发指令前先 `_drain()` 等总线空闲（半双工，别抢话）。QML 侧的 `SerialSettingsPanel.baudRate` 读 `LightBridge.defaultBaud`，不要在界面里再写一遍 19200；自动选串口走 `LightBridge.pickDefaultPort(ports)`（**优先 `/dev/ttyUSB*`**）—— ⚠ 别用 `ports[0]`：Linux 的 `comports()` 会把主板 `ttyS0~31` 排在前面，自动选中 `ttyS0` 又是一次"点了没反应"
   - `Src/mqtt_bridge.py` — **MqttBridge（云服务器通信）**：paho-mqtt 后台线程连接；支持用户名/密码登录（付费 Broker）与 TLS/SSL（8883）；`connectServer(addr,port,user,pwd,keepalive,useTls)` / `publish(topic,payload,qos)` / `subscribe(topic,qos)`；日志与收发经 `logMessage`/`messageReceived` 信号回 QML
+  - `Src/stage_bridge.py` — **StageBridge（二轴相机平台，WiFi/TCP）**：`QTcpSocket`（**异步、走事件循环，不用线程+阻塞读**）
+    连板子的 TCP :3333，协议是**行分隔文本、语法与板子 USB 控制台完全一致**：连上第一行交口令 →
+    板子回 `#OK auth` → 之后每行一条命令 → 应答以 `#OK` / `#ERR <code>` 结束。
+    `json` 一条命令回全部遥测（位置/电压/使能/基准/行程/运动中/信号），轮询兼做"非阻塞移动是否到位"的判定。
+    ⚠ **单位换算是本文件唯一的换算边界**：界面全 mm，固件是"度"（GT2-16 齿带轮，`1mm = 11.25°`、`1600 counts/mm`）。
+    移动一律用**非阻塞的 `move`**，绝不用会等到位的 `g0` —— 否则急停会被几秒的长移动堵在通道里。
+    四道闸的界面配合：基准/行程缺失时**按钮禁用 + 写出原因**（`canMove` / `_gateHint`），目标按工作区**先夹取**再发。
+    预设位置存 `QSettings("DuAD","DuADSoftware")` 的 `stage/presets`。
+    回归测试：`tests/test_stage_bridge.py`（进程内假板子，**不需要真板子**）
   - `Src/algorithm_bridge.py` — **AlgorithmBridge（测试推理桥）**：loadModel / inferImage（**后台线程推理不阻塞 UI**，jet 热力图存临时 PNG，经 inferenceReady(score, path) 信号返回；**二值掩模叠加图**（`last_anomaly_mask` 异常像素红色高亮，定位缺陷）经 maskReady(path) 信号返回，**先发 maskReady 再发 inferenceReady**——否则 QML 侧 imageSource 出现空 file:// 协议警告）；**模型默认 null（不预置），用户在 DetectPage"选择模型"自选 .onnx**，loadModel 后自动后台预热；**阈值读取优先级 = ONNX metadata（训练时标定写入）> `*.threshold.json` > 默认值 1.7**，session 建好后自动覆盖；**像素阈值用户可调**（`setPixelThreshold`，NaN 恢复 metadata F1-max）；**热力图固定显示尺度**（calibrate_scale.py 用 good 样本统计：vmin=像素 P2、vmax=P99.9——**不能用 max**（尾部分布长，正常图的标签/噪声 patch 会把色阶拉宽、缺陷黄区变弱）；产出 `<模型>.scale.json`，查找顺序：模型旁 → `backend/model_scales/`，无则回退逐图百分位）；**切换模型的内存释放三件套（缺一 RSS 累积膨胀）**：`onnx_infer` 里 `enable_cpu_mem_arena=False`（禁 ORT CPU arena）+ loadModel 里 `del old` + `gc.collect()` + `malloc_trim(0)`（ctypes 调 glibc 归还堆，实测 547MB→65MB）；session 构造在 `_get_detector` 锁外进行（避免长锁），构造期间模型被切换则立即丢弃该过时 session；**`predict_frame(np.ndarray)` 供实时管线同步调用**（`_infer_lock` 串行化、`_build_lock` 防 warmup/实时并发建双 session）；**`unloadModel()` 卸载当前 ONNX**（session 置空 + `del old` + `gc.collect()` + `malloc_trim(0)`，阈值/尺度恢复默认，发 modelUnloaded）
   - `gxipy/` — 大恒 SDK wrapper（gxwrapper/dxwrapper 已改为**本地 libs 优先加载**）
   - `libs/` — SDK 动态库（libgxiapi + ffmpeg 全家桶 + **GxU3VTL.cti 等 GenICam 传输层文件**，从官方 Galaxy_camera.run 提取，**无需 root 安装**）。⚠️ **.cti 必须齐全**：缺传输层时 gx_init_lib 返回 -1、枚举永远 0 台（即使相机在 lsusb 可见、udev 权限正确）；udev 规则在 `backend/config/99-galaxy-dev.rules`（需 root 装到 /etc/udev/rules.d/，否则普通用户无 USB 权限同样枚举不到）。⚠️ **Linux 大分辨率采集失败（-1010 "TL Error: Unable to start acquisition"）的根因 = 内核 `usbfs_memory_mb` 默认 16MB 过小**：U3VTL 无法为大负载分配缓冲环，`ACQUISITION_START` 返回 -1010（2448×2048 全幅失败、1224×1024 正常、与帧率无关）。这正是**大恒官方 FAQ「USB3 相机开采失败」的解法**（等价 `SetUSBStack.sh`）：`echo 1000 > /sys/module/usbcore/parameters/usbfs_memory_mb`（需 root，重启失效）。修复：`sudo bash scripts/set_usbfs.sh`；`setup_env.sh`/`install_jetson.sh` 有提示，`run.sh`/`run_jetson.sh` 启动时检测 <64MB 会警告。arm64 单相机在 16MB 下恰好够用（板子一直正常），多相机或 x86 全幅必须提升。`CameraBridge.startGather` 对 -1010+大负载直接提示执行 `set_usbfs.sh`（不再无意义重试）；其余 -1010 自动「重注册采集回调」重试一次并记录原始错误码（`camera.py::_last_error`）。
@@ -83,7 +92,7 @@ DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.
 - **低帧率先查曝光，再查吞吐量**：实测 MER2 曾出现目标 29fps 但当前仅 6fps，原因是曝光 165508us（1e6/165508≈6.04fps）。`gather_start` 会自动把曝光压到 `1e6/target_fps*0.9`。另有部分大恒相机出厂开启 `DeviceLinkThroughputLimit`（36,000,000 B/s，2448×2048×7.2≈36MB/s），采集前会写 `GX_ENUM_DEVICE_LINK_THROUGHPUT_LIMIT_MODE=0`（Off）。都排除后仍低帧率再查 USB2 口/USB2 线（U3 相机必须 USB3，`lsusb -t` 看是否 5000M）。
 - **连接中文案居中**：CameraCard / LightControllerCard / CloudServerCard 的 "正在连接…" 是卡片级覆盖层（`anchors.centerIn`，连接时图标隐藏）。若新增此类卡片，照抄该模式，不要放 RowLayout 内（图标占位会让文案偏右）。
 - **目录/文件选择**：用系统原生 `FolderDialog`（保存路径，SaveSettingsPanel）/ `FileDialog`（测试图片/模型，DetectPage，`import QtQuick.Dialogs`）。原生对话框是平台窗口（尺寸由系统决定），**注意**：Qt 6.11 里它们的 QML 对象是 `QFileDialogOptions` 包装（className 匹配测试用），offscreen 下打开不置 visible（真机正常）。路径转换**必须跨平台**（Windows 的 `file:///C:/...` slice(7) 后是 `/C:/...`，带盘符前斜杠，直接给 Python `os.path.exists` 会报"文件不存在"）：**正向用 `root._toFileUrl()`（反斜杠→正斜杠、根前补 `/` 生成 `file:///C:/...` 或 `file:///home/...`），反向用 `root._fromFileUrl()`（`slice(7)` 后去掉 `/^\/[A-Za-z]:/` 盘符前斜杠）**——DetectPage 已内置这两个函数，新增 FileDialog/FolderDialog 时照抄；`~` 经 `AppBridge.homeDir` 展开。后端 tempfile 返回的 `C:\Users\...`（反斜杠）路径同样要过 `_toFileUrl` 才能显示。
-- **AppBridge（main.py）**：`setLanguage()` / `homeDir`（~展开）/ `isDir(path)`（目录校验）/ **跨页状态中枢**：`cameraConnected`（CameraPage 写）、**`collectingOwner`（采集会话互斥仲裁，"" / "collect" / "detect"，后按者抢占，`collecting` 只读派生跟随）**、`algorithmEnabled`（DetectPage 算法开关，后端推理线程轮询防卡死）。QML 里 AppBridge 引用失败时界面静默失效——Python 侧对象必须保持引用防 GC。
+- **AppBridge（main.py）**：`setLanguage()` / `homeDir`（~展开）/ `isDir(path)`（目录校验）/ **跨页状态中枢**：`cameraConnected`（CameraPage 写）、**`collectingOwner`（采集会话互斥仲裁，"" / "collect" / "detect" / "stage"，后按者抢占，`collecting` 只读派生跟随）**；⚠ **StagePage 的实时预览是第三个 owner（"stage"）**，只取画面不推理不存盘，并在 `onVisibleChanged` 里主动释放（页面在 StackLayout 里不会被销毁）、`algorithmEnabled`（DetectPage 算法开关，后端推理线程轮询防卡死）。QML 里 AppBridge 引用失败时界面静默失效——Python 侧对象必须保持引用防 GC。
 - **DetectPage 图像区**：已联调真实相机。原图 = `image://camera/original?t=<CameraBridge.frameIndex>`；热力图/定位图 = `image://camera/heatmap|mask?t=<DetectBridge.resultCounter|maskCounter>`（`CameraFrameProvider` 只存最近一帧）。`RoiOverlay` 归一化坐标 → `CameraBridge.applyRoi`（宽 8/高 2 步进对齐，先 OFFSET 后 WIDTH/HEIGHT）；绘制时实时显示像素范围，松开后[确定]/[重绘]；原图标题栏有 ROI/↺恢复全幅/⛶ 图标按钮，热力图标题栏有 ⛶；原图全屏层同样带 ROI 按钮并可放大框选，⛶ 点击进入占满 DetectPage 的全屏层，再点退出。**ROI 写入时若正在采集会先 stopGather，写完读回校验后延迟 200ms 自动 startGather（失败重试 2 次）**（大恒 Continuous 流中直接改 ROI 不生效/INVALID_ACCESS；STOP 后立刻 START 也可能失败）；main.py 还有 1.5s 兜底恢复，仍失败会释放 collectingOwner 让按钮可点；**首次 ROI 前会记录当前几何，恢复全幅回到该设置值而非传感器最大分辨率**；**分辨率预设切换（CameraSettingsPanel 分辨率卡）走 BINNING（同老项目 pyqt5 的 RESOLUTION_MAP + `GX_INT_BINNING_HORIZONTAL/VERTICAL`）：binning N 输出 = sensor/N，视野(FOV)不变、画面只变模糊省带宽；⚠️ 不要用写 OFFSET+WIDTH 的“窗口裁剪”来缩分辨率——那只读 sensor 中间一块，画面被放大且两侧视野丢失**（老项目行为即用户期望的“变糊不缩放”）；ROI 归一化按 ImageView 实际图像内容区（剔除黑边）换算；归一化坐标相对当前显示画面，后端会叠加当前 OFFSET 换算成传感器绝对坐标。**页面自带自锁"开始采集"按钮（申请 collectingOwner="detect"）**，真正的 startGather/stopGather 由 main.py 的 owner 仲裁统一执行；数据采集（CollectPage，owner="collect"）与实时检测采集互斥。**实时采集优先于测试推理**：开始采集会自增 `_testSession` 作废旧测试请求，在途 inferenceReady/maskReady 返回后直接丢弃；采集中测试推理区按钮禁用并显示提示。“精细定位”开关不再要求先打开“F1 阈值定位”：始终可点击，开启时自动打开定位显示；侧栏含**测试推理区**（文件选图 → AlgorithmBridge.inferImage 后台推理 → 结果切换显示在原图/热力图窗口），并可 **unloadModel 卸载 ONNX** 释放 session 内存。
 - 全局字体 `fonts/wqy-microhei.ttc` 由 main.py 注册为默认字体，QML 中无需指定 family。
 
@@ -116,18 +125,342 @@ python scripts/gen_translations.py
 "$LRELEASE" translations/app_en.ts translations/app_zh_TW.ts
 ```
 
+⚠ `gen_translations.py` 末尾有**两条守卫**，任一不满足就 `exit 1`：
+1. `check_dicts()` —— EN 与 TW 两个 dict 必须**逐条对齐**（不一致时列出条目）。
+   这条是补一次真踩到的坑：源的「默认 100」改成「默认 1」时只改了 EN 那条，TW 里那条成了**孤儿键**，
+   于是 `app_zh_TW.ts`（由英文拷贝而来）**没人再填它** → 繁体语言下那行说明显示的是**英文**，
+   而 `lrelease` 照样报 "0 unfinished"（拷贝来的英文也算已翻译）。**改文案时两个 dict 一起改。**
+2. `check_untranslated()` —— 生成出来的 `.ts` 里**不许有翻译为空的条目**。
+   `lrelease` 那行 `Ignored N untranslated source text(s)` 混在输出里极易扫过去、而且**不阻断**，
+   所以把"新加的 qsTr 忘了写进 dict"提前到生成阶段就红。
+
+两条都**用故意改坏验证过会红**（删键 / 清空翻译），不是假断言。
+
 语言选择持久化在 `QSettings("DuAD","DuADSoftware")`，切换走 `AppBridge.setLanguage()`（main.py）。
+
+## 两条踩过的坑（会重犯，写在这里）
+
+### 1. 测试绝不能写用户的真实 QSettings
+
+`StageBridge` 默认用 `QSettings("DuAD","DuADSoftware")` —— 和真实程序**同一个作用域**。
+早期 `tests/` 直接 `StageBridge()`，一跑就把假板子的 `host=127.0.0.1 / port=<随机> / token=deadbeef`
+写进用户真实配置。后果：用户打开「平台控制」页，那三个框里是假板子的值，点连接当然连不上，
+而失败提示很小 → 用户原话是**"点了没反应"**。
+
+修法：`StageBridge(settings=...)` 支持注入，**所有测试都传一个文件隔离的 QSettings**：
+```python
+sfile = Path(tempfile.mkdtemp()) / "s.ini"
+bridge = StageBridge(settings=QSettings(str(sfile), QSettings.Format.IniFormat))
+```
+新增任何会写 QSettings 的桥/测试时，照这个来。
+
+### 2. "点了没反应"必须在设计上消灭掉
+
+这是本项目反复出现的一类反馈（`LightControllerCard` 时代就有）。三条规矩：
+
+- **点不动的按钮/卡片，必须在点击前就把原因写在旁边**。现在的做法：`StagePage` 在
+  未配置时显示一条红色提示条「还没配置板子地址 —— 展开下面的「平台设置」填入」，
+  而不是等用户点了才报错。
+- **点击被拒绝时要给强反馈**：`StageBridge.connectDevice` 返回 `False` 时，页面
+  **自动展开「平台设置」**，让用户立刻看到该填什么（原来只是卡片下面一行 12px 小字）。
+- **取"输入框里的当前值"，不要取"已保存的值"**：`StagePage` 点卡片连接时用
+  `setupPanel.fieldHost/fieldToken`（输入框内容）而不是 `setupPanel.host`（bridge 里已保存的旧值）。
+  否则"改了 IP 但没点应用设置就点连接"会连旧地址，又是一次"改了没用"。
+
+### 4. 跨层参数范围必须"以固件为准"，且用户要能看到实际下发的指令
+
+`StageBridge` 原来把 `acc` 夹到 **255**、滑块也放到 255，而固件 `pd42s1.c::cmd_move` 是
+`if (speed_rpm > 6000 || acc > 200) return -1;` —— **201~255 这一段会被固件静默拒帧**，
+用户表现是"改了加减速没反应"。现已对齐为 `MAX_RPM=6000 / MAX_ACC=200`。
+
+配套两条，缺一条用户就会继续怀疑参数坏了：
+
+- **参数改动要立即生效**：`SliderRow` 的 `onReleased` 直接 `StageBridge.setSpeed(...)`，
+  不必等「应用设置」。（拖动时期待的就是立刻生效。）
+- **日志里记下实际下发的原始指令**：`StageBridge._enqueue` 对**非轮询命令**打 `→ <cmd>`，
+  所以诊断面板能看到 `move 2250.000 0.000 120 50` —— 末尾两个数就是 rpm/acc。
+  这是"我调了速度到底生效没有"最直接的证据，也是这次排查的抓手。
+- ⚠ 还要**主动说明"为什么看不出来"**：步进点动 0.1~10mm 只有几十毫秒，
+  基本被加减速斜坡吃掉，**怎么试都看不出速度差别**。界面已写明，并给出参考时长
+  （走 100mm 约几秒）与"要验证请用长距离绝对移动"。
+
+### 5. 新增「采集所有权」的持有者时，有三处必须同时改
+
+相机只有一台，跨页互斥靠 `AppBridge.collectingOwner`（取值见 main.py 的
+**`COLLECTING_OWNERS`**）。新增一个持有者要同时改：
+
+1. `main.py` 的 `COLLECTING_OWNERS` 元组（setter 的合法性校验）
+2. `main.py` 的 `_on_collecting_owner_changed` 里的仲裁分支（真正启停采集）
+3. 页面自己（申请 / 释放 / 离开时释放）
+
+⚠ 踩过的坑：加平台页实时预览时**只改了第 2 处**，漏了元组 →
+`collectingOwner = "stage"` 被 setter **静默丢弃** → 开关点下去自己弹回来、
+什么也不发生，而且没有一行日志。用户原话是"实时预览那个按钮没有作用"。
+
+现在两道防线：
+- setter 遇到未知 owner 会**明确打印警告**（不再静默）。
+- `tests/test_stage_page.py` 的 `check_collecting_owners()` 做**静态校验**：
+  页面里写到的每个 owner 都必须在 `COLLECTING_OWNERS` 里，并且都有仲裁分支；
+  反过来声明了却没人用也会报错。（已验证：把 "stage" 从元组里拿掉，测试立刻失败。）
+
+现有的四个取值：`""`（无人持有）/ `"collect"`（图像采集页）/ `"detect"`（异常检测页）/
+`"stage"`（平台页的实时预览，只取画面、不推理不存盘）。
+抢占策略是**后按者抢占**，先按者的页面靠派生属性自动显示为"已停止"；
+每个页面都必须在**离开时释放**（StackLayout 里页面不会被销毁）。
+
+### 6. QML 绑定里**不要调函数** —— 它没有依赖追踪
+
+```qml
+diagText: StageBridge.diagText()      // ✗ 只在创建时求值一次，之后永远不刷新
+diagText: StageBridge.diagText        // ✓ 带 notify 的 Property 才会跟着变
+```
+
+踩过的坑：`StageBridge.diagText` 原本是 `@Slot(result=str)`，QML 侧写成
+`diagText: StageBridge.diagText()`，于是诊断面板的「板子状态」**永远显示"未连接"**，
+哪怕板子早已连上并在 1Hz 轮询。这类 bug 不报错、不警告，纯粹是"数字/文字不动了"。
+
+规矩：**凡是要跟着状态变的文本/数值，一律用 `Property(..., notify=...)`**，
+需要计算就在 Python 里算好。同理，页面里拼提示语要在 QML 里用**属性表达式**
+（如 `StagePage._gateHint` 读 `StageBridge.datum/travelSet/moving`），
+不要调 `StageBridge.datumHint()` 这种函数。
+回归测试：`test_stage_bridge.py` 的 14c 与 `test_stage_page.py` 的 11c2。
+
+### 7. 错误提示要分"粘性/非粘性"，否则要么甩不掉要么看不见
+
+`StageBridge._set_error(msg, sticky=)`：
+- **粘性**（默认）＝要用户处理：参数没填、缺基准、固件 `#ERR` 拒绝。**不能自动清**，
+  否则用户来不及看见原因。
+- **非粘性**＝传输类：超时、socket 错误、连接断开。**必须在链路恢复后自动消失**
+  （命令成功时 `_clear_if_transient()`）。
+
+原来只有一种错误、且只在"重新连接"时清空，于是**一次超时之后诊断面板一直挂着
+"超时（板子没有应答）"**，哪怕板子早就好端端在应答了 —— 用户原话是"不会自己消失"。
+
+### 8. 布局问题"量"不要"猜" —— 有截图和几何两条路
+
+QML 布局出问题的典型症状是"某个控件不见了/错位了"，**靠读代码猜非常低效**。
+两个工具（`tests/render_page.py`，见文件头注释）：
+
+```bash
+QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1400 1700 both --dump
+```
+
+- **截图**：offscreen 下 `QQuickWindow.grabWindow()` 能直接把窗口抓成 PNG，一眼看出
+  是"没渲染"还是"被推出可视区裁掉了"。
+  ⚠ 两个 PySide 坑：必须 `from PySide6.QtQuick import QQuickWindow`（不 import 定义类型的
+  模块，`rootObjects()` 拿回来的只是 `QWindow`，没有 `grabWindow()`）；
+  `findChild` 第一个参数要传 `QObject` 类型对象，不能传 `type(win)`。
+- **量几何**：`--dump` 打印关键行的宽度与其子控件坐标。
+
+### 9. QML 里一个"撑爆宽度"的坑：坏的是 A 行，坏掉的是 B 行
+
+真实案例（平台页诊断面板）：`ComboRow` 的下拉框和 `SwitchRow` 的开关**完全没画出来**，
+只剩标签。量出来的几何是：
+
+```
+homeKind (ComboRow)    w=628   ← 但父 ColumnLayout 只有 412
+homeRev  (SwitchRow)   w=628
+boardStatus(ReadonlyRow) w=628 ← 元凶
+    ComboBox 在 x=478、开关 Button 在 x=584 → 都在 412 之外，被卡片裁掉
+```
+
+根因：**「板子状态」那一行的长文本（70+ 字符）没有 `elide`/换行**，它的隐式宽度把整个
+ColumnLayout 撑到 628；同一列里 `fillWidth` 的兄弟行跟着变成 628 宽，它们**右侧的控件**
+就被推出了 460 宽的卡片。
+
+规矩：**任何可能很长的 Text 都要能收缩**（`Layout.fillWidth: true` + `elide` 或 `wrapMode`），
+否则它会连累同一列的其他行。已加固 `ReadonlyRow` / `ComboRow`（标签加上限）;
+诊断摘要这种超长内容改为「标签 + 自动换行块」，不再用单行组件。
+回归守卫：`tests/test_stage_page.py` 的 11c2b（断言行宽 ≤420 且子控件右边界在卡片内）。
+
+### 10. 串行通道上的"慢命令"必须非阻塞 —— 否则急停是假的
+
+2026-09-13 真机：**"台面撞到边缘不停，我在界面上按停止没反应。"**
+根因是两层叠在一起（详见 `docs/17` §11）：
+
+1. **板子的 TCP 任务是串行的**，阻塞版 `home` 要等到回零结束（几十秒）才回话 →
+   我们发的 `stop all` 就排在它后面，界面上按了跟没按一样。
+2. **电源被限流到 400mA**，顶住时驱动器欠压，回零**永远结束不了** →
+   那条阻塞的 `home` 也就永远不返回。
+
+规矩（对任何"可能很久"的命令都成立）：
+- **客户端一律走非阻塞变体**（`move` 而不是 `g0`，`home … nowait` 而不是 `home`），
+  结束状态由 `json` 的 `last` / `homing` 字段轮询判定。
+- **急停命令永远排在最前面**（`_enqueue(..., front=True)`），并且**绝不能被禁用** ——
+  它的 `enabled` 只跟 `connected` 走，不要跟 `moving`/`homing` 走。
+- **界面上必须有一个按得动的退出方式**：回零中「自动回零」禁用，但要出现「中断回零」；
+  回归守卫是 `tests/test_stage_page.py` 的 11c4。
+- **报障"点了没反应"时，先问"这条命令会不会把通道占住"**，再问业务逻辑。
+  只修其中一层，现象会原样复现。
+
+### 11. 测试替身必须复刻"慢"和"抢占"，否则给的是虚假安全感
+
+原来的 `FakeBoard.handle("home")` 只 `time.sleep(0.3)` 就返回 ——
+于是上面那条"阻塞 `home` 期间 stop 进不来"的缺陷**在测试里根本复现不出来**，
+测试全绿而真机全崩。现在替身按固件真实语义建模：
+带 `nowait` 立刻返回，不带才睡；`stop` 会顺手把 `homing` 置 3；`json` 的轮询会推进回零状态
+（`homing_polls_needed` 可调大，用来把"回零中"一直挂着，专门测急停）。
+
+教训：**替身的"诚实度"决定了测试能发现什么。** 替身里省掉的行为，
+就是测试永远测不到的行为。加功能时同步问一句："替身那边改了没有？"
+
+### 12. 「连接」不是一个无害动作 —— 连接序列里不许有会动对端的命令
+
+2026-09-13 真机：**"这个自动回零会在上位机点击连接的时候回零，其他情况不会回零。"**
+
+排查方法值得当模板：把"连上之后到底发了什么"逐条列出来。
+`_on_ready_read` 里只有 `travel` + 两条 `hset`（外加启动 `json` 轮询）；
+`travel` 是纯固件闸、`json` 只读 → **唯一碰总线的是 `hset`（0x91）**，
+而这台 PD42S1 **收到 0x91 就会自己开始找零点**（手册没写，实测如此）。
+
+**规矩**：
+- 连接时只允许发**幂等且无副作用**的命令。`hset` 这种"写进对端就会引发动作"的，
+  一律换成只在本侧/固件侧生效的变体（这里是新增的固件命令 **`hcfg`**：只写板子 RAM）。
+- 回归守卫：`tests/test_stage_bridge.py` **14f4** —— 断言连接后的命令序列里
+  没有任何 `hset/home/move/g0/turn/abs/zero`。**加连接期命令时必须过这一条。**
+- 原注释写的是"因为固件的 hset 只存 RAM"——那是**本侧**的理由，
+  但代价发生在**对端**。写这类注释时要问一句"对端收到它会不会动"。
+
+### 13. 界面表达不了的自由度 = 功能不存在
+
+2026-09-13 用户报：**"现在回零只有左右回零，没法在角落里回零，也就是没有 Y 轴里外的回零。"**
+固件一直支持任意方向组合，**但界面只给了一个「方向反转」开关（两轴共用）** ——
+而 CoreXY 里"两轴同向 = 纯 X、两轴反向 = 纯 Y"，两轴永远同向就永远只能走一个方向。
+
+改法：把"想要哪个角"当输入，**方向由固件按 `COREXY_DEFAULT` 反推**
+（`home corner <xdir> <ydir>`）；界面只提供 4 个角落 + 4 个单趟调试按钮。
+那个「方向反转」开关**删掉**了 —— 它在新流程里完全无效，留着就是"点了没反应"。
+
+**规矩**：设计参数面板时先问"用户要描述的自由度，这几个控件够不够表达？"
+表达不了的参数不是"用户不会用"，是**功能缺失**。
+
+### 14. QML 属性会自动生成 `<名字>Changed` 信号 —— 别撞名
+
+`property int homeCorner` 已经自动生成了 `homeCornerChanged`。
+再写 `signal homeCornerChanged(int)` 会让**整个页面**加载失败：
+`Duplicate signal name: invalid override of property change signal or superclass signal`。
+改名成 `homeCornerPicked` 即可。这类错误由 `tests/test_stage_page.py` 第 1 步
+（页面加载）直接抓到，不用等运行时。
+
+### 15. `_enqueue()` **没有返回值** —— 别写 `if not self._enqueue(...)`
+
+`stage_bridge.py` 的 `_enqueue()` 只负责"排队 + 泵出去"，**没有 return**，
+所以 `if not self._enqueue(...)` 里的 `not None` **恒为真** —— 那个分支永远会走。
+
+真机后果是**静默的**：退出回零点那次 `move` 发出去了，但代码立刻走"失败分支"断开连接，
+于是**永远不回零点**，而且不报任何错。已改成直接调用 + 用"命令应答完 / moving 归 0"
+两段等待来判断成功。`tests/test_stage_bridge.py` 第 16 组断言"退出时真的发了那条 move"，
+专门钉这一类"发了就走"的错误。
+
+**同类坑**：本项目其它"看起来会返回布尔"的内部方法（`_pump_queue`、`_apply_json`…）
+也都没有返回值 —— 调用前先看一眼实现，别按名字猜。
+
+### 16. 「位置读数是 0」**不能**证明"台面在零点"
+
+驱动器上电时也是从 0 开始数的 —— 于是"随便停在哪儿"和"正好停在零点"读出来**一模一样**。
+判断基准还能不能信，必须靠**固件的基准闸**（`json` 的 `datum`，在 RAM 里，板子一重启就清空）
+当"电源有没有断过"的证人；位置只用来判断"我们不在的时候有没有人动过它"。
+`_check_park()` 就是这两条一起看（见 `docs/17` §11.4）。
+
+### 17. 能做"选项"的东西，先问一句"它会不会挪走整个坐标系"
+
+`stage/home_corner`（回零目标角落，四选一）被删掉了（2026-09-13，用户拍板：
+**"固定零点在 X 轴左侧和 Y 轴的外侧"**）。原因不是"少一个控件更清爽"，而是：
+
+**零点同时被预设位置、工作区、退出回零点三处引用。** 一旦它可选，
+就可能出现"这次回左·外、下次回右·里"—— 那不是换个角落，那是**把坐标系整体平移**，
+而所有预设坐标会**静默地全部失效**（界面看起来一切正常，去的地方全错）。
+
+→ 现在是一个常量 `DATUM_CORNER = (-1, -1)`，并在缩略图上画了个绿方块标出来，
+图例写「零点（X 左 · Y 外）」—— 把"家在哪"画出来，比让人从下拉框里记更可靠。
+
+**推广**：凡是"改了它会让已有数据失效"的设置，默认都应该是**不可选**的；
+非要可选，就必须同时给它一个"已有预设已作废"的显式提示。
+
+### 18. 删 UI 要给"反向断言"，否则删掉的东西会偷偷回来
+
+2026-09-13 删掉整套无限位回零界面时，`test_stage_page.py` 的 11c2b 不是删掉了事，
+而是改成**反向断言**：
+```python
+for gone in ("homeKind", "homeCorner", "homeButton", "homeAbortButton",
+             "homePassXm", ... "applyHomeCfgButton", "homeRpm", "homeMa"):
+    r.check("已删除的控件不在界面上：" + gone, find(gone) is None)
+```
+理由：这些控件每一个都对应过真机上的困惑（"点了没反应"/"回零期间按停止没反应"），
+是**带着教训删掉的**。只写"现在还剩什么"的断言，下次有人合错分支就能把它们放回来而无人察觉。
+
+### 19. 量程/上限这类"跨层事实"，只许有一份
+
+2026-09-13 用户问"速度能不能到 3000rpm"，查下去发现一个典型坑：
+
+`stage_bridge.py` 里**已经声明**了 `UI_MAX_RPM = 1200`，还带着注释解释为什么是 1200 ——
+**但从来没有任何地方引用它**。滑块里是硬编码的 `to: 1200`。
+于是"改常量"对界面**完全无效**，而两边看起来都很正常。
+
+**修法**：bridge 暴露 `uiMaxRpm` / `uiMaxAcc` 两个 Property 当**唯一事实源**，
+QML 写 `to: StageBridge.uiMaxRpm`；并加回归守卫
+（`test_stage_page.py` **11c6**）断言 `滑块.to == StageBridge.uiMaxRpm`
+**且** `uiMaxRpm <= 固件上限 6000` —— 界面**不能**给出固件会拒收的值（那等于"拖了没反应"）。
+
+**通用判据**：一个数字如果同时出现在"后端常量"和"前端控件"两处，
+那它**迟早会漂移**；而且漂移的表现是**静默的**（只是范围小了一点，没人报错）。
+凡是这种数字，都要么从前端读后端，要么有一条断言把两边钉在一起。
+
+顺带把手册查清楚了：**驱动器最高 6000 RPM**（不是 3000，也不是我们原来以为的 1200），
+`0xF3` 的速度字段也是 `0~6000`。界面给 3000 是"扭矩还能带点载"的实用顶 ——
+"驱动器能输出"和"电机带得动"是两件事（1.8° 电机 3000rpm = 10kHz 电频率，24V 下扭矩掉得快）。
+
+### 3. 建连必须有超时
+
+`QTcpSocket.connectToHost` 连**不存在**的 IP 时，Qt 自己不超时，socket 会一直挂在
+`ConnectingState` —— 卡片永远转"正在连接…"、永不报错。`StageBridge` 已加
+`CONNECT_TIMEOUT_MS = 8000`，超时后给出可操作的三条排查（同一热点？IP 变了？客户端隔离？）。
 
 ## 冒烟测试（offscreen）
 
-无测试框架，回归靠 `/tmp/opencode/` 下的临时脚本（Python + QTest 模拟点击 + `QT_QPA_PLATFORM=offscreen`）。已验证的关键点：
+无测试框架，回归靠 `tests/` 下的脚本（Python + QTest 发信号 + `QT_QPA_PLATFORM=offscreen`）。
+
+### 已固化进 `tests/` 的测试（**不需要真硬件**，改相关代码后跑一下）
+
+```bash
+source DuAD_SoftwareContent/pyqml/bin/activate
+QT_QPA_PLATFORM=offscreen python3 tests/test_stage_bridge.py   # StageBridge 断言（含 14f/14f2/14f3 回零与急停）
+QT_QPA_PLATFORM=offscreen python3 tests/test_stage_page.py     # StagePage 端到端 + 导航同步校验（含 11c4 回零按钮态）
+QT_QPA_PLATFORM=offscreen python3 tests/test_light_bridge.py   # LightBridge/LightPage：假控制器（只认 19200）+ 滑块→串口
+QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1400 1700 both --dump  # 渲染成图 + 量几何
+```
+
+- `test_light_bridge.py` 的假控制器**复刻真机的波特率敏感性**（9600/38400/115200 一个字都不回）
+  和"长应答分片"（32 字节/片、片间隔放大到 60ms）—— 这两条是 2026-09-22 真机排查出来的，
+  省掉任何一条，测试就测不出"默认 9600 → 完全没法控制"和"应答读一半就截断"。
+
+- 平台相关的两个测试都自带**进程内假板子**（严格按固件行为：口令 → `#OK/#ERR` 分帧、`travel` fail-closed、
+  无基准拒绝 `move`、`json` 轮询兼做到位判定），所以**不用等真板子**就能验协议与页面逻辑。
+- `test_stage_page.py` 还**静态校验 `MainWindow.ui.qml` 的"三处同步"**（NavButton / ButtonGroup /
+  StackLayout 顺序 + 序号注释连续）—— 这是本项目最容易漏、且**错了不报错**（点 A 显示 B）的一处。
+- ⚠ 交互用**发信号**（`btn.clicked.emit()`）而不是模拟鼠标坐标：offscreen 下按坐标点要窗口
+  exposed + `mapToScene` 换算，脆且难查。代价是不覆盖命中测试。
+- ⚠ 找控件用 **`objectName`**（`findChild(QObject, "stopButton")`）而不是 className ——
+  className 是 `Button_QMLTYPE_*` 这种自动生成的名字，不稳定。新增要测的控件时记得加 `objectName`。
+
+### 通用坑
 
 - **必须 `python -u`**（管道下 stdout 缓冲会吞日志）；QML 的 console.log 在该环境不可见，断言靠 Python 读 property。
 - **FakeBridge 必须保持引用**（`bridge = FakeBridge()` 存变量），否则被 GC → QML 侧 AppBridge 变 null、点击回调静默失败（界面上表现为"点了没反应"）。
 - 控件 className 不是 `QQuickButton` 等 C++ 名，Qt 6.11 控件是 QML 实现（`Button_QMLTYPE_*`），匹配用 `"Button" in className`；Popup/Dialog 不在 Item 树里（用 `findChildren(QObject)`），delegate 在 ListView 的 contentItem 里。
 - 切页用 `stack.setProperty("currentIndex", n)`，等布局完成再点（齿轮/卡片坐标经 `mapToScene` 换算）。
+- ⚠ **替身漏属性会伪装成页面 bug**：假 `AppBridge` 少了真桥有的 `cameraConnected`，页面立刻报
+  `Unable to assign [undefined] to bool` —— 看着像页面写错了属性。替身要按"页面实际引用的每个属性"补齐。
+- ⚠ **进程末尾的 `TypeError: Cannot read property 'xxx' of null` 多半是退出噪音**（Python 侧对象先于
+  QML 对象被回收），不是加载期错误。判断真假要看**加载完成后那一刻**的 `engine.warnings`。
+- ⚠ offscreen 没注册 image provider，`Invalid image provider: image://camera/...` 属预期噪音，测试里滤掉。
 
 ## 页面状态
 
-- 已实现：Camera（**真实相机后端已联调**：搜索/连接/断开/参数读写全链路，MER2-501-79U3C-L 分辨率 2448×2048）、Light（**CH340 串口光源已联调**）、Comm（**MQTT 云服务器已联调**）、Collect（**真实相机定时保存已联调**：保存目录/前缀/格式/间隔 → CollectBridge 后台节流写盘，与 Detect 采集互斥）、Settings（通用/云服务器/关于）、Detect（**真实相机实时采集已联调**：原图 provider 推帧 + ROI 写相机 + 算法开启时后台 ONNX 实时推理热力图/分数/定位图，`_camRatio` 跟随实际 GX_INT_WIDTH/HEIGHT）
+- 已实现：Camera（**真实相机后端已联调**：搜索/连接/断开/参数读写全链路，MER2-501-79U3C-L 分辨率 2448×2048）、Light（**RS-232 数字光源控制器已真机联调**，2026-09-22：`/dev/ttyUSB1` 4 通道机型，19200 连上并回读 `L0~L3/T0~T3/F0~F3/TR/LC/SN`，写入 `$L{n}={v}#` 回 `+OK`；**旧的"CH340 @9600"设定是错的**，见 `Src/light_bridge.py` 条目）、Comm（**MQTT 云服务器已联调**）、Collect（**真实相机定时保存已联调**：保存目录/前缀/格式/间隔 → CollectBridge 后台节流写盘，与 Detect 采集互斥）、Settings（通用/云服务器/关于）、Detect（**真实相机实时采集已联调**：原图 provider 推帧 + ROI 写相机 + 算法开启时后台 ONNX 实时推理热力图/分数/定位图，`_camRatio` 跟随实际 GX_INT_WIDTH/HEIGHT）
+- **Stage**：✅ 页面 + `StageBridge` 完成，`tests/` 下两个测试全过；✅ **真机已联调**（2026-09-13）——
+  配网/口令/TCP 往返/点动/绝对定位/回零都跑通了。回零走 `home corner <xdir> <ydir> nowait`
+  （两趟到角落；方向由固件按 COREXY_DEFAULT 算），参数登记走 `hcfg`（只写板子 RAM）。
+  ⚠ 仍未验证的一点：0x91 的方向到底由 Byte2 还是 Byte1 决定 —— 若第 2 趟走的还是 X 方向，
+  说明要用 Byte1，见 `docs/17` §11.2 与固件 `AGENTS.md`
 - 注意：`CLAUDE.md` 的「当前状态」一节已过时（写于只有 CameraPage 时）。

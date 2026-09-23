@@ -99,6 +99,14 @@ EN = {
     "光源控制器": "Light Controller",
     "光源亮度调节": "Light Brightness Control",
     "光源设置": "Light Settings",
+    "触发方式": "Trigger Mode",
+    "E0L 外部跟随低电平": "E0L Follow Low Level",
+    "E1H 外部跟随高电平": "E1H Follow High Level",
+    "E2L 外部下降沿触发": "E2L Falling Edge Trigger",
+    "E3H 外部上升沿触发": "E3H Rising Edge Trigger",
+    "出厂默认 E0L：灯的亮灭还受 TRIG IN 电平控制，触发方式要与实际接线一致。": "Factory default is E0L: the lamp is also gated by the TRIG IN level, so the trigger mode must match your wiring.",
+    "保存到控制器（掉电保存）": "Save to Controller (kept after power-off)",
+    "控制器": "Controller",
     "海洋蓝": "Ocean Blue",
     "可用的相机": "Available Cameras",
     "连接测试": "Connection Test",
@@ -153,6 +161,136 @@ EN = {
     "MQTT 通讯设置": "MQTT Settings",
     "QoS 等级": "QoS Level",
     "TLS/SSL": "TLS/SSL",
+    "Gamma": "Gamma",
+    "Topic": "Topic",
+    "𝒟𝓊𝒜𝒟": "𝒟𝓊𝒜𝒟",
+    "+Y 向里": "+Y inward",
+    "−X 向左": "−X left",
+    "毫米/格": "mm/step",
+    "+X 向右": "+X right",
+    "−Y 向外": "−Y outward",
+    "平台控制": "Stage Control",
+    "+右 −左": "+right −left",
+    "+里 −外": "+inward −outward",
+    "当前位置": "Current position",
+    "目标位置": "Target position",
+    "工作区": "Workspace",
+    "↑ +Y 向里    → +X 向右": "↑ +Y inward    → +X right",
+    "二轴相机平台": "2-Axis Camera Stage",
+    "状态": "Status",
+    "已连接": "Connected",
+    "未连接": "Disconnected",
+    "正在连接二轴平台...": "Connecting to stage...",
+    "点击断开连接": "Click to disconnect",
+    "点击连接平台": "Click to connect",
+    "诊断": "Diagnostics",
+    "板子状态": "Board status",
+    "暂无日志": "No log yet",
+    "立即刷新状态": "Refresh now",
+    "自动回零": "Auto home",
+    "中断回零": "Abort homing",
+    # ── 角落回零（2026-09-13）
+    "目标角落": "Target corner",
+    "左·外（−X −Y）": "Left · outward (−X −Y)",
+    "左·里（−X +Y）": "Left · inward (−X +Y)",
+    "右·外（+X −Y）": "Right · outward (+X −Y)",
+    "右·里（+X +Y）": "Right · inward (+X +Y)",
+    "角落回零（两趟）": "Home to corner (two passes)",
+    "✓ 本次会话已登记（固件那道闸已放行）—— 只记在板子 RAM 里，没写驱动器": "✓ Registered this session (the firmware gate is open) — RAM only, nothing written to the drivers",
+    "尚未登记 —— 「角落回零」会被固件拒绝": "Not registered yet — “Home to corner” will be refused by the firmware",
+    "单趟回零（调试）：第一次到新角落前，先用它确认方向 —— 按下去看台面往哪边走，不对就立刻按「停止」。": "Single-pass homing (debug): before the first trip to a new corner, use these to confirm the direction — press one and watch which way the table moves; hit Stop immediately if it is wrong.",
+    "X− 左": "X− left",
+    "X+ 右": "X+ right",
+    "Y− 外": "Y− out",
+    "Y+ 里": "Y+ in",
+    # ── 平台控制页（StagePage）剩下的 19 条：先前的 i18n 只补了一部分，
+    #    英文/繁体下这一页会半中半英 —— 顺手补齐（lupdate 会报它们 unfinished）
+    "回零参数": "Homing parameters",
+    "方式": "Mode",
+    "无限位回零 · 朝左": "Sensorless · toward left",
+    "无限位回零 · 朝右": "Sensorless · toward right",
+    "限位开关 · 左（本板无开关）": "Limit switch · left (none on this board)",
+    "限位开关 · 右（本板无开关）": "Limit switch · right (none on this board)",
+    "方向反转": "Reverse direction",
+    "回零速度": "Homing speed",
+    "限位电流": "Limit current",
+    "应用回零参数（两轴）": "Apply homing params (both axes)",
+    "✓ 本次会话已配置（固件那道闸已放行）": "✓ Configured this session (the firmware gate is open)",
+    "尚未配置 —— 「自动回零」会被固件拒绝": "Not configured yet — “Auto home” will be refused by the firmware",
+    "⚠ 还没配置板子地址 —— 展开下面的「平台设置」填入，板子 USB 控制台敲 net 会打印这三个值": "⚠ Board address not configured — expand “Stage setup” below and fill it in; typing net in the board's USB console prints these three values",
+    "⚠ 预览没能启动：相机采集没有起来。请到「相机设置」确认相机已连上且没被别的页面占着；大分辨率下也可能是系统 usbfs 缓冲太小（终端跑 bash scripts/set_usbfs.sh 后重启程序）。": "⚠ Preview did not start: camera capture never came up. Check “Camera Settings” that the camera is connected and not held by another page; at high resolution the system usbfs buffer may also be too small (run bash scripts/set_usbfs.sh in a terminal, then restart the app).",
+    "转速 = 巡航速度；加减速 = 起步/停下的猛烈程度，数值越大越猛（1 最柔和、200 最猛，默认 1）。": "Speed = cruising speed; accel = how hard it starts and stops — larger is more aggressive (1 softest, 200 hardest, default 1).",
+    "拖动松手即生效，不用点「应用设置」。": "Releasing the slider applies it — no need to click “Apply”.",
+    "参考：走 100mm 约": "Reference: 100 mm takes about",
+    "秒（只按转速算，不含加减速耗时）": "s (cruise speed only, excluding accel/decel time)",
+    "⚠ 步进点动（0.1~10mm）看不出速度差别：行程只有几十毫秒，基本全被驱动器的加减速斜坡吃掉了。要验证转速，请用「绝对定位」走一段长距离（比如 200mm），或展开「诊断」看日志里下发的指令（移动命令末尾两个数就是 rpm 和 acc）。": "⚠ Speed makes no visible difference for step jogs (0.1–10 mm): the move lasts tens of milliseconds and is almost entirely eaten by the driver's accel/decel ramp. To verify speed, use “Absolute move” over a long distance (say 200 mm), or expand “Diagnostics” and read the command in the log (the last two numbers of a move command are rpm and acc).",
+    "⚠ 自动回零期间板子通道被占用（回零很慢），这期间急停会被排在它后面 —— 回零请在能直接看到台面的情况下做。": "⚠ The board's channel is busy during auto homing (it is slow), so an emergency stop queues behind it — only home while you can see the table directly.",
+    "⚠ 台面顶到边缘却不停、一直咔咔响 —— 先查机械，别先怀疑程序：那通常是皮带在跳齿/打滑。电机还在转，驱动器就看不到“顶住了”，于是永远判不出零点、一直顶到超时。判据：'pos all' 还在涨吗？在皮带轮上做个记号，看它是不是还在转。": "⚠ The table hits the edge and keeps grinding with a clicking noise — check the mechanics first, not the program: the belt is usually skipping teeth / slipping. The motor is still turning, so the driver cannot see that it is blocked, and it never finds the zero point — it just grinds until the timeout. How to tell: is 'pos all' still increasing? Put a mark on the pulley and watch whether it keeps rotating.",
+    "⚠ 第一次回零务必：① 用最低速（60rpm）② 限位电流用 800~1200mA ③ 手放在「停止」上 ④ 先低速点动确认哪边是机械死点 —— 方向反了会直接顶死点。⑤ 供电的电流限值要留够（限到 400mA 这种，驱动器一到顶就欠压，现象是乱撞 + 位置丢失）。": "⚠ First homing, always: (1) lowest speed (60 rpm) (2) limit current 800–1200 mA (3) keep a hand on Stop (4) jog slowly first to confirm which side is the mechanical stop — a wrong direction drives straight into it. (5) Leave enough headroom in the supply's current limit (limiting it to e.g. 400 mA browns out the driver on contact, which shows up as random ramming plus lost position).",
+    "✅ 回零用非阻塞模式（nowait）：回零期间「停止」照样立刻生效，固件侧会把回零一并中断（0x93），超过驱动器时限也会自动兜底中断。请在能直接看到台面的情况下做。": "✅ Homing uses non-blocking mode (nowait): Stop still takes effect immediately while homing, the firmware aborts homing along with it (0x93), and it auto-aborts past the driver's timeout. Only home while you can see the table directly.",
+    "⚠ 第一次回零务必：① 速度别低于 300rpm —— 60rpm 满行程要 9.4 秒，几乎顶到驱动器 10 秒的回零超时，从远端起步会“跑不到边缘就失败”（实测踩过这个假故障）② 限位电流用 800~1200mA（300mA 只有电机额定的 18%，“推不实”就判不出顶住）③ 手放在「停止」上 ④ 先低速点动确认哪边是机械死点 —— 方向反了会直接顶死点。⑤ 供电的电流限值要留够（限到 400mA 这种，驱动器一到顶就欠压，现象是乱撞 + 位置丢失）。": "⚠ Before the first home run: ① keep the speed at or above 300 rpm — at 60 rpm a full 300 mm stroke takes 9.4 s, right at the driver's 10 s homing timeout, so starting from far away fails with “never reached the edge” (a real false failure we hit) ② set the limit current to 800–1200 mA (300 mA is only 18% of the motor rating — it can't push hard enough to be detected as stalled) ③ keep a hand on Stop ④ jog slowly first to find out which side is the mechanical stop — the wrong direction drives straight into it ⑤ leave enough headroom on the PSU current limit (400 mA makes the driver brown out at the stop, showing up as random ramming + lost position).",
+    "单位提示：固件说\"度\"，界面说 mm，换算 1mm = 11.25°（GT2-16 齿带轮）。换算只在上位机做一次，固件里不再重复。": "Units: the firmware speaks degrees, this UI speaks mm; 1 mm = 11.25° (GT2-16 pulley). The conversion happens once, here — never twice.",
+    "手动控制": "Manual control",
+    "步长": "Step",
+    "■  停止": "■  Stop",
+    "⌂  把当前位置设为原点": "⌂  Set current position as origin",
+    "绝对定位": "Absolute move",
+    "移动到该位置": "Move to this position",
+    "超出工作区的目标会被自动夹到边界（固件那道闸只当兜底）。": "Targets outside the workspace are clamped to the edge (the firmware gate is only a backstop).",
+    "未连接平台：先点上面的平台卡片连接": "Stage not connected: click the stage card above to connect",
+    "缺少基准：每次上电都要重立一次 —— 先把滑座推到靠块/硬限位贴实，再点「⌂ 把当前位置设为原点」": "No datum yet: it must be re-established after every power-up — push the carriage against its hard stop/fixture, then click “⌂ Set current position as origin”",
+    "未设置工作区：展开「平台设置」填写台面行程（固件不设行程就拒绝一切绝对移动）": "Workspace not set: open “Stage settings” and enter the table travel (the firmware rejects all absolute moves until then)",
+    "平台设置": "Stage settings",
+    "零点（X 左 · Y 外）": "Origin (X left · Y outer)",
+    "日志里的运动指令是固件的角度域（1mm = 11.25°，GT2-16 齿带轮）；换算只在上位机做一次。": "Motion commands in the log use the firmware's degree domain (1 mm = 11.25°, GT2-16 pulley); the mm conversion happens once, here in the app.",
+    "失能（松掉电机，可用手推）": "Disable (motors free, you can push by hand)",
+    "使能（顶住台面）": "Enable (motors hold position)",
+    "失能后可以用手推台面调机械；但别在失能状态下指望坐标 —— 台面被推动后基准就废了。注意：「设为原点」和任何运动命令都会自动把电机重新使能，所以调机械时失能要放在这些动作之后。": "Once disabled you can push the table by hand to adjust the mechanics — but do not trust the coordinates while it is disabled: pushing the table destroys the datum. Note that “Set as origin” and every motion command re-enable the motors automatically, so disable *after* those actions when working on the mechanics.",
+    "⚠ 转速越高，能带的负载越小：3000rpm = 电机 50 圈/秒，1.8° 电机就是 10kHz 电频率，24V 下相电流来不及建立，扭矩掉得很快。3000rpm 在皮带上传动 = 1600mm/s、台面约 800mm/s（360mm 行程 0.45 秒跑完）——这个速度基本只适合空载。相机平台常用 600~1200rpm。\n⚠ 更要紧的是：加速太猛 + 皮带偏松 = 跳齿，而编码器在电机轴上，皮带跳齿驱动器是看不见的（它只会认为「我转到位了」）→ 坐标悄悄错掉。提速请一次加一档、跑长距离看台面有没有少走。": "⚠ The faster you go, the less load the motor can carry: 3000 rpm means 50 rev/s, and for a 1.8° motor that is a 10 kHz electrical frequency — at 24 V the phase current cannot build up fast enough, so torque falls off quickly. 3000 rpm through the belt is 1600 mm/s, about 800 mm/s at the table (a full 360 mm traverse in 0.45 s) — that speed is essentially no-load only. Camera stages usually run at 600–1200 rpm.\n⚠ More important: too much acceleration plus a slightly loose belt equals tooth skipping, and since the encoder sits on the motor shaft the driver cannot see the belt skip (it only believes “I reached the target”) — so the coordinates silently go wrong. Raise the speed one notch at a time and run a long move to check the table did not fall short.",
+    "加减速是对数刻度：一半行程就覆盖了 1~15，低端能一点点调（1 和 2 的手感差得很远），高端 190/200 几乎无感所以挤在一起。滚轮在 20 以下 1 格 1 步；要精确到任意整数，直接点右边的数字输入。": "Acceleration uses a logarithmic scale: half the track already covers 1–15, so the low end can be tuned a step at a time (1 and 2 feel very different), while 190 vs 200 is imperceptible and they end up crowded together. The wheel moves one step at a time below 20; for any exact integer, click the number on the right and type it.",
+    "关机行为": "On close",
+    "退出时回到零点": "Return to origin on exit",
+    "把台面开回零点角再退出，好处是下次开机能核对台面有没有被动过（差得超过 0.5mm 就会在日志里提示）。⚠ 它不是为了「保住基准」：驱动器只要不断电就一直数着位置，上位机什么时候关、断线、甚至崩掉，都不影响坐标。会丢基准的只有两件事 —— ① 板子/24V 断电（单圈编码器丢多圈位置，这时会提示重新立基准）② 有人用手推动了台面。": "Parking the table at the origin corner before exit lets the next launch verify that nothing moved it (a gap over 0.5 mm is reported in the log). ⚠ This is not what keeps the datum alive: the driver keeps counting position as long as it has power, so closing the app, losing the connection or even crashing it never affects the coordinates. Only two things destroy the datum — ① cutting power to the board/24 V (the single-turn encoder loses multi-turn position; the app then asks you to re-datum), ② someone pushing the table by hand.",
+    "待设置": "Not set",
+    "已使能": "Enabled",
+    "未使能": "Disabled",
+    "无电压": "No voltage",
+    "已立基准": "Datum set",
+    "无基准": "No datum",
+    "行程已设": "Travel set",
+    "行程未设": "Travel not set",
+    "运动中…": "Moving…",
+    "实时预览": "Live preview",
+    "↑+Y 向里   →+X 向右": "↑+Y inward   →+X right",
+    "相机未连接": "Camera not connected",
+    "相机未连接 —— 预览需要先在「相机设置」里连上相机": "Camera not connected — connect it in “Camera” first",
+    "正在等待画面…": "Waiting for frames…",
+    "预览已关闭（打开右上角开关即可）": "Preview off (use the switch at top right)",
+    "预览占用了相机采集（与「异常检测」「图像采集」互斥），离开本页会自动释放。": "Preview holds the camera (mutually exclusive with Detect / Capture) and is released when you leave this page.",
+    "预设位置": "Preset positions",
+    "个": "presets",
+    "⚠ 坐标以「本次上电后立的基准」为准。驱动器掉电丢位置，重新上电后必须重新立一次基准（推到位 → 点「设为原点」），否则预设位置没有意义。": "⚠ Coordinates are relative to the datum established after the current power-up. The driver loses position on power-off, so the datum must be re-established after every power-up (push into place → click “Set as origin”), otherwise these presets mean nothing.",
+    "还没有预设。把台面移到工位后，在下面起个名字记下来。": "No presets yet. Move the table to a station, then name it below.",
+    "前往": "Go",
+    "名称": "Name",
+    "例如：工位1": "e.g. Station 1",
+    "记录当前位置": "Record position",
+    "网络": "Network",
+    "板子 IP": "Board IP",
+    "端口": "Port",
+    "口令": "Token",
+    "8 位十六进制": "8 hex digits",
+    "三个值都在板子的 USB 控制台上敲 net 就能看到，板子会直接打印出来。": "Run “net” on the board's USB console — it prints all three values for you.",
+    "工作区（台面行程，mm）": "Workspace (table travel, mm)",
+    "必须按实际台面量准后填写：固件不设行程就拒绝一切绝对移动，填大了则会在撞到机械限位前不刹车。": "Measure the real table and enter it: without travel the firmware rejects every absolute move, and if you overstate it the stage will not stop before hitting a hard limit.",
+    "X 小": "X min",
+    "X 大": "X max",
+    "Y 小": "Y min",
+    "Y 大": "Y max",
+    "速度": "Speed",
+    "转速": "Speed",
+    "加减速": "Accel",
+    "应用设置": "Apply",
 }
 
 TW = {
@@ -251,6 +389,14 @@ TW = {
     "光源控制器": "光源控制器",
     "光源亮度调节": "光源亮度調節",
     "光源设置": "光源設定",
+    "触发方式": "觸發方式",
+    "E0L 外部跟随低电平": "E0L 外部跟隨低電平",
+    "E1H 外部跟随高电平": "E1H 外部跟隨高電平",
+    "E2L 外部下降沿触发": "E2L 外部下降緣觸發",
+    "E3H 外部上升沿触发": "E3H 外部上升緣觸發",
+    "出厂默认 E0L：灯的亮灭还受 TRIG IN 电平控制，触发方式要与实际接线一致。": "出廠預設 E0L：燈的亮滅還受 TRIG IN 電平控制，觸發方式要與實際接線一致。",
+    "保存到控制器（掉电保存）": "儲存到控制器（斷電保存）",
+    "控制器": "控制器",
     "海洋蓝": "海洋藍",
     "可用的相机": "可用的相機",
     "连接测试": "連線測試",
@@ -305,6 +451,135 @@ TW = {
     "MQTT 通讯设置": "MQTT 通訊設定",
     "QoS 等级": "QoS 等級",
     "TLS/SSL": "TLS/SSL",
+    "Gamma": "Gamma",
+    "Topic": "Topic",
+    "𝒟𝓊𝒜𝒟": "𝒟𝓊𝒜𝒟",
+    "+Y 向里": "+Y 向內",
+    "−X 向左": "−X 向左",
+    "毫米/格": "毫米/格",
+    "+X 向右": "+X 向右",
+    "−Y 向外": "−Y 向外",
+    "平台控制": "平台控制",
+    "+右 −左": "+右 −左",
+    "+里 −外": "+內 −外",
+    "当前位置": "當前位置",
+    "目标位置": "目標位置",
+    "工作区": "工作區",
+    "↑ +Y 向里    → +X 向右": "↑ +Y 向內    → +X 向右",
+    "二轴相机平台": "二軸相機平台",
+    "状态": "狀態",
+    "已连接": "已連接",
+    "未连接": "未連接",
+    "正在连接二轴平台...": "正在連接二軸平台...",
+    "点击断开连接": "點擊斷開連接",
+    "点击连接平台": "點擊連接平台",
+    "诊断": "診斷",
+    "板子状态": "板子狀態",
+    "暂无日志": "暫無日誌",
+    "立即刷新状态": "立即重新整理狀態",
+    "自动回零": "自動回零",
+    "中断回零": "中斷回零",
+    # ── 角落回零（2026-09-13）
+    "目标角落": "目標角落",
+    "左·外（−X −Y）": "左·外（−X −Y）",
+    "左·里（−X +Y）": "左·裡（−X +Y）",
+    "右·外（+X −Y）": "右·外（+X −Y）",
+    "右·里（+X +Y）": "右·裡（+X +Y）",
+    "角落回零（两趟）": "角落回零（兩趟）",
+    "✓ 本次会话已登记（固件那道闸已放行）—— 只记在板子 RAM 里，没写驱动器": "✓ 本次工作階段已登記（韌體那道閘已放行）—— 只記在板子 RAM 裡，沒寫驅動器",
+    "尚未登记 —— 「角落回零」会被固件拒绝": "尚未登記 —— 「角落回零」會被韌體拒絕",
+    "单趟回零（调试）：第一次到新角落前，先用它确认方向 —— 按下去看台面往哪边走，不对就立刻按「停止」。": "單趟回零（偵錯）：第一次到新角落前，先用它確認方向 —— 按下去看檯面往哪邊走，不對就立刻按「停止」。",
+    "X− 左": "X− 左",
+    "X+ 右": "X+ 右",
+    "Y− 外": "Y− 外",
+    "Y+ 里": "Y+ 裡",
+    # ── 平台控制页（StagePage）剩下的 19 条（同 EN 段的说明）
+    "回零参数": "回零參數",
+    "方式": "方式",
+    "无限位回零 · 朝左": "無限位回零 · 朝左",
+    "无限位回零 · 朝右": "無限位回零 · 朝右",
+    "限位开关 · 左（本板无开关）": "限位開關 · 左（本板無開關）",
+    "限位开关 · 右（本板无开关）": "限位開關 · 右（本板無開關）",
+    "方向反转": "方向反轉",
+    "回零速度": "回零速度",
+    "限位电流": "限位電流",
+    "应用回零参数（两轴）": "套用回零參數（兩軸）",
+    "✓ 本次会话已配置（固件那道闸已放行）": "✓ 本次工作階段已設定（韌體那道閘已放行）",
+    "尚未配置 —— 「自动回零」会被固件拒绝": "尚未設定 —— 「自動回零」會被韌體拒絕",
+    "⚠ 还没配置板子地址 —— 展开下面的「平台设置」填入，板子 USB 控制台敲 net 会打印这三个值": "⚠ 還沒設定板子位址 —— 展開下面的「平台設定」填入，板子 USB 主控台敲 net 會印出這三個值",
+    "⚠ 预览没能启动：相机采集没有起来。请到「相机设置」确认相机已连上且没被别的页面占着；大分辨率下也可能是系统 usbfs 缓冲太小（终端跑 bash scripts/set_usbfs.sh 后重启程序）。": "⚠ 預覽沒能啟動：相機擷取沒有起來。請到「相機設定」確認相機已連上且沒被別的頁面佔著；大解析度下也可能是系統 usbfs 緩衝太小（終端跑 bash scripts/set_usbfs.sh 後重啟程式）。",
+    "转速 = 巡航速度；加减速 = 起步/停下的猛烈程度，数值越大越猛（1 最柔和、200 最猛，默认 1）。": "轉速 = 巡航速度；加減速 = 起步／停下的猛烈程度，數值越大越猛（1 最柔和、200 最猛、預設 1）。",
+    "拖动松手即生效，不用点「应用设置」。": "拖動鬆手即生效，不用點「套用設定」。",
+    "参考：走 100mm 约": "參考：走 100mm 約",
+    "秒（只按转速算，不含加减速耗时）": "秒（只按轉速算，不含加減速耗時）",
+    "⚠ 步进点动（0.1~10mm）看不出速度差别：行程只有几十毫秒，基本全被驱动器的加减速斜坡吃掉了。要验证转速，请用「绝对定位」走一段长距离（比如 200mm），或展开「诊断」看日志里下发的指令（移动命令末尾两个数就是 rpm 和 acc）。": "⚠ 步進點動（0.1~10mm）看不出速度差別：行程只有幾十毫秒，基本全被驅動器的加減速斜坡吃掉了。要驗證轉速，請用「絕對定位」走一段長距離（比如 200mm），或展開「診斷」看日誌裡下發的指令（移動命令末尾兩個數就是 rpm 和 acc）。",
+    "⚠ 自动回零期间板子通道被占用（回零很慢），这期间急停会被排在它后面 —— 回零请在能直接看到台面的情况下做。": "⚠ 自動回零期間板子通道被佔用（回零很慢），這期間急停會排在它後面 —— 回零請在能直接看到檯面的情況下做。",
+    "⚠ 台面顶到边缘却不停、一直咔咔响 —— 先查机械，别先怀疑程序：那通常是皮带在跳齿/打滑。电机还在转，驱动器就看不到“顶住了”，于是永远判不出零点、一直顶到超时。判据：'pos all' 还在涨吗？在皮带轮上做个记号，看它是不是还在转。": "⚠ 檯面頂到邊緣卻不停、一直咔咔響 —— 先查機械，別先懷疑程式：那通常是皮帶在跳齒／打滑。馬達還在轉，驅動器就看不到「頂住了」，於是永遠判不出零點、一直頂到逾時。判據：'pos all' 還在漲嗎？在皮帶輪上做個記號，看它是不是還在轉。",
+    "⚠ 第一次回零务必：① 用最低速（60rpm）② 限位电流用 800~1200mA ③ 手放在「停止」上 ④ 先低速点动确认哪边是机械死点 —— 方向反了会直接顶死点。⑤ 供电的电流限值要留够（限到 400mA 这种，驱动器一到顶就欠压，现象是乱撞 + 位置丢失）。": "⚠ 第一次回零務必：① 用最低速（60rpm）② 限位電流用 800~1200mA ③ 手放在「停止」上 ④ 先低速點動確認哪邊是機械死點 —— 方向反了會直接頂死點。⑤ 供電的電流限值要留夠（限到 400mA 這種，驅動器一到頂就欠壓，現象是亂撞 + 位置遺失）。",
+    "✅ 回零用非阻塞模式（nowait）：回零期间「停止」照样立刻生效，固件侧会把回零一并中断（0x93），超过驱动器时限也会自动兜底中断。请在能直接看到台面的情况下做。": "✅ 回零用非阻塞模式（nowait）：回零期間「停止」照樣立刻生效，韌體側會把回零一併中斷（0x93），超過驅動器時限也會自動兜底中斷。請在能直接看到檯面的情況下做。",
+    "⚠ 第一次回零务必：① 速度别低于 300rpm —— 60rpm 满行程要 9.4 秒，几乎顶到驱动器 10 秒的回零超时，从远端起步会“跑不到边缘就失败”（实测踩过这个假故障）② 限位电流用 800~1200mA（300mA 只有电机额定的 18%，“推不实”就判不出顶住）③ 手放在「停止」上 ④ 先低速点动确认哪边是机械死点 —— 方向反了会直接顶死点。⑤ 供电的电流限值要留够（限到 400mA 这种，驱动器一到顶就欠压，现象是乱撞 + 位置丢失）。": "⚠ 第一次回零務必：① 速度別低於 300rpm —— 60rpm 滿行程要 9.4 秒，幾乎頂到驅動器 10 秒的回零逾時，從遠端起歩會「跑不到邊緣就失敗」（實測踩過這個假故障）② 限位電流用 800~1200mA（300mA 只有電機額定的 18%，「推不實」就判不出頂住）③ 手放在「停止」上 ④ 先低速點動確認哪邊是機械死點 —— 方向反了會直接頂死點。⑤ 供電的電流限值要留夠（限到 400mA 這種，驅動器一到頂就欠壓，現象是亂撞 + 位置遺失）。",
+    "单位提示：固件说\"度\"，界面说 mm，换算 1mm = 11.25°（GT2-16 齿带轮）。换算只在上位机做一次，固件里不再重复。": "單位提示：韌體說「度」，介面說 mm，換算 1mm = 11.25°（GT2-16 齒帶輪）。換算只在上位機做一次，韌體裡不再重複。",
+    "手动控制": "手動控制",
+    "步长": "步長",
+    "■  停止": "■  停止",
+    "⌂  把当前位置设为原点": "⌂  將當前位置設為原點",
+    "绝对定位": "絕對定位",
+    "移动到该位置": "移動到該位置",
+    "超出工作区的目标会被自动夹到边界（固件那道闸只当兜底）。": "超出工作區的目標會自動夾到邊界（韌體那道閘只當作最後防線）。",
+    "未连接平台：先点上面的平台卡片连接": "未連接平台：先點上面的平台卡片連接",
+    "缺少基准：每次上电都要重立一次 —— 先把滑座推到靠块/硬限位贴实，再点「⌂ 把当前位置设为原点」": "缺少基準：每次上電都要重立一次 —— 先把滑座推到靠塊/硬限位貼實，再點「⌂ 將當前位置設為原點」",
+    "未设置工作区：展开「平台设置」填写台面行程（固件不设行程就拒绝一切绝对移动）": "未設定工作區：展開「平台設定」填寫檯面行程（韌體不設行程就拒絕一切絕對移動）",
+    "平台设置": "平台設定",
+    "零点（X 左 · Y 外）": "零點（X 左 · Y 外）",
+    "日志里的运动指令是固件的角度域（1mm = 11.25°，GT2-16 齿带轮）；换算只在上位机做一次。": "日誌裡的運動指令是韌體的角度域（1mm = 11.25°，GT2-16 齒帶輪）；換算只在上位機做一次。",
+    "失能（松掉电机，可用手推）": "失能（鬆開馬達，可用手推）",
+    "使能（顶住台面）": "使能（頂住檯面）",
+    "失能后可以用手推台面调机械；但别在失能状态下指望坐标 —— 台面被推动后基准就废了。注意：「设为原点」和任何运动命令都会自动把电机重新使能，所以调机械时失能要放在这些动作之后。": "失能後可以用手推檯面調機械；但別在失能狀態下指望座標 —— 檯面被推動後基準就廢了。注意：「設為原點」和任何運動指令都會自動把馬達重新使能，所以調機械時失能要放在這些動作之後。",
+    "⚠ 转速越高，能带的负载越小：3000rpm = 电机 50 圈/秒，1.8° 电机就是 10kHz 电频率，24V 下相电流来不及建立，扭矩掉得很快。3000rpm 在皮带上传动 = 1600mm/s、台面约 800mm/s（360mm 行程 0.45 秒跑完）——这个速度基本只适合空载。相机平台常用 600~1200rpm。\n⚠ 更要紧的是：加速太猛 + 皮带偏松 = 跳齿，而编码器在电机轴上，皮带跳齿驱动器是看不见的（它只会认为「我转到位了」）→ 坐标悄悄错掉。提速请一次加一档、跑长距离看台面有没有少走。": "⚠ 轉速越高，能帶的負載越小：3000rpm = 馬達 50 圈/秒，1.8° 馬達就是 10kHz 電頻率，24V 下相電流來不及建立，扭力掉得很快。3000rpm 在皮帶上傳動 = 1600mm/s、檯面約 800mm/s（360mm 行程 0.45 秒跑完）——這種速度基本只適合空載。相機平台常用 600~1200rpm。\n⚠ 更要緊的是：加速太猛 + 皮帶偏鬆 = 跳齒，而編碼器在馬達軸上，皮帶跳齒驅動器是看不見的（它只會認為「我轉到位了」）→ 座標悄悄錯掉。提速請一次加一檔、跑長距離看檯面有沒有少走。",
+    "加减速是对数刻度：一半行程就覆盖了 1~15，低端能一点点调（1 和 2 的手感差得很远），高端 190/200 几乎无感所以挤在一起。滚轮在 20 以下 1 格 1 步；要精确到任意整数，直接点右边的数字输入。": "加減速是對數刻度：一半行程就覆蓋了 1~15，低端能一點點調（1 和 2 的手感差很遠），高端 190/200 幾乎無感所以擠在一起。滾輪在 20 以下 1 格 1 步；要精確到任意整數，直接點右邊的數字輸入。",
+    "关机行为": "關機行為",
+    "退出时回到零点": "退出時回到零點",
+    "把台面开回零点角再退出，好处是下次开机能核对台面有没有被动过（差得超过 0.5mm 就会在日志里提示）。⚠ 它不是为了「保住基准」：驱动器只要不断电就一直数着位置，上位机什么时候关、断线、甚至崩掉，都不影响坐标。会丢基准的只有两件事 —— ① 板子/24V 断电（单圈编码器丢多圈位置，这时会提示重新立基准）② 有人用手推动了台面。": "把檯面開回零點角再退出，好處是下次開機能核對檯面有沒有被動過（差得超過 0.5mm 就會在日誌裡提示）。⚠ 它不是為了「保住基準」：驅動器只要不斷電就一直數著位置，上位機什麼時候關、斷線、甚至崩掉，都不影響座標。會丟基準的只有兩件事 —— ① 板子/24V 斷電（單圈編碼器丟多圈位置，這時會提示重新立基準）② 有人用手推動了檯面。",
+    "待设置": "待設定",
+    "已使能": "已使能",
+    "未使能": "未使能",
+    "无电压": "無電壓",
+    "已立基准": "已立基準",
+    "无基准": "無基準",
+    "行程已设": "行程已設",
+    "行程未设": "行程未設",
+    "运动中…": "運動中…",
+    "实时预览": "即時預覽",
+    "↑+Y 向里   →+X 向右": "↑+Y 向內   →+X 向右",
+    "相机未连接": "相機未連接",
+    "相机未连接 —— 预览需要先在「相机设置」里连上相机": "相機未連接 —— 預覽需要先在「相機設定」裡連上相機",
+    "正在等待画面…": "正在等待畫面…",
+    "预览已关闭（打开右上角开关即可）": "預覽已關閉（開啟右上角開關即可）",
+    "预览占用了相机采集（与「异常检测」「图像采集」互斥），离开本页会自动释放。": "預覽佔用了相機擷取（與「異常檢測」「影像擷取」互斥），離開本頁會自動釋放。",
+    "预设位置": "預設位置",
+    "个": "個",
+    "⚠ 坐标以「本次上电后立的基准」为准。驱动器掉电丢位置，重新上电后必须重新立一次基准（推到位 → 点「设为原点」），否则预设位置没有意义。": "⚠ 座標以「本次上電後立的基準」為準。驅動器掉電會遺失位置，重新上電後必須重新立一次基準（推到位 → 點「設為原點」），否則預設位置沒有意義。",
+    "还没有预设。把台面移到工位后，在下面起个名字记下来。": "還沒有預設。把檯面移到工位後，在下面取個名字記下來。",
+    "前往": "前往",
+    "名称": "名稱",
+    "例如：工位1": "例如：工位1",
+    "记录当前位置": "記錄當前位置",
+    "网络": "網路",
+    "板子 IP": "板子 IP",
+    "端口": "埠",
+    "口令": "口令",
+    "8 位十六进制": "8 位十六進位",
+    "三个值都在板子的 USB 控制台上敲 net 就能看到，板子会直接打印出来。": "三個值都在板子的 USB 控制台上敲 net 就能看到，板子會直接印出來。",
+    "工作区（台面行程，mm）": "工作區（檯面行程，mm）",
+    "必须按实际台面量准后填写：固件不设行程就拒绝一切绝对移动，填大了则会在撞到机械限位前不刹车。": "必須按實際檯面量準後填寫：韌體不設行程就拒絕一切絕對移動，填大了則會在撞到機械極限前不煞車。",
+    "X 小": "X 小",
+    "X 大": "X 大",
+    "Y 小": "Y 小",
+    "Y 大": "Y 大",
+    "速度": "速度",
+    "转速": "轉速",
+    "加减速": "加減速",
+    "应用设置": "套用設定",
 }
 
 
@@ -327,9 +602,56 @@ def fill(src_ts, out_ts, mapping):
     print(f"{out_ts}: {filled} translations filled")
 
 
+def check_dicts():
+    """两个字典必须逐条对齐 —— 不对齐时**静默错译**，比崩掉难查得多。
+
+    这条检查是补一次真踩到的坑：源的「默认 100」改成「默认 1」时只改了 EN 那条，
+    TW 里那条成了孤儿，于是 `app_zh_TW.ts` 拷贝到英文后**没人再填它** —— 界面上
+    繁体语言下那行说明显示的是**英文**，而 lrelease 照样报 "0 unfinished"（因为
+    拷贝来的英文也算"已翻译"）。发现它只是因为我顺手 diff 了两个字典。
+    """
+    missing_tw = [k for k in EN if k not in TW]   # en 有、tw 没有 → 该条显示英文
+    orphan_tw = [k for k in TW if k not in EN]    # tw 有、en 没有 → 源文本改过后的残留
+    if not missing_tw and not orphan_tw:
+        return
+    print("\n⚠⚠ 英文/繁体字典不一致 —— 相关条目会静默显示英文或永远用不到：")
+    for k in missing_tw:
+        print(f"   [繁体缺] {k}")
+    for k in orphan_tw:
+        print(f"   [孤儿键（源文本可能已改）] {k}")
+    print("   请把 scripts/gen_translations.py 的 EN 与 TW 两个 dict 改到逐条对齐。")
+    raise SystemExit(1)
+
+
+def check_untranslated(paths):
+    """任何一条源文本在生成的 .ts 里翻译为空 → 必须在**这里**就红。
+
+    `lrelease` 其实会打一行 `Ignored N untranslated source text(s)` —— 但它混在
+    "Generated N translation(s)" 下面，很容易扫过去；而且它**不阻断**，.qm 照发。
+    这正是"回了 ok 却没生效"的翻译版，所以改成生成阶段直接 exit 1。
+    """
+    bad = []
+    for path in paths:
+        for msg in ET.parse(path).getroot().iter("message"):
+            src, trans = msg.find("source"), msg.find("translation")
+            if src is None or trans is None:
+                continue
+            if not (trans.text or "").strip():
+                bad.append((path, src.text or ""))
+    if not bad:
+        return
+    print("\n⚠⚠ 有源文本没翻译（新加的 qsTr 忘了写进 dict）：")
+    for path, src in bad:
+        print(f"   [{path}] {src}")
+    print("   请把这条同时加进 scripts/gen_translations.py 的 EN 和 TW 两个 dict。")
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
     base = "translations/app_en.ts"
     fill(base, "translations/app_en.ts", EN)
     shutil.copy(base, "translations/app_zh_TW.ts")
     # 重新解析填充繁体（拷贝后再填，避免源被污染）
     fill("translations/app_en.ts", "translations/app_zh_TW.ts", TW)
+    check_dicts()
+    check_untranslated(["translations/app_en.ts", "translations/app_zh_TW.ts"])

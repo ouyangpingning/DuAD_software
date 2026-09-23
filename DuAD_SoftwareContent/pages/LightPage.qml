@@ -20,11 +20,14 @@ Item {
     Component.onCompleted: {
         LightBridge.portsChanged.connect(function(ports) {
             root._ports = ports
+            // ⚠ 自动选口用 LightBridge.defaultPort（优先 ttyUSB*），不要用 ports[0]：
+            //   Linux 上 comports() 会把主板 ttyS0~31 一起报出来，排序后 ports[0]
+            //   就是 /dev/ttyS0 —— 自动选中它，点连接必然失败。
             if (ports.length > 0
                 && ports.indexOf(serialPanel.portName) < 0) {
-                serialPanel.portName = ports[0]
+                serialPanel.portName = LightBridge.pickDefaultPort(ports)
             }
-            console.log("[LightPage] 串口列表:", ports)
+            console.log("[LightPage] 串口列表:", ports, "→ 选中", serialPanel.portName)
         })
         LightBridge.serialConnected.connect(function() {
             root._connecting = false
