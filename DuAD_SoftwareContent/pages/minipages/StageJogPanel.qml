@@ -56,7 +56,9 @@ Item {
         checkable: true
         checked: Math.abs(root.step - chip.value) < 1e-9
         implicitHeight: 28
-        implicitWidth: 52
+        // 36：卡收窄到 ~224（三列版面）后一行要装下"步长 + 4 个 chip"，
+        // 52 是整卡 460 时代定的（ZStageJogPanel 的 chip 同理）。
+        implicitWidth: 36
 
         onClicked: root.step = chip.value
 
@@ -87,10 +89,11 @@ Item {
         ColumnLayout {
             id: mainLayout
             spacing: 10
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 24 }
+            // 16（原 24）：卡宽 224 − 32 = 192，正好装下 JogPad(188)
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
 
             Text {
-                text: qsTr("手动控制")
+                text: qsTr("二轴手动控制")
                 font.pixelSize: 14
                 font.bold: true
                 color: Colors.textPrimary
@@ -101,7 +104,9 @@ Item {
             // ── 步长 ──────────────────────────────────
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                // ⚠ spacing 4（不是 6/8）：这一行的 implicitWidth 会成为嵌套布局的
+                //   **最小宽度**，超过列宽(192)时整列跟着溢出（实测 6 时 iw=198）。
+                spacing: 4
                 Text {
                     text: qsTr("步长")
                     font.pixelSize: 12
@@ -111,12 +116,7 @@ Item {
                 StepChip { value: 1.0 }
                 StepChip { value: 10.0 }
                 StepChip { value: 50.0 }
-                Text {
-                    text: "mm"
-                    font.pixelSize: 12
-                    color: Colors.textPlaceholder
-                    Layout.fillWidth: true
-                }
+                Item { Layout.fillWidth: true }
             }
 
             // ── 十字点动 ──────────────────────────────
@@ -138,74 +138,21 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            // ── 急停 / 立基准 ─────────────────────────
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-
-                // 急停：只要连着就永远可点（不依赖 moving）
-                Button {
-                    objectName: "stopButton"
-                    Layout.fillWidth: true
-                    implicitHeight: 40
-                    enabled: root.connected
-                    onClicked: root.stopRequested()
-
-                    background: Rectangle {
-                        radius: 10
-                        color: !parent.enabled
-                               ? "transparent"
-                               : (parent.pressed ? Qt.darker(Colors.statusDisconnected, 1.3)
-                                                 : Colors.statusDisconnected)
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: Text {
-                        text: qsTr("■  停止")
-                        font.pixelSize: 15
-                        font.bold: true
-                        color: parent.enabled ? "#ffffff" : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                }
-
-                Button {
-                    objectName: "zeroButton"
-                    Layout.fillWidth: true
-                    implicitHeight: 40
-                    enabled: root.connected
-                    onClicked: root.zeroRequested()
-
-                    background: Rectangle {
-                        radius: 10
-                        color: parent.pressed ? Colors.interactivePressed
-                                              : (parent.hovered ? Colors.interactiveHover : "transparent")
-                        border { width: 1; color: Colors.cardBorder }
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: Text {
-                        text: qsTr("⌂  把当前位置设为原点")
-                        font.pixelSize: 13
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                }
-            }
-
             // ── 使能 / 失能（2026-09-13 用户要求补上）──
             //   为什么必须有：状态条上一直显示"未使能"，而界面**没有任何地方能改** ——
             //   状态看得见、操作没有，正是"点了没反应"的镜像。
             //   两个方向都有实际用途：
             //     · 失能 → 用手推台面调机械、对基准；
             //     · 使能 → 顶住位置（失能时台面能被外力推动，一推坐标系就废了）。
+            // 行序照 2026-09-28 手绘稿：[使能][设为原点] 一行，「停止」单独一行 ——
+            //   窄卡里塞不下三个并排按钮，急停独占一行也更醒目、更够得着。
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
 
                 Button {
                     objectName: "enableButton"
-                    Layout.fillWidth: true
+                    implicitWidth: implicitContentWidth + 24
                     implicitHeight: 32
                     enabled: root.connected
                     // 文案是**动作**而不是状态：免得用户看着"未使能"再去点写着"未使能"的按钮。
@@ -213,9 +160,16 @@ Item {
                     //   一是无障碍/自动化能读到，二是页面测试能断言它 ——
                     //   只写在 contentItem 里的话 `property("text")` 是空串，
                     //   测试就成了假断言（这条真踩过）。
-                    text: root.motorEnabled ? qsTr("失能（松掉电机，可用手推）")
-                                            : qsTr("使能（顶住台面）")
+                    // 短标签 + 悬停说明（2026-09-28 精简）：长文案是"说明"，
+                    // 不是"操作"，缩到图标+两个字，细节交给 ToolTip 与文档。
+                    text: root.motorEnabled ? qsTr("⏻ 失能") : qsTr("⏻ 使能")
                     onClicked: root.enableToggled()
+
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("失能 = 松掉电机，可以用手推台面调机械；"
+                                       + "但台面被推动后基准就废了，要重新「设为原点」。"
+                                       + "注意「设为原点」和任何运动命令都会自动重新使能。")
 
                     background: Rectangle {
                         radius: 8
@@ -233,22 +187,63 @@ Item {
                     }
                 }
 
-                Text {
-                    text: root.motorEnabled ? qsTr("已使能") : qsTr("未使能")
-                    font.pixelSize: 11
-                    color: root.motorEnabled ? Colors.statusConnected : Colors.textPlaceholder
-                    Layout.alignment: Qt.AlignVCenter
+                Button {
+                    objectName: "zeroButton"
+                    implicitWidth: implicitContentWidth + 28
+                    implicitHeight: 32
+                    enabled: root.connected
+                    onClicked: root.zeroRequested()
+
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("把当前位置当作 0 点（立基准）。"
+                                       + "先把滑座推到靠块/硬限位贴实再点它，"
+                                       + "每次上电都要重立一次。")
+
+                    background: Rectangle {
+                        radius: 10
+                        color: parent.pressed ? Colors.interactivePressed
+                                              : (parent.hovered ? Colors.interactiveHover : "transparent")
+                        border { width: 1; color: Colors.cardBorder }
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    contentItem: Text {
+                        text: qsTr("⌂ 设为原点")
+                        font.pixelSize: 13
+                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
+
+                Item { Layout.fillWidth: true }   // 弹簧：控件靠左，不拉满
             }
 
-            Text {
+            // ── 急停 ─────────────────────────────────
+            // 只要连着就永远可点（不依赖 moving）——"只有动的时候才能停"的急停等于没有急停。
+            Button {
+                objectName: "stopButton"
                 Layout.fillWidth: true
-                text: qsTr("失能后可以用手推台面调机械；但别在失能状态下指望坐标 —— "
-                           + "台面被推动后基准就废了。注意：「设为原点」和任何运动命令"
-                           + "都会自动把电机重新使能，所以调机械时失能要放在这些动作之后。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
+                implicitHeight: 40
+                enabled: root.connected
+                onClicked: root.stopRequested()
+
+                background: Rectangle {
+                    radius: 10
+                    color: !parent.enabled
+                           ? "transparent"
+                           : (parent.pressed ? Qt.darker(Colors.statusDisconnected, 1.3)
+                                             : Colors.statusDisconnected)
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                }
+                contentItem: Text {
+                    text: qsTr("■  停止")
+                    font.pixelSize: 15
+                    font.bold: true
+                    color: parent.enabled ? "#ffffff" : Colors.textPlaceholder
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -261,29 +256,26 @@ Item {
                 color: Colors.textSecondary
             }
 
-            RowLayout {
+            // X / Y 竖排：卡收窄后放不下一对 132px 的输入行（手绘稿也是竖排）
+            InputRow {
+                id: txRow
+                objectName: "targetX"
                 Layout.fillWidth: true
-                spacing: 8
-
-                InputRow {
-                    id: txRow
-                    objectName: "targetX"
-                    Layout.fillWidth: true
-                    label: "X (mm)"
-                    text: root.posX.toFixed(2)
-                }
-                InputRow {
-                    id: tyRow
-                    objectName: "targetY"
-                    Layout.fillWidth: true
-                    label: "Y (mm)"
-                    text: root.posY.toFixed(2)
-                }
+                label: "X (mm)"
+                text: root.posX.toFixed(2)
+            }
+            InputRow {
+                id: tyRow
+                objectName: "targetY"
+                Layout.fillWidth: true
+                label: "Y (mm)"
+                text: root.posY.toFixed(2)
             }
 
             Button {
                 objectName: "moveToButton"
-                Layout.fillWidth: true
+                implicitWidth: implicitContentWidth + 44
+                Layout.alignment: Qt.AlignLeft
                 implicitHeight: 36
                 enabled: root.canMove
                 text: qsTr("移动到该位置")
@@ -295,13 +287,6 @@ Item {
                 }
             }
 
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("超出工作区的目标会被自动夹到边界（固件那道闸只当兜底）。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
         }
     }
 }

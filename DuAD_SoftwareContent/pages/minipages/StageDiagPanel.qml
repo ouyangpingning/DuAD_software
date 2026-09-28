@@ -150,14 +150,6 @@ Item {
 
             // 唯一保留的一句说明：日志里下发的指令是**度**（固件角度域），
             // 而界面上全是 mm。不知道这条换算关系，看日志会以为数值错了。
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("日志里的运动指令是固件的角度域（1mm = 11.25°，GT2-16 齿带轮）；"
-                           + "换算只在上位机做一次。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
         }
     }
 }

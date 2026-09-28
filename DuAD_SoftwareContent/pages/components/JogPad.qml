@@ -25,8 +25,14 @@ Item {
     property bool interactive: true    // false = 变灰不响应
     signal jog(real dx, real dy)       // 单位 mm，已经是"带方向和步长"的向量
 
-    implicitWidth: 234
-    implicitHeight: 234
+    // 单个方向键的边长。2026-09-28 从 74 收到 60：整个十字从 234px 矮到 188px，
+    // X/Y 列的「停止 / 设为原点」才落进 1080p 首屏（点动是高频动作，急停要够得着）。
+    // 60 仍是够大的点击目标（Z 列那对「向上/向下」按钮就是 48px 高，同一量级）。
+    property int cell: 60
+    readonly property int _pad: cell * 3 + 8      // 3 格 + 两道 4px 间距
+
+    implicitWidth: _pad
+    implicitHeight: _pad
 
     // ============================================================
     // 按住连发
@@ -86,7 +92,7 @@ Item {
         Text {
             anchors.centerIn: parent
             text: key.glyph
-            font.pixelSize: 22
+            font.pixelSize: Math.round(root.cell * 0.30)
             font.bold: true
             color: root.interactive ? Colors.textPrimary : Colors.textPlaceholder
         }
@@ -142,18 +148,18 @@ Item {
         rowSpacing: 4
         columnSpacing: 4
 
-        Item { Layout.preferredWidth: 74; Layout.preferredHeight: 74 }
+        Item { Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell }
 
         DirKey {
-            Layout.preferredWidth: 74; Layout.preferredHeight: 74
+            Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
             glyph: "▲"; dx: 0; dy: 1
             tip: qsTr("+Y 向里") + " " + root.step.toFixed(2) + " mm"
         }
 
-        Item { Layout.preferredWidth: 74; Layout.preferredHeight: 74 }
+        Item { Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell }
 
         DirKey {
-            Layout.preferredWidth: 74; Layout.preferredHeight: 74
+            Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
             glyph: "◀"; dx: -1; dy: 0
             tip: qsTr("−X 向左") + " " + root.step.toFixed(2) + " mm"
         }
@@ -162,7 +168,7 @@ Item {
         // ⚠ 这里**不放"回原点"**：回原点会把 0 点改掉、让所有预设位置失效，
         //    放在方向键正中间太容易误点。它在下方的按钮区。
         Rectangle {
-            Layout.preferredWidth: 74; Layout.preferredHeight: 74
+            Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
             radius: 10
             color: "transparent"
             border { width: 1; color: Colors.cardBorder }
@@ -172,7 +178,7 @@ Item {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: root.step.toFixed(root.step < 1 ? 2 : (root.step < 10 ? 1 : 0))
-                    font.pixelSize: 20
+                    font.pixelSize: Math.round(root.cell * 0.27)
                     font.bold: true
                     color: root.interactive ? Colors.textPrimary : Colors.textPlaceholder
                 }
@@ -186,19 +192,19 @@ Item {
         }
 
         DirKey {
-            Layout.preferredWidth: 74; Layout.preferredHeight: 74
+            Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
             glyph: "▶"; dx: 1; dy: 0
             tip: qsTr("+X 向右") + " " + root.step.toFixed(2) + " mm"
         }
 
-        Item { Layout.preferredWidth: 74; Layout.preferredHeight: 74 }
+        Item { Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell }
 
         DirKey {
-            Layout.preferredWidth: 74; Layout.preferredHeight: 74
+            Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
             glyph: "▼"; dx: 0; dy: -1
             tip: qsTr("−Y 向外") + " " + root.step.toFixed(2) + " mm"
         }
 
-        Item { Layout.preferredWidth: 74; Layout.preferredHeight: 74 }
+        Item { Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell }
     }
 }

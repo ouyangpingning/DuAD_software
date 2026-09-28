@@ -59,16 +59,6 @@ Item {
             // 单圈编码器的警告：常驻，不折叠 —— 这条一旦忽略就会走错位置。
             // 口径是「每次上电重立基准（推到位 → 设为原点）」，**不是**「必须回零」：
             // 无限位回零条件多、已降级为可选，见《使用说明》§6.3。
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("⚠ 坐标以「本次上电后立的基准」为准。驱动器掉电丢位置，"
-                           + "重新上电后必须重新立一次基准（推到位 → 点「设为原点」），"
-                           + "否则预设位置没有意义。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
-
             // ── 列表 ──────────────────────────────────
             ColumnLayout {
                 Layout.fillWidth: true

@@ -52,6 +52,20 @@ Item {
     }
     readonly property bool fieldsFilled: fieldHost.length > 0 && fieldToken.length > 0
 
+    // ⚠ 同理，工作区/速度也要暴露"输入框当前值"给页面用。
+    //   踩过的坑（既有 bug，2026-09-27 测试探针抓到的）：页面的 `onApplyRequested`
+    //   直接写了 `xminRow.text` 这些 **id**，而那些 id 属于本文件 ——
+    //   在 StagePage 里根本取不到，点击「应用设置」会抛
+    //   `ReferenceError: xminRow is not defined`，后面三条下发**一条都不执行**，
+    //   表现就是"点了没反应"（本项目最忌讳的那类）。
+    //   凡是要跨文件取值，一律走这种 readonly 属性。
+    readonly property real fieldXmin: parseFloat(xminRow.text)
+    readonly property real fieldXmax: parseFloat(xmaxRow.text)
+    readonly property real fieldYmin: parseFloat(yminRow.text)
+    readonly property real fieldYmax: parseFloat(ymaxRow.text)
+    readonly property int fieldRpm: rpmRow.sliderValue
+    readonly property int fieldAcc: accRow.sliderValue
+
     implicitWidth: 460
     implicitHeight: expanded ? contentLayout.implicitHeight + 32 : 0
     clip: true
@@ -68,10 +82,12 @@ Item {
         ColumnLayout {
             id: contentLayout
             spacing: 10
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 24 }
+            // 12（原 24）：面板住在 ~200px 的窄列里（三列版面），
+            // 内容宽 200−24 = 176 —— InputRow 的最小宽 72+80=152 刚好放得下。
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
 
             Text {
-                text: qsTr("平台设置")
+                text: qsTr("二轴平台设置")
                 font.pixelSize: 14
                 font.bold: true
                 color: Colors.textPrimary
@@ -123,29 +139,22 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                InputRow {
-                    id: xminRow; Layout.fillWidth: true
-                    label: qsTr("X 小"); text: root.wsXMin.toFixed(1)
-                }
-                InputRow {
-                    id: xmaxRow; Layout.fillWidth: true
-                    label: qsTr("X 大"); text: root.wsXMax.toFixed(1)
-                }
+            // 竖排（原两列 2×2）：窄列里一行放不下两个 InputRow（每个最小 152）
+            InputRow {
+                id: xminRow; Layout.fillWidth: true
+                label: qsTr("X 小"); text: root.wsXMin.toFixed(1)
             }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                InputRow {
-                    id: yminRow; Layout.fillWidth: true
-                    label: qsTr("Y 小"); text: root.wsYMin.toFixed(1)
-                }
-                InputRow {
-                    id: ymaxRow; Layout.fillWidth: true
-                    label: qsTr("Y 大"); text: root.wsYMax.toFixed(1)
-                }
+            InputRow {
+                id: xmaxRow; Layout.fillWidth: true
+                label: qsTr("X 大"); text: root.wsXMax.toFixed(1)
+            }
+            InputRow {
+                id: yminRow; Layout.fillWidth: true
+                label: qsTr("Y 小"); text: root.wsYMin.toFixed(1)
+            }
+            InputRow {
+                id: ymaxRow; Layout.fillWidth: true
+                label: qsTr("Y 大"); text: root.wsYMax.toFixed(1)
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -194,60 +203,12 @@ Item {
                 onReleased: root.speedChanged(rpmRow.sliderValue, accRow.sliderValue)
             }
 
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("转速 = 巡航速度；加减速 = 起步/停下的猛烈程度，"
-                           + "数值越大越猛（1 最柔和、200 最猛，默认 1）。")
-                      + " " + qsTr("拖动松手即生效，不用点「应用设置」。")
-                      + "  " + qsTr("参考：走 100mm 约")
-                      + " " + (100 * 11.25 / 360 / Math.max(1, rpmRow.sliderValue) * 60).toFixed(1)
-                      + " " + qsTr("秒（只按转速算，不含加减速耗时）")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
-
             // 对数刻度这件事必须说一句：不然用户看到"拖一点点就跳到 4、再拖才到 5"
             // 会以为滑块坏了（其实是刻意的 —— 低端值差异大，值得多给行程）。
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("加减速是对数刻度：一半行程就覆盖了 1~15，低端能一点点调"
-                           + "（1 和 2 的手感差得很远），高端 190/200 几乎无感所以挤在一起。"
-                           + "滚轮在 20 以下 1 格 1 步；要精确到任意整数，直接点右边的数字输入。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
-
             // 高速的真实代价（2026-09-13 用户问"能不能到 3000rpm"时补的）。
             // ⚠ 必须写：不然用户把滑块拉到 3000 发现"没快多少/反而丢步"，会以为参数坏了。
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("⚠ 转速越高，能带的负载越小：3000rpm = 电机 50 圈/秒，"
-                           + "1.8° 电机就是 10kHz 电频率，24V 下相电流来不及建立，扭矩掉得很快。"
-                           + "3000rpm 在皮带上传动 = 1600mm/s、台面约 800mm/s（360mm 行程 0.45 秒跑完）——"
-                           + "这个速度基本只适合空载。相机平台常用 600~1200rpm。\n"
-                           + "⚠ 更要紧的是：加速太猛 + 皮带偏松 = 跳齿，而编码器在电机轴上，"
-                           + "皮带跳齿驱动器是看不见的（它只会认为「我转到位了」）→ 坐标悄悄错掉。"
-                           + "提速请一次加一档、跑长距离看台面有没有少走。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
-
             // 这条必须写出来：否则用户拿 1mm 点动去试速度，怎么试都"没反应"，
             // 然后合理地认为这个参数坏了 —— 实际上是行程太短，看不出差别。
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("⚠ 步进点动（0.1~10mm）看不出速度差别：行程只有几十毫秒，"
-                           + "基本全被驱动器的加减速斜坡吃掉了。要验证转速，请用「绝对定位」"
-                           + "走一段长距离（比如 200mm），或展开「诊断」看日志里下发的指令"
-                           + "（移动命令末尾两个数就是 rpm 和 acc）。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
-
             Button {
                 Layout.fillWidth: true
                 implicitHeight: 34
@@ -269,18 +230,6 @@ Item {
 
             // ⚠ 必须写清楚"它不是保鲜手段" —— 否则以后会有人以为
             //   "不回零点基准就丢了"，从而不敢关这个开关、也不敢关程序。
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("把台面开回零点角再退出，好处是下次开机能核对台面有没有被动过"
-                           + "（差得超过 0.5mm 就会在日志里提示）。"
-                           + "⚠ 它不是为了「保住基准」：驱动器只要不断电就一直数着位置，"
-                           + "上位机什么时候关、断线、甚至崩掉，都不影响坐标。"
-                           + "会丢基准的只有两件事 —— ① 板子/24V 断电（单圈编码器丢多圈位置，"
-                           + "这时会提示重新立基准）② 有人用手推动了台面。")
-                font.pixelSize: 10
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
-            }
         }
     }
 }

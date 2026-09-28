@@ -5,10 +5,13 @@ import DuAD_Software
 /*
     位置读数 —— 工作区缩略图（雷达图）+ X/Y 大号读数。
 
-    **左右两列**（2026-09-13 用户要求）：
-      左列 = 工作区缩略图（当前点 / 目标叉），**一眼看出"离边界还有多远、目标在哪个角"**；
-      右列 = 两个大号 X/Y 指标 + 图例 + 工作区范围 + 坐标方向说明。
-    竖着排比"读数占一整行、图缩在下面"省一半高度，而且指标和图挨着，对得上号。
+    **上下两段**（2026-09-28 改，跟用户手绘稿的"二轴相机平台状态"小面板一致）：
+      上 = 工作区缩略图（当前点 / 目标叉），**一眼看出"离边界还有多远、目标在哪个角"**；
+      下 = 两个大号 X/Y 指标 + 图例。
+    为什么从"左右两列"改成"上下两段"：这个组件现在住在**可折叠的窄侧抽屉**里
+    （展开宽度 ~236px，见 StagePage 的 StatusDrawer），横着排在那种宽度下两边都放不下。
+    ⚠ 改布局时**一起改了断言**（tests/test_stage_page.py 11c3）：原来量的是
+      "缩略图在左、读数在右"，现在量"缩略图在上、读数在下"。
 
     坐标方向（台面是水平面，俯视）：+X = 右、+Y = 向里 → 图上 Y 轴**朝上**。
 */
@@ -29,24 +32,25 @@ Item {
     property real wsXMax: 360
     property real wsYMax: 360
     property bool live: true        // false = 数据不可信（未连接），整体变灰
+    // 无卡片模式（2026-09-28）：不画自己的圆角背景、也不留 16px 内边距。
+    property bool flat: false
 
     // 两列各自的几何（给布局断言用；不参与绘制逻辑）
     readonly property real _mapX: map.x
     readonly property real _numsX: nums.x
+    readonly property real _mapY: map.y
+    readonly property real _numsY: nums.y
     readonly property real _mapH: map.height
     readonly property real _numsH: nums.height
-    /* 缩略图边长（2026-09-13 用户要求"放大到和右侧高度一致"）。
-       216 是**量出来的**：右列（两个 26px 大字 + 三条图例 + 三行说明）实测 228px 高，
-       取 216 让两边差 ≤12px（测试 11c3 卡 ±30px）。
-       ⚠ **故意写常数、不绑 `nums.implicitHeight`**：那会构成 QML 绑定环 ——
-         图变宽 → 右列变窄 → 文字多折一行 → 右列变高 → 图再变高…（Qt 会报
-         "Binding loop detected" 并冻结其中一个值，表现是布局偶尔跳一下、很难查）。
-       `width` 是**父层给的**（页面里 fillWidth），不依赖内部布局，所以拿它算上限是安全的。
-       下限 120 / 上限 45% 是为了窄屏退化成单列时右列文字不被挤没。 */
-    readonly property real _mapSide: Math.min(216, Math.max(120, width * 0.45))
+    /* 缩略图边长：填满抽屉宽度（上下布局，宽度是父层给的，不依赖内部布局），
+       并夹在 [120, 168] —— 下限保证看得清，上限避免它把读数挤到抽屉外面去。
+       ⚠ **故意写常数上限、不绑 `nums.implicitHeight`**：那会构成 QML 绑定环
+         （图变高 → 文字折行变化 → 再变高…），Qt 会报 "Binding loop detected"
+         并冻结其中一个值，表现是布局偶尔跳一下、极难查。 */
+    readonly property real _mapSide: Math.min(150, Math.max(120, width - 12))
 
     implicitWidth: 300
-    implicitHeight: content.implicitHeight + 32
+    implicitHeight: content.implicitHeight + (flat ? 0 : 32)
 
     readonly property color _numberColor: live ? Colors.textPrimary : Colors.textPlaceholder
 
@@ -56,14 +60,17 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 12
-        color: Colors.contentBg
+        color: root.flat ? "transparent" : Colors.contentBg
 
-        RowLayout {
+        GridLayout {
             id: content
-            spacing: 16
+            // 上下两段（见文件头）；columns 一改就是"横排 / 竖排"两种形态
+            columns: 1
+            rowSpacing: 10
+            columnSpacing: 16
             anchors {
                 left: parent.left; right: parent.right; top: parent.top
-                margins: 16
+                margins: root.flat ? 0 : 16
             }
 
             // ── 左列：工作区缩略图（雷达图）────────────────────
@@ -71,7 +78,7 @@ Item {
                 id: map
                 Layout.preferredWidth: root._mapSide
                 Layout.preferredHeight: root._mapSide
-                Layout.alignment: Qt.AlignTop
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
 
                 // 台面边框
                 Rectangle {
@@ -160,7 +167,7 @@ Item {
                 }
             }
 
-            // ── 右列：指标 + 图例 + 文字 ───────────────────────
+            // ── 下段：指标 + 图例 ──────────────────────────────
             ColumnLayout {
                 id: nums
                 Layout.fillWidth: true
@@ -216,77 +223,66 @@ Item {
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
 
-                // 图例
+                // 图例：一行三个（原来三行，占 54px —— 抽屉的高度跟预览行绑着，
+                // 多出来的 36px 会把内容挤出可视区，实测过）
                 RowLayout {
-                    spacing: 6
-                    Rectangle {
-                        width: 10; height: 10; radius: 5
-                        color: Colors.textPrimary
-                    }
-                    Text {
-                        text: qsTr("当前位置")
-                        font.pixelSize: 11
-                        color: Colors.textSecondary
-                    }
-                    Item { Layout.fillWidth: true }
-                }
-                RowLayout {
-                    spacing: 6
-                    Item {
-                        width: 10; height: 10
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: 10; height: 2; rotation: 45
-                            color: Colors.statusDisconnected
-                        }
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: 10; height: 2; rotation: -45
-                            color: Colors.statusDisconnected
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    RowLayout {
+                        spacing: 5
+                        Rectangle { width: 10; height: 10; radius: 5; color: Colors.textPrimary }
+                        Text {
+                            text: qsTr("当前")
+                            font.pixelSize: 11
+                            color: Colors.textSecondary
                         }
                     }
-                    Text {
-                        text: qsTr("目标位置")
-                        font.pixelSize: 11
-                        color: Colors.textSecondary
+                    RowLayout {
+                        spacing: 5
+                        Item {
+                            width: 10; height: 10
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 10; height: 2; rotation: 45
+                                color: Colors.statusDisconnected
+                            }
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 10; height: 2; rotation: -45
+                                color: Colors.statusDisconnected
+                            }
+                        }
+                        Text {
+                            text: qsTr("目标")
+                            font.pixelSize: 11
+                            color: Colors.textSecondary
+                        }
                     }
-                    Item { Layout.fillWidth: true }
-                }
-                RowLayout {
-                    spacing: 6
-                    Rectangle {
-                        width: 10; height: 10; radius: 2
-                        color: Colors.statusConnected
-                        opacity: 0.85
-                    }
-                    Text {
-                        // 零点角写死（见 stage_bridge.py 的 DATUM_CORNER）
-                        text: qsTr("零点（X 左 · Y 外）")
-                        font.pixelSize: 11
-                        color: Colors.textSecondary
+                    RowLayout {
+                        spacing: 5
+                        Rectangle {
+                            width: 10; height: 10; radius: 2
+                            color: Colors.statusConnected
+                            opacity: 0.85
+                        }
+                        Text {
+                            // ⚠ 只写"零点"：抽屉展开后内容区只有 ~182px，
+                            //   "零点（X 左 · Y 外）"会把这一行顶出边界（几何守卫抓得到）。
+                            //   具体在哪个角由缩略图上那个绿方块表示（stage_bridge.py 的 DATUM_CORNER）。
+                            text: qsTr("零点")
+                            font.pixelSize: 11
+                            color: Colors.textSecondary
+                        }
                     }
                     Item { Layout.fillWidth: true }
                 }
 
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
-
-                Text {
-                    text: qsTr("工作区") + "  " + (root.wsXMax - root.wsXMin).toFixed(0)
-                          + " × " + (root.wsYMax - root.wsYMin).toFixed(0) + " mm"
-                    font.pixelSize: 11
-                    color: Colors.textPlaceholder
-                }
-                Text {
-                    text: (root.wsXMin.toFixed(0) + "," + root.wsYMin.toFixed(0)) + " → "
-                          + (root.wsXMax.toFixed(0) + "," + root.wsYMax.toFixed(0))
-                    font.pixelSize: 10
-                    color: Colors.textPlaceholder
-                }
-                Text {
-                    text: qsTr("↑ +Y 向里    → +X 向右")
-                    font.pixelSize: 10
-                    color: Colors.textPlaceholder
-                }
+                // ⚠ 2026-09-28 精简：这里原来还有「工作区 360 × 360 mm / 0,0 → 360,360 /
+                //   ↑+Y 向里 →+X 向右」三行 —— 全删了。理由：
+                //     · 工作区的**数值**在「平台设置」里有输入框，缩略图本身也画着边界；
+                //     · 方向说明在实时预览的表头上已经有一份（同一事实显示两处，见 AGENTS 第 19 条）；
+                //     · 少三行后这一列矮 68px，X/Y 的「停止」才落进首屏（"点动时手要够得着"）。
                 Item { Layout.fillHeight: true }
             }
         }

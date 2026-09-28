@@ -8,7 +8,7 @@ import DuAD_Software
 
     交互：
       1. 拖动/点击轨道：定位到对应值；若设置了 snapTicks，则自动锁定到最近刻度
-      2. 鼠标滚轮：按 wheelStep 微调（Ctrl=1/10 步，Shift=10 倍步），停止滚动
+      2. **Ctrl/Shift + 鼠标滚轮**：按 wheelStep 微调（Ctrl=1/10 步，Shift=10 倍步），停止滚动
          约 350ms 后自动提交 released()，不再出现“细调了但不知道是否生效”
       3. 点击数值：可直接键盘输入精确值，回车/失焦后提交 released()
       4. 松开滑块时提交 released()（拖动过程只预览，不频繁写相机）
@@ -182,8 +182,17 @@ RowLayout {
             }
 
             // 滚轮细调：更新值并延迟提交；细调结果最终一定触发 released
+            // ⚠ 2026-09-28：**不按 Ctrl/Shift 时把滚轮还给页面**（accepted=false）。
+            //   这一版的滑块住在会滚动的页面里，用户报的现象是
+            //   "滚轮上下移动的时候会影响到滑条" —— 滚页面时鼠标扫过滑条就把值改了，
+            //   而且 350ms 后还会**写进板子**（速度/软限位）。细调没丢：
+            //   Ctrl（更细）/ Shift（更粗）+ 滚轮；或者直接点右边的数值框输入。
             onWheel: function(wheel) {
                 if (!control.enabled) return
+                if (!(wheel.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))) {
+                    wheel.accepted = false      // 交给父级 Flickable 滚页面
+                    return
+                }
                 var step = wheelStep > 0
                     ? wheelStep
                     : Math.max((to - from) / 1000, Math.pow(10, -decimals))
