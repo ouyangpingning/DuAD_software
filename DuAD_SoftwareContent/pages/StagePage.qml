@@ -129,7 +129,7 @@ Item {
         if (_moving) return ""
         // ⚠ 绝对位置模式用单圈编码器 —— 驱动器一掉电就丢多圈位置，所以**每次上电都要重立基准**，
         // 这一步省不掉。能"固定"的是物理位置（靠块/硬限位），不是驱动器里的数。
-        if (!StageBridge.datum) return qsTr("缺少基准：每次上电都要重立一次 —— 先把滑座推到靠块/硬限位贴实，再点「⌂ 设为原点」")
+        if (!StageBridge.datum) return qsTr("缺少基准：每次上电都要重立一次 —— 先把滑座推到靠块/硬限位贴实，再点「设为原点」")
         if (!StageBridge.travelSet) return qsTr("未设置工作区：展开左侧「二轴相机平台设置」填写台面行程（固件不设行程就拒绝一切绝对移动）")
         return ""
     }
@@ -190,32 +190,62 @@ Item {
 
         implicitHeight: 36
 
+        // 折叠头 = **软强调底的内嵌块**（无描边、无阴影）。
+        // 这样层次是：页面（白）→ 卡片（白底描边浮起）→ 折叠头/内嵌块（淡色）。
+        // 改之前折叠头和卡片同为 contentBg、同 radius，堆在一起看不出谁是谁。
         Rectangle {
             anchors.fill: parent
             radius: 8
-            color: foldMa.containsMouse ? Colors.interactiveHover : Colors.contentBg
+            color: foldMa.containsMouse ? Colors.interactiveHover : Colors.accentSoft
+            Behavior on color { ColorAnimation { duration: 120 } }
 
             RowLayout {
                 anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
                 spacing: 8
 
-                Text {
-                    text: fold.expanded ? "▾" : "▸"
-                    font.pixelSize: 12
-                    color: Colors.textSecondary
+                // 展开箭头：原来是文本 "▸"/"▾" —— 依赖 wqy-microhei 里有这两个字形，
+                // 渲染出来偏小、基线不齐，而且换主题时不能单独染色。
+                // 现在用「下单箭头.svg」（实心下三角）：收起时转 −90°（指向右，即 ▸），
+                // 展开时转回 0°（指向下，即 ▾）—— 和原来的语义一一对应。
+                Item {
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.preferredWidth: 14
+                    Layout.preferredHeight: 14
+
+                    IconImage {
+                        anchors.centerIn: parent
+                        source: "../images/下单箭头.svg"
+                        width: 11
+                        height: 11
+                        rotation: fold.expanded ? 0 : -90
+                        Behavior on rotation { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    }
                 }
                 Text {
                     text: fold.title
-                    font.pixelSize: 12
+                    font.pixelSize: 13
+                    font.bold: true
                     color: Colors.textPrimary
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                 }
-                Text {
+                // badge：原来是**只有红字没有底**，在淡色条上非常弱。
+                // 现在做成红底白字的 pill（一眼能看出"这块还没配好"）。
+                Rectangle {
                     visible: !fold.expanded && fold.badge.length > 0
-                    text: fold.badge
-                    font.pixelSize: 10
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: badgeText.implicitWidth + 12
+                    implicitHeight: 18
+                    radius: 9
                     color: Colors.statusDisconnected
+
+                    Text {
+                        id: badgeText
+                        anchors.centerIn: parent
+                        text: fold.badge
+                        font.pixelSize: 10
+                        color: Colors.textOnAccent
+                    }
                 }
             }
         }
@@ -373,8 +403,11 @@ Item {
                                 compact: true
                                 Layout.fillWidth: true
                                 // 闸门状态直接画在卡片的状态行里（用户："状态只在卡片上显示"）
+                                // ⚠ 未连接时**不传** "未连接" 这一项：状态行左边已经有
+                                //   圆点 + 加粗的「未连接」了，再来一条红字 "⚠ 未连接"
+                                //   就是同一个信息说两遍（用户 2026-09-28 抱怨过的那类重复）。
                                 gates: !root._connected
-                                       ? [{ ok: false, text: qsTr("未连接") }]
+                                       ? []
                                        : [
                                            { ok: StageBridge.enabled,
                                              text: StageBridge.enabled ? qsTr("已使能") : qsTr("未使能") },
@@ -388,16 +421,18 @@ Item {
                                 connecting: StageBridge.connecting
                                 host: StageBridge.host
                                 port: StageBridge.port
-                                // ⚠ 副标题按列宽**取舍**：窄列（≤ 340）里连
-                                //   `host:port · V · 已使能 · -58dBm` 会被裁成 "…已使…"，
-                                //   而信号强度不是"能不能动"的判据 —— 让它先让位。
+                                // ⚠ 副标题 = **只有地址**（2026-09-28 美化）。
+                                //   原来是一整串 `host:port · 24.2V · 已使能 · -58dBm`：
+                                //     · 窄列里被裁成 "…已使…"，什么都不剩；
+                                //     · "已使能"和闸门里的"未使能"是同一件事说两遍；
+                                //     · 电压/信号和地址一样重，扫读时抢注意力。
+                                //   现在电压/信号走独立属性（卡片里用 闪电/信号格 图标画），
+                                //   使能状态交给闸门（只在异常时出红字）。
                                 subtitle: root._connected
-                                    ? (StageBridge.host + ":" + StageBridge.port + " · "
-                                       + StageBridge.voltage.toFixed(1) + "V · "
-                                       + (StageBridge.enabled ? qsTr("已使能") : qsTr("未使能"))
-                                       + (root._effSide >= 360
-                                          ? " · " + StageBridge.rssi + "dBm" : ""))
+                                    ? (StageBridge.host + ":" + StageBridge.port)
                                     : ""
+                                voltage: StageBridge.voltage
+                                rssi: StageBridge.rssi
 
                                 onClicked: {
                                     if (StageBridge.connecting) return
@@ -424,22 +459,37 @@ Item {
                             // ── 还没配好地址/口令时的主动提示 ──────────
                             // 不能等用户点了才说：卡片看起来是可点的，点下去却什么都不发生，
                             // 用户只会以为程序坏了。所以在他点之前就把话说出来。
-                            Rectangle {
+                            CardSurface {
                                 Layout.fillWidth: true
                                 visible: !root._connected && !StageBridge.connecting
                                          && !setupPanel.fieldsFilled
-                                implicitHeight: 30
-                                radius: 8
+                                // ⚠ 原来写死 implicitHeight: 30 —— 窄列里文案换行成两行时
+                                //   会直接顶出卡片（文字被裁一半）。改成跟着文本走。
+                                implicitHeight: Math.max(34, xyPromptText.implicitHeight + 16)
                                 color: Colors.cardDangerBg
+                                borderColor: Colors.statusDisconnected
 
-                                Text {
+                                RowLayout {
                                     anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
-                                    verticalAlignment: Text.AlignVCenter
-                                    text: qsTr("⚠ 还没配置板子地址 —— 点这里展开下方「平台设置」填入，"
-                                               + "板子 USB 控制台敲 net 会打印这三个值")
-                                    font.pixelSize: 11
-                                    color: Colors.statusDisconnected
-                                    wrapMode: Text.WrapAnywhere
+                                    spacing: 6
+
+                                    IconImage {
+                                        Layout.alignment: Qt.AlignTop
+                                        Layout.topMargin: 2
+                                        source: "../images/alert.svg"
+                                        width: 14
+                                        height: 14
+                                        color: Colors.statusDisconnected
+                                    }
+                                    Text {
+                                        id: xyPromptText
+                                        Layout.fillWidth: true
+                                        text: qsTr("还没配置板子地址 —— 点这里展开下方「平台设置」填入，"
+                                                   + "板子 USB 控制台敲 net 会打印这三个值")
+                                        font.pixelSize: 11
+                                        color: Colors.statusDisconnected
+                                        wrapMode: Text.WrapAnywhere
+                                    }
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -449,12 +499,12 @@ Item {
                             }
 
                             // ── 错误提示（常驻在卡片下方）────────
-                            Rectangle {
+                            CardSurface {
                                 Layout.fillWidth: true
                                 visible: StageBridge.lastError.length > 0
                                 implicitHeight: errText.implicitHeight + 16
-                                radius: 8
                                 color: Colors.cardDangerBg
+                                borderColor: Colors.statusDisconnected
 
                                 Text {
                                     id: errText
@@ -520,6 +570,9 @@ Item {
                                     Layout.fillWidth: true
                                     // 折叠由上面的折叠头负责，这里恒展开
                                     expanded: true
+                                    // 标题也由折叠头负责（"二轴相机平台设置"）——
+                                    // 面板自己再画一遍"二轴平台设置"就是同一句话说两次
+                                    showTitle: false
 
                                     host: StageBridge.host
                                     port: StageBridge.port
@@ -572,13 +625,11 @@ Item {
                             // 卡片占满中列宽，画面在卡内按相机比例（2448×2048）
                             // 等比缩放居中、**允许黑边**（手绘稿原文）—— 不拉扁。
                             // 画面高度由 _previewCapH 封顶（防止吃掉首屏的操作区）。
-                            Rectangle {
+                            CardSurface {
                                 id: previewCard
                                 objectName: "previewCard"
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: root._previewH
-                                radius: 12
-                                color: Colors.contentBg
 
                                 ColumnLayout {
                                     anchors { fill: parent; margins: 12 }
@@ -768,6 +819,7 @@ Item {
                                 inner: [
                                     StagePresetPanel {
                                         Layout.fillWidth: true
+                                        showTitle: false       // 标题由「高级」折叠头负责
                                         canUse: root._canMove
                                         presets: StageBridge.presets
 
@@ -790,6 +842,7 @@ Item {
                                     // ── 公用协议显示框（两块板子的流汇成一条）──
                                     ProtoPanel {
                                         Layout.fillWidth: true
+                                        showTitle: false       // 标题由「高级」折叠头负责
                                         lines: ProtoHub.lines
                                         paused: ProtoHub.paused
                                         sources: [
@@ -839,8 +892,9 @@ Item {
                                 compact: true
                                 Layout.fillWidth: true
                                 // 闸门（+方向符号）同样只画红项
+                                // ⚠ 未连接时不传 "未连接"（理由同 XY 卡：状态行左边已说过了）
                                 gates: !root._zConnected
-                                       ? [{ ok: false, text: qsTr("未连接") }]
+                                       ? []
                                        : [
                                            { ok: ZStageBridge.enabled,
                                              text: ZStageBridge.enabled ? qsTr("已使能") : qsTr("未使能") },
@@ -858,14 +912,12 @@ Item {
                                 connecting: ZStageBridge.connecting
                                 host: ZStageBridge.host
                                 port: ZStageBridge.port
-                                // 同上：窄列里先舍掉信号强度
+                                // 同上：副标题只留地址，电压/信号走独立属性
                                 subtitle: root._zConnected
-                                    ? (ZStageBridge.host + ":" + ZStageBridge.port + " · "
-                                       + ZStageBridge.voltage.toFixed(1) + "V · "
-                                       + (ZStageBridge.enabled ? qsTr("已使能") : qsTr("未使能"))
-                                       + (root._effSide >= 360
-                                          ? " · " + ZStageBridge.rssi + "dBm" : ""))
+                                    ? (ZStageBridge.host + ":" + ZStageBridge.port)
                                     : ""
+                                voltage: ZStageBridge.voltage
+                                rssi: ZStageBridge.rssi
 
                                 onClicked: {
                                     if (ZStageBridge.connecting) return
@@ -884,22 +936,35 @@ Item {
                             }
 
                             // ── 还没配好 Z 轴地址时的主动提示 ──────────
-                            Rectangle {
+                            CardSurface {
                                 Layout.fillWidth: true
                                 visible: !root._zConnected && !ZStageBridge.connecting
                                          && !zSetupPanel.fieldsFilled
-                                implicitHeight: 30
-                                radius: 8
+                                implicitHeight: Math.max(34, zPromptText.implicitHeight + 16)
                                 color: Colors.cardDangerBg
+                                borderColor: Colors.statusDisconnected
 
-                                Text {
+                                RowLayout {
                                     anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
-                                    verticalAlignment: Text.AlignVCenter
-                                    text: qsTr("⚠ 还没配置 Z 轴板子的地址 —— 点这里展开下方「Z 轴设置」填入，"
-                                               + "在 Z 轴板子的 USB 控制台上敲 net 就能看到这三个值")
-                                    font.pixelSize: 11
-                                    color: Colors.statusDisconnected
-                                    wrapMode: Text.WrapAnywhere
+                                    spacing: 6
+
+                                    IconImage {
+                                        Layout.alignment: Qt.AlignTop
+                                        Layout.topMargin: 2
+                                        source: "../images/alert.svg"
+                                        width: 14
+                                        height: 14
+                                        color: Colors.statusDisconnected
+                                    }
+                                    Text {
+                                        id: zPromptText
+                                        Layout.fillWidth: true
+                                        text: qsTr("还没配置 Z 轴板子的地址 —— 点这里展开下方「Z 轴设置」填入，"
+                                                   + "在 Z 轴板子的 USB 控制台上敲 net 就能看到这三个值")
+                                        font.pixelSize: 11
+                                        color: Colors.statusDisconnected
+                                        wrapMode: Text.WrapAnywhere
+                                    }
                                 }
                                 MouseArea {
                                     anchors.fill: parent
@@ -909,12 +974,12 @@ Item {
                             }
 
                             // ── Z 轴故障（**必须常显**，不能藏进折叠节）──
-                            Rectangle {
+                            CardSurface {
                                 Layout.fillWidth: true
                                 visible: root._zConnected && ZStageBridge.faultText.length > 0
                                 implicitHeight: zFaultCol.implicitHeight + 16
-                                radius: 8
                                 color: Colors.cardDangerBg
+                                borderColor: Colors.statusDisconnected
 
                                 ColumnLayout {
                                     id: zFaultCol
@@ -941,12 +1006,12 @@ Item {
                             }
 
                             // ── Z 轴错误提示 ──────────────────────────
-                            Rectangle {
+                            CardSurface {
                                 Layout.fillWidth: true
                                 visible: ZStageBridge.lastError.length > 0
                                 implicitHeight: zErrText.implicitHeight + 16
-                                radius: 8
                                 color: Colors.cardDangerBg
+                                borderColor: Colors.statusDisconnected
 
                                 Text {
                                     id: zErrText
@@ -1010,6 +1075,7 @@ Item {
                                     id: zSetupPanel
                                     Layout.fillWidth: true
                                     expanded: true
+                                    showTitle: false       // 同上：标题由折叠头负责
 
                                     host: ZStageBridge.host
                                     port: ZStageBridge.port

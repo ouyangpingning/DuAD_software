@@ -90,22 +90,22 @@ Item {
             radius: 6
             color: chip.checked ? Colors.interactivePressed
                                 : (chip.hovered ? Colors.interactiveHover : "transparent")
-            border { width: 1; color: chip.checked ? Colors.interactivePressed : Colors.cardBorder }
+            border { width: 1; color: chip.checked ? Colors.textSecondary : Colors.cardBorder }
             Behavior on color { ColorAnimation { duration: 120 } }
         }
         contentItem: Text {
             text: chip.value < 1 ? chip.value.toFixed(1) : chip.value.toFixed(0)
             font.pixelSize: 12
+            // 当前步长是安全相关参数：加粗 + 描边加深（与 X/Y 那张卡同一条）
+            font.bold: chip.checked
             color: chip.enabled ? Colors.textPrimary : Colors.textPlaceholder
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
     }
 
-    Rectangle {
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: body
@@ -114,11 +114,23 @@ Item {
             // 16（原 24）：卡收窄后的内容宽 = 224 − 32 = 192
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
 
-            Text {
-                text: qsTr("Z 轴手动控制")
-                font.pixelSize: 14
-                font.bold: true
-                color: Colors.textPrimary
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                IconImage {
+                    Layout.alignment: Qt.AlignVCenter
+                    source: "../../images/Z轴平台.svg"
+                    width: 16
+                    height: 16
+                }
+                Text {
+                    text: qsTr("Z 轴手动控制")
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: Colors.textPrimary
+                }
+                Item { Layout.fillWidth: true }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -151,26 +163,29 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 enabled: root.canJog
-                text: qsTr("▲  向上")
+                text: qsTr("向上")
                 onClicked: root.jogUpRequested()
 
                 background: Rectangle {
                     radius: 10
+                    // ⚠ 底色必须是 transparent 而不是 contentBg：卡片底现在是白的
+                    //   （CardSurface），再用 contentBg 会画出一块淡蓝，和同一张卡里的
+                    //   「失能 / 设为原点」（transparent + 描边）不是一套语言。
                     color: !parent.enabled
                            ? "transparent"
                            : (parent.pressed ? Colors.interactivePressed
                                              : (parent.hovered ? Colors.interactiveHover
-                                                               : Colors.contentBg))
+                                                               : "transparent"))
                     border { width: 1; color: Colors.cardBorder }
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }
-                contentItem: Text {
+                contentItem: IconText {
                     text: parent.text
-                    font.pixelSize: 15
-                    font.bold: true
+                    iconSource: "../../images/向上.svg"
+                    iconSize: 18
+                    fontPixelSize: 15
+                    fontBold: true
                     color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
                 }
             }
 
@@ -179,26 +194,29 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 48
                 enabled: root.canJog
-                text: qsTr("▼  向下")
+                text: qsTr("向下")
                 onClicked: root.jogDownRequested()
 
                 background: Rectangle {
                     radius: 10
+                    // ⚠ 底色必须是 transparent 而不是 contentBg：卡片底现在是白的
+                    //   （CardSurface），再用 contentBg 会画出一块淡蓝，和同一张卡里的
+                    //   「失能 / 设为原点」（transparent + 描边）不是一套语言。
                     color: !parent.enabled
                            ? "transparent"
                            : (parent.pressed ? Colors.interactivePressed
                                              : (parent.hovered ? Colors.interactiveHover
-                                                               : Colors.contentBg))
+                                                               : "transparent"))
                     border { width: 1; color: Colors.cardBorder }
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }
-                contentItem: Text {
+                contentItem: IconText {
                     text: parent.text
-                    font.pixelSize: 15
-                    font.bold: true
+                    iconSource: "../../images/向下.svg"
+                    iconSize: 18
+                    fontPixelSize: 15
+                    fontBold: true
                     color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
                 }
             }
 
@@ -242,21 +260,24 @@ Item {
                                + "急停与它的分工：急停是刹车且保持使能，失能是松手可手推。")
                         : qsTr("使能 = 闭环抱住平台，顶住外力（失能时被推动坐标系就废了）。")
 
+                    // ⚠ text 写在 Button 上（不只是 contentItem）：无障碍/测试要读得到
+                    text: root.motorEnabled ? qsTr("失能") : qsTr("使能")
+
                     background: Rectangle {
                         radius: 8
                         color: !parent.enabled
                                ? "transparent"
                                : (parent.pressed ? Colors.interactivePressed
                                                  : (parent.hovered ? Colors.interactiveHover
-                                                                   : Colors.pageBg))
+                                                                   : "transparent"))
                         border { width: 1; color: Colors.cardBorder }
                     }
-                    contentItem: Text {
-                        text: root.motorEnabled ? qsTr("⏻ 失能") : qsTr("⏻ 使能")
-                        font.pixelSize: 12
+                    contentItem: IconText {
+                        text: parent.text
+                        iconSource: "../../images/电源.svg"
+                        iconSize: 14
+                        fontPixelSize: 12
                         color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                     }
                 }
 
@@ -265,6 +286,7 @@ Item {
                     implicitWidth: implicitContentWidth + 28
                     implicitHeight: 34
                     enabled: root.connected && !root.moving
+                    text: qsTr("设为原点")
                     onClicked: root.zeroRequested()
 
                     ToolTip.visible: hovered
@@ -280,12 +302,12 @@ Item {
                         border { width: 1; color: Colors.cardBorder }
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
-                    contentItem: Text {
-                        text: qsTr("⌂ 设为原点")
-                        font.pixelSize: 13
+                    contentItem: IconText {
+                        text: parent.text
+                        iconSource: "../../images/home.svg"
+                        iconSize: 15
+                        fontPixelSize: 13
                         color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                     }
                 }
                 Item { Layout.fillWidth: true }   // 弹簧：控件靠左，不拉满
@@ -297,6 +319,7 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 40
                 enabled: root.connected
+                text: qsTr("停止")
                 onClicked: root.stopRequested()
 
                 background: Rectangle {
@@ -307,24 +330,34 @@ Item {
                                              : Colors.statusDisconnected)
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }
-                contentItem: Text {
-                    text: qsTr("■  停止")
-                    font.pixelSize: 15
-                    font.bold: true
-                    color: parent.enabled ? "#ffffff" : Colors.textPlaceholder
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                contentItem: IconText {
+                    text: parent.text
+                    iconSource: "../../images/停止.svg"
+                    iconSize: 17
+                    fontPixelSize: 15
+                    fontBold: true
+                    color: parent.enabled ? Colors.textOnAccent : Colors.textPlaceholder
                 }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
 
             // ── 绝对定位 ──────────────────────────────
-            Text {
-                text: qsTr("绝对定位")
-                font.pixelSize: 12
-                font.bold: true
-                color: Colors.textSecondary
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                IconImage {
+                    Layout.alignment: Qt.AlignVCenter
+                    source: "../../images/靶心.svg"
+                    width: 13; height: 13
+                }
+                Text {
+                    text: qsTr("绝对定位")
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: Colors.textSecondary
+                }
+                Item { Layout.fillWidth: true }
             }
 
             InputRow {
@@ -370,7 +403,7 @@ Item {
                     ToolTip.delay: 600
                     ToolTip.text: qsTr("驱动器让两个电机同时朝下顶死点、按相电流判「顶住了」。"
                                        + "它要求两侧丝杠同时顶到各自的死点，否则会把平台拧歪 —— "
-                                       + "主线做法是「推到靠块 → ⌂ 设为原点」。")
+                                       + "主线做法是「推到靠块 → 设为原点」。")
 
                     background: Rectangle {
                         radius: 8

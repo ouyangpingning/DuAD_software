@@ -66,12 +66,15 @@ Item {
             radius: 6
             color: chip.checked ? Colors.interactivePressed
                                 : (chip.hovered ? Colors.interactiveHover : "transparent")
-            border { width: 1; color: chip.checked ? Colors.interactivePressed : Colors.cardBorder }
+            border { width: 1; color: chip.checked ? Colors.textSecondary : Colors.cardBorder }
             Behavior on color { ColorAnimation { duration: 120 } }
         }
         contentItem: Text {
             text: chip.value < 1 ? chip.value.toFixed(1) : chip.value.toFixed(0)
             font.pixelSize: 12
+            // 当前步长是**安全相关参数**（按一下走多远），选中态必须一眼可辨：
+            // 加粗 + 描边加深，而不是只把底色从透明换成浅色。
+            font.bold: chip.checked
             color: chip.enabled ? Colors.textPrimary : Colors.textPlaceholder
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
@@ -81,10 +84,8 @@ Item {
     // ============================================================
     // 本体
     // ============================================================
-    Rectangle {
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: mainLayout
@@ -92,11 +93,23 @@ Item {
             // 16（原 24）：卡宽 224 − 32 = 192，正好装下 JogPad(188)
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
 
-            Text {
-                text: qsTr("二轴手动控制")
-                font.pixelSize: 14
-                font.bold: true
-                color: Colors.textPrimary
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                IconImage {
+                    Layout.alignment: Qt.AlignVCenter
+                    source: "../../images/二轴平台.svg"
+                    width: 16
+                    height: 16
+                }
+                Text {
+                    text: qsTr("二轴手动控制")
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: Colors.textPrimary
+                }
+                Item { Layout.fillWidth: true }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -162,7 +175,7 @@ Item {
                     //   测试就成了假断言（这条真踩过）。
                     // 短标签 + 悬停说明（2026-09-28 精简）：长文案是"说明"，
                     // 不是"操作"，缩到图标+两个字，细节交给 ToolTip 与文档。
-                    text: root.motorEnabled ? qsTr("⏻ 失能") : qsTr("⏻ 使能")
+                    text: root.motorEnabled ? qsTr("失能") : qsTr("使能")
                     onClicked: root.enableToggled()
 
                     ToolTip.visible: hovered
@@ -178,12 +191,14 @@ Item {
                         border { width: 1; color: Colors.cardBorder }
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
-                    contentItem: Text {
+                    // ⚠ 图标+文字用 IconText：原来写的是 `⏻ 使能` —— 拿 Unicode 字形
+                    //   当图标（依赖字体收录、不能单独染色、大小不齐），见组件头注释。
+                    contentItem: IconText {
                         text: parent.text
-                        font.pixelSize: 12
+                        iconSource: "../../images/电源.svg"
+                        iconSize: 14
+                        fontPixelSize: 12
                         color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                     }
                 }
 
@@ -192,6 +207,9 @@ Item {
                     implicitWidth: implicitContentWidth + 28
                     implicitHeight: 32
                     enabled: root.connected
+                    // ⚠ text 写在 Button 上（不只是 contentItem）：无障碍/自动化读得到，
+                    //   否则 property("text") 是空串（AGENTS 里那条"假断言"的坑）。
+                    text: qsTr("设为原点")
                     onClicked: root.zeroRequested()
 
                     ToolTip.visible: hovered
@@ -207,12 +225,12 @@ Item {
                         border { width: 1; color: Colors.cardBorder }
                         Behavior on color { ColorAnimation { duration: 120 } }
                     }
-                    contentItem: Text {
-                        text: qsTr("⌂ 设为原点")
-                        font.pixelSize: 13
+                    contentItem: IconText {
+                        text: qsTr("设为原点")
+                        iconSource: "../../images/home.svg"
+                        iconSize: 15
+                        fontPixelSize: 13
                         color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                     }
                 }
 
@@ -226,6 +244,7 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: 40
                 enabled: root.connected
+                text: qsTr("停止")      // 同上：写在 Button 上，给无障碍与测试读
                 onClicked: root.stopRequested()
 
                 background: Rectangle {
@@ -236,24 +255,34 @@ Item {
                                              : Colors.statusDisconnected)
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }
-                contentItem: Text {
-                    text: qsTr("■  停止")
-                    font.pixelSize: 15
-                    font.bold: true
-                    color: parent.enabled ? "#ffffff" : Colors.textPlaceholder
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                contentItem: IconText {
+                    text: qsTr("停止")
+                    iconSource: "../../images/停止.svg"
+                    iconSize: 17
+                    fontPixelSize: 15
+                    fontBold: true
+                    color: parent.enabled ? Colors.textOnAccent : Colors.textPlaceholder
                 }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
 
             // ── 绝对定位 ──────────────────────────────
-            Text {
-                text: qsTr("绝对定位")
-                font.pixelSize: 12
-                font.bold: true
-                color: Colors.textSecondary
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+                IconImage {
+                    Layout.alignment: Qt.AlignVCenter
+                    source: "../../images/靶心.svg"
+                    width: 13; height: 13
+                }
+                Text {
+                    text: qsTr("绝对定位")
+                    font.pixelSize: 12
+                    font.bold: true
+                    color: Colors.textSecondary
+                }
+                Item { Layout.fillWidth: true }
             }
 
             // X / Y 竖排：卡收窄后放不下一对 132px 的输入行（手绘稿也是竖排）

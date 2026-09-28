@@ -37,6 +37,8 @@ Item {
 
     // [{ key: "xy", label: qsTr("二轴相机平台"), connected: true }, …]
     property var sources: []
+    // 住在「高级」折叠节里时不重复报标题（折叠头已经写了"协议显示"）
+    property bool showTitle: true
     property string sourceKey: "z"
 
     signal sourcePicked(string key)
@@ -59,10 +61,9 @@ Item {
     //   （Rectangle 的 implicitHeight 不会被自撑开），整张卡只剩 32px。
     implicitHeight: body.implicitHeight + 32
 
-    Rectangle {
+    // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: body
@@ -79,6 +80,7 @@ Item {
                 spacing: 8
 
                 Text {
+                    visible: root.showTitle
                     text: qsTr("协议显示（两块板子公用）")
                     font.pixelSize: 14
                     font.bold: true

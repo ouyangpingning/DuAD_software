@@ -44,10 +44,32 @@ QtObject {
     property color cardBorder:             "#e0e0e0"
     property color cardDangerBg:           "#fef0f0"  // 已连接卡片背景（微红）
     property color cardDangerHover:        "#fdd9d9"  // 断开悬停背景（浅红）
+    // 已连接卡片的**描边**：用淡红而不是 statusDisconnected 的正红 ——
+    // 1px 的正红描边围一圈看着像报错（"这台是不是出故障了？"），
+    // 而"已连接"其实是好状态，红的语义只是"再点一下就断开"。
+    property color cardDangerBorder:       "#f0c8c8"
 
     // ── 窗口 / 图标 ─────────────────────────────────────────
     property color windowBg:               "#ffffff"
     property color iconColor:              "#212121"   // SVG 图标染色
+
+    // ── 卡片层级（2026-09-28 平台控制页美化引入）────────────
+    // 为什么要有这一组：原来卡片和页面都靠 contentBg/pageBg 两个色区分，
+    // 卡片是淡蓝、页面是白，同色系、无描边 → 所有卡片都"平贴"在页面上，
+    // 连接卡/控制卡/折叠节/错误条主次不分。
+    // 现在改成三级层次：**页面（白）→ 卡片（白底 + 描边 + 硬阴影）→ 内嵌块（accentSoft）**。
+    property color cardBg:                 "#ffffff"   // 卡片底（浮在页面上）
+    property color cardBorderStrong:       "#dbe4e9"   // 卡片描边（比 cardBorder 清楚一档）
+    property color cardShadow:             "#1a0f1c24" // 卡片投影：**纯矩形硬阴影**，不是 shader
+    property color accentSoft:             "#D3E6ED"   // 图标 chip / 折叠头 / 选中块的软强调底
+    property color textOnAccent:           "#ffffff"   // 强调底（急停红等）上的文字与图标
+
+    // ⚠ 关于 cardShadow：**不要改用 QtQuick.Effects 的 RectangularShadow**。
+    //   2026-09-28 实测：它在 offscreen/软件渲染后端下**完全不渲染**（连
+    //   `color:"#ff000000" blur:20 offset:(0,10)` 都画不出任何像素，也不报错），
+    //   而本项目的截图验收（tests/render_page.py）与 Jetson 都可能走软件渲染 ——
+    //   用了它等于"本机看着有、验收环境和板子上都没有"，属于最难查的那类问题。
+    //   现在各卡片用的是「比卡片下移 2px 的圆角矩形」，任何后端都稳。
 
     // ============================================================
     // 当前状态（theme 与 preset 独立）
@@ -105,8 +127,9 @@ QtObject {
         "interactiveHover", "interactivePressed", "interactiveChecked",
         "textPrimary", "textSecondary", "textPlaceholder",
         "statusConnected", "statusDisconnected",
-        "cardBorder", "cardDangerBg", "cardDangerHover",
-        "windowBg", "iconColor"
+        "cardBorder", "cardDangerBg", "cardDangerHover", "cardDangerBorder",
+        "windowBg", "iconColor",
+        "cardBg", "cardBorderStrong", "cardShadow", "accentSoft", "textOnAccent"
     ]
 
     Component.onCompleted: {
@@ -183,6 +206,16 @@ QtObject {
         // ── 卡片断开红：暗色用暗红避免刺眼 ──
         _tween("cardDangerBg",    dark ? "#3a2020" : "#fef0f0")
         _tween("cardDangerHover", dark ? "#4a2525" : "#fdd9d9")
+        _tween("cardDangerBorder", dark ? "#6a3a3a" : "#f0c8c8")
+
+        // ── 卡片层级：描边由预设 border 派生（换配色时描边跟着色系走）──
+        _tween("cardBg",           dark ? "#2f2f2f" : "#ffffff")
+        _tween("cardBorderStrong", dark ? "#4a4a4a" : Qt.darker(p.border, 1.14))
+        // 投影用中性深色（不跟配色走）：它是"阴影"不是"品牌色"
+        _tween("cardShadow",       dark ? "#45000000" : "#1a0f1c24")
+        _tween("accentSoft",       dark ? Qt.darker(p.accent, 2.2) : p.hover)
+        // 强调底上的文字：急停红、深色强调块上永远要白字，暗色主题也不例外
+        _tween("textOnAccent",     "#ffffff")
     }
 
     // ============================================================

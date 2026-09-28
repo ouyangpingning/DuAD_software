@@ -1116,6 +1116,41 @@ def main():
         page.setProperty("_advExpanded", False)
         r.pump(0.3)
 
+    print("=== 12e) 页面上的每个图标都必须真的存在（静默失效守卫）===")
+    # 为什么值得单开一条：`IconImage` 内部是 `Image` + `ColorOverlay`，源文件找不到时
+    # **不报错、不警告、什么都不画**（AGENTS 第 22.1-3 条记的就是同类坑：URL 解析错了
+    # 图标静默消失）。更要命的是 —— **截图验收抓不到它**：
+    # ColorOverlay 是 shader 特效，在 offscreen / 软件渲染后端下**整个图标都不渲染**
+    # （2026-09-28 实测：连项目原有的 settings.svg 也是空白），所以 render_page.py 出的图里
+    # 图标本来就是空的，"截图上有/没有"完全不能当判据。
+    # 唯一可靠的检查：把 source 解析成文件路径，查它到底在不在。
+    def _icon_sources(host):
+        def walk(it):
+            yield it
+            for c in it.childItems():
+                yield from walk(c)
+        out = []
+        for it in walk(host):
+            if "IconImage" in it.metaObject().className():
+                u = it.property("source")
+                # ⚠ property() 拿回来的是 QUrl 对象，`str(u)` 是
+                #   "PySide6.QtCore.QUrl('file://…')" 这种 repr —— 必须走 toString()，
+                #   否则下面查文件必然"全部不存在"，守卫自己先变成假警报。
+                if u is not None:
+                    s = u.toString() if hasattr(u, "toString") else str(u)
+                    if s:
+                        out.append(s)
+        return out
+
+    _srcs = sorted(set(_icon_sources(page)))
+    missing = []
+    for u in _srcs:
+        path = QUrl(u).toLocalFile() if u.startswith("file:") else u
+        if not Path(path).is_file():
+            missing.append(f"{u} → {path}")
+    r.check("页面里所有 IconImage 的源文件都存在（共 %d 个图标）" % len(_srcs),
+            not missing, "；".join(missing))
+
     print("=== 13) 断开 ===")
     server.board.commands.clear()
     stage.disconnectDevice()

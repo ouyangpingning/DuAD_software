@@ -29,6 +29,8 @@ Item {
     objectName: "zSetupPanel"
 
     property bool expanded: false
+    // 同 StageSetupPanel：住在折叠节里时标题由折叠头负责，自己不重复画
+    property bool showTitle: true
 
     // 网络
     property string host: ""
@@ -88,10 +90,9 @@ Item {
         NumberAnimation { duration: 250; easing.type: Easing.InOutCubic }
     }
 
-    Rectangle {
+    // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: contentLayout
@@ -101,12 +102,16 @@ Item {
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
 
             Text {
+                visible: root.showTitle
                 text: qsTr("Z 轴设置")
                 font.pixelSize: 14
                 font.bold: true
                 color: Colors.textPrimary
             }
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle {
+                visible: root.showTitle
+                Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder
+            }
 
             // ── 网络（另一块板子）──────────────────────────
             SectionHeader { text: qsTr("网络（Z 轴这块板子）") }

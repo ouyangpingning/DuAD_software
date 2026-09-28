@@ -1,5 +1,11 @@
 # AGENTS.md
 
+你的身份：
+
+你是一个具有10年工作经验的UI设计工程师兼上位机开发工程师，同时还是一名精通AI的算法工程师
+
+我的项目：                                                    
+
 PySide6 + QML 工业异常检测上位机（论文《融合Dinov2与双分支训练架构的工业异常检测》配套软件）。
 完整架构树见 `CLAUDE.md`（注意其「当前状态」一节已过时）；**踩坑实录见 `docs/19-踩坑实录与设计规矩.md`**（本文只留一句话结论 + 指针，编号与该文一致）。
 
@@ -18,7 +24,7 @@ Windows: `pyqml_win\Scripts\python.exe -u main.py`；Jetson: `bash run_jetson.sh
 - 依赖仅 PySide6（6.11.1，Python 3.14）+ onnxruntime-gpu。**无** requirements.txt / pyproject / README / 测试 CI。
 - **Windows 的 onnxruntime-gpu 不自带 CUDA 运行库**：需另装 `nvidia-cublas-cu13`/`nvidia-cudnn-cu13`/`nvidia-cuda-runtime` pip 包，缺失则**静默回退 CPU**（main.py 与 onnx_infer.py 已把 nvidia bin 目录注入 PATH）；**CUDA 13 要求驱动 ≥585**。**TRT 库 Windows 无 pip 包**：手动装 TensorRT 10.16.x，用用户环境变量 `TENSORRT_LIB_DIR` 指定（或拷入 `backend/libs_win_tensorrt/bin`）。详见 `docs/15`。
 - `pyside6-lupdate`/`lrelease` 的 shebang 指向改名前旧路径，**直接运行必报 bad interpreter** —— 用 `DuAD_SoftwareContent/pyqml/lib/python3.14/site-packages/PySide6/` 里的原生二进制。
-- git 仓库根在上级 `研究生论文/`，跟踪论文文档；**本代码目录未被 git 跟踪**（目录内 git status/diff 无意义）。
+- git 仓库根在上级 `研究生论文/`，跟踪论文文档；**本代码目录是一个独立的 git 仓库**（`git rev-parse --show-toplevel` 就落在 `DuAD_Software/`，文件是被跟踪的；旧文档里"未被跟踪"那句已过时）。
 
 ## 布局
 
@@ -44,7 +50,9 @@ Windows: `pyqml_win\Scripts\python.exe -u main.py`；Jetson: `bash run_jetson.sh
 
 - **main.py venv 自检 execv**：不要绕过；打包版 frozen 分支的 `Path("Scripts","python.exe")` 写法不要改回 str/str 相除。
 - **两处 Fusion 强制**：`QT_QUICK_CONTROLS_STYLE=Fusion`（main.py `__main__` 块，QGuiApplication 创建前）——KDE Breeze 与 Qt 6.11 QML 控件不兼容（ComboBox 下拉空白）；Windows 打包无它则控件空白。**不要移除**。
-- **颜色唯一来源** `DuAD_Software/Colors.qml`：`setTheme/setPreset` 运行时切换，全部颜色走 ColorAnimation（`animDuration`）。禁止硬编码 `#rrggbb`。
+- **颜色唯一来源** `DuAD_Software/Colors.qml`：`setTheme/setPreset` 运行时切换，全部颜色走 ColorAnimation（`animDuration`）。禁止硬编码 `#rrggbb`。卡片层级另有一组令牌：`cardBg / cardBorderStrong / cardShadow / accentSoft / textOnAccent / cardDangerBorder`。
+- **不要用 shader 特效做质感**：`RectangularShadow`、`ColorOverlay` 在**软件渲染后端下整个不画、也不报错**，而 `render_page.py` 与 Jetson 都可能走软件渲染（docs/19 §32）。卡片"浮起"一律用 `pages/components/CardSurface.qml`（白底 + 1px 描边 + 普通矩形硬阴影）；按钮里"图标+文字"用 `pages/components/IconText.qml`，**不许拿 `⏻ ⌂ ■ ▲` 这类 Unicode 字形当图标**（依赖字体收录、大小不齐、不能单独染色）。
+- **图标在不在，只能靠断言不能靠截图**：offscreen 下 `IconImage` 从来是空的。`tests/test_stage_page.py` 的 12e 会逐个解析 `IconImage.source` 查文件存在 —— 改图标或搬文件后必须回跑它。
 - **URL 解析**：main.py 设 `QML_COMPAT_RESOLVE_URLS_ON_ASSIGNMENT=1`，`pages/` 引 `images/` 必须写 `../images/`；**测试与渲染脚本同样要设**（否则图标静默消失，§22.1-3）。跨平台 URL 转换用 `_toFileUrl()/_fromFileUrl()`（DetectPage 已内置，新增 FileDialog 照抄）。
 - **`.ui.qml` 仅供 Qt Design Studio**；StackLayout 子项顺序必须与 `navGroup.buttons` 一致（有静态校验钉着）。
 - **ComboRow 的 model 用稳定 key（不翻译）**，显示文本走 `displayFunc`；**ComboBox 下拉高度用 `combo.count * 32 + 4` 同步计算**（异步 contentHeight 有 0 高死循环），改 delegate 高度同步改公式。
@@ -85,11 +93,16 @@ QT_QPA_PLATFORM=offscreen python3 -u tests/test_zstage_bridge.py   # ZStageBridg
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_proto_hub.py       # 公用协议框
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_light_bridge.py    # 假光源控制器（只认 19200 + 长应答分片）
 QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1680 1700 both --dump   # 渲染 + 量几何（改版面必看）
+python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（**唯一**能目检图标的手段，见 §32）
 ```
 
 平台相关测试自带**进程内假板子**（严格按固件行为建模；替身的诚实度决定测试能发现什么，§11）。改版面/组件后先跑两个 page 测试再 render_page 目检。
 
 通用坑：**必须 `python -u`**；交互优先 `btn.clicked.emit()`（`MouseArea.clicked` 带 MouseEvent 参数 emit 不了，要 `QTest.mouseClick`，且是窗口坐标、点前先滚进视口，§28）；找控件用 **objectName**（className 是 `Button_QMLTYPE_*` 不稳定）；**Repeater delegate 不在 QObject 树**，走可视树 `childItems()`；FakeBridge 必须存变量防 GC；offscreen 屏幕 800×800 会裁窗口宽（断言前先设窗口尺寸，§25）；进程末尾的 `TypeError ... of null` 多是退出噪音，看加载完成那一刻的 warnings；`image://camera/...` 无 provider 属预期噪音。
+
+## 「平台控制」页（v4.3，2026-09-28 美化：图标接线 + 卡片质感）
+
+**卡片一律用 `pages/components/CardSurface.qml`**（白底 `cardBg` + 1px `cardBorderStrong` + 2px 矩形硬阴影），内嵌块（折叠头/图标 chip）用 `accentSoft`，页面底保持白 —— 层次 = 页面 → 卡片 → 内嵌块。**已连接卡片的描边是 `cardDangerBorder`（淡红），不要用 `statusDisconnected` 正红**（1px 正红围一圈像故障告警，而"已连接"是好状态）。**按钮里的图标一律走 `IconText`**（`电源/home/靶心/向上…`），不许回退到 `⏻ ⌂ ■ ▲` 字形。折叠头 = `FoldHeader`（accentSoft 条 + `下单箭头.svg` 旋转 0/−90 表示展开/收起 + 红色 pill badge）；**折叠体里的面板 `showTitle: false`**（标题由折叠头负责，别一个名字说两遍）。连接卡状态行分层：`● 已连接`（加粗、状态色）→ 闸门红项 → 地址 11px 灰 → `闪电/信号格` 图标 + 数值；**未连接时 `gates` 传 `[]`**（"未连接"由状态词说，别再出红字）。遥测拆成 `voltage`/`rssi` 独立属性（窄列 `width<300` 时整组让位）。
 
 ## 「平台控制」页（v4.2，2026-09-28 第二张手绘稿：三列）
 
@@ -116,3 +129,10 @@ DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.
 ## Jetson（aarch64）
 
 环境 `~/micromamba/envs/duad`（conda-forge PySide6 + NVIDIA 索引 onnxruntime；`pyqml/` 目录不要建）。JP7.2 是 CUDA 13：需补装 cu12 的 nvidia-* pip 包并把 `site-packages/nvidia/*/lib` 注入 LD_LIBRARY_PATH（main.py 已自动）。TRT 数值正确性依 JetPack 版本（JP6.2 勿用 TRT；JP7.2+ 可用，`DUAD_PREFER_TRT=1`/`DUAD_TRT_FP16=1` 已在 run_jetson.sh 默认开，引擎缓存分目录）。arm64 无 DxImageProc：Bayer 走自编 `libbayer_demosaic.so`（改 .c 必须重编译）。udev 规则必须装且重新插拔。详见 `docs/Jetson部署.md`、`docs/16`。
+
+
+
+最后：
+
+1. 在每次完成一个重要的任务节点的时候（你可以询问我是否提交），进行一次git的commit操作，并根据任务节点的内容在提交的时候进行描述。
+2. 我希望最后你告诉我的结果包括两个部分，第一个就是告诉我你干了什么，可以通过通俗的语言来解释。第二个是你修改了哪些文件。第三个是结果怎么样。

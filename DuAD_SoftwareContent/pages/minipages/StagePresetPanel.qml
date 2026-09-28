@@ -20,6 +20,8 @@ Item {
 
     property bool canUse: false            // 未连接 / 未立基准时为 false
     property var presets: []               // [{name, x, y}]
+    // 住在「高级」折叠节里时不重复报标题（折叠头写的是「高级（预设位置 · 协议显示）」）
+    property bool showTitle: true
 
     signal gotoRequested(int index)
     signal deleteRequested(int index)
@@ -28,10 +30,9 @@ Item {
     implicitWidth: 460
     implicitHeight: mainLayout.implicitHeight + 32
 
-    Rectangle {
+    // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: mainLayout
@@ -41,6 +42,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
+                    visible: root.showTitle
                     text: qsTr("预设位置")
                     font.pixelSize: 14
                     font.bold: true

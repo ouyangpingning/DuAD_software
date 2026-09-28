@@ -17,6 +17,8 @@ Item {
     objectName: "setupPanel"    // 页面测试量卡片顺序用
 
     property bool expanded: false
+    // 自己那个 14px 标题画不画 —— 住在折叠节里时由页面置 false（折叠头已经报了名字）
+    property bool showTitle: true
 
     // 网络
     property string host: ""
@@ -74,10 +76,9 @@ Item {
         NumberAnimation { duration: 250; easing.type: Easing.InOutCubic }
     }
 
-    Rectangle {
+    // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: contentLayout
@@ -86,13 +87,19 @@ Item {
             // 内容宽 200−24 = 176 —— InputRow 的最小宽 72+80=152 刚好放得下。
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
 
+            // ⚠ 标题可以关：本面板住在「二轴相机平台设置」折叠节里，折叠头已经把
+            //   名字说了，再画一遍就是同一句话说两次（2026-09-28 美化时去掉）。
             Text {
+                visible: root.showTitle
                 text: qsTr("二轴平台设置")
                 font.pixelSize: 14
                 font.bold: true
                 color: Colors.textPrimary
             }
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle {
+                visible: root.showTitle
+                Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder
+            }
 
             SectionHeader { text: qsTr("网络") }
 

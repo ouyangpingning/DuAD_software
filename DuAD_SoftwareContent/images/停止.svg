@@ -1,1 +1,8 @@
-<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg t="1790580764168" class="icon" viewBox="0 0 1040 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2465" xmlns:xlink="http://www.w3.org/1999/xlink" width="203.125" height="200"><path d="M512 64c60.5 0 119.2 11.8 174.4 35.2 53.3 22.6 101.3 54.9 142.4 96 41.2 41.2 73.5 89.1 96 142.4C948.2 392.8 960 451.5 960 512s-11.8 119.2-35.2 174.4c-22.6 53.3-54.9 101.3-96 142.4-41.2 41.2-89.1 73.5-142.4 96C631.2 948.2 572.5 960 512 960s-119.2-11.8-174.4-35.2c-53.3-22.6-101.3-54.9-142.4-96-41.2-41.2-73.5-89.1-96-142.4C75.8 631.2 64 572.5 64 512s11.8-119.2 35.2-174.4c22.6-53.3 54.9-101.3 96-142.4 41.2-41.2 89.1-73.5 142.4-96C392.8 75.8 451.5 64 512 64m0-64C229.2 0 0 229.2 0 512s229.2 512 512 512 512-229.2 512-512S794.8 0 512 0z" p-id="2466" fill="#d81e06"></path><path d="M716 304H308c-2.2 0-4 1.8-4 4v408c0 2.2 1.8 4 4 4h408c2.2 0 4-1.8 4-4V308c0-2.2-1.8-4-4-4z" p-id="2467" fill="#d81e06"></path></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 急停：实心圆角八角（国际停车标志形状），靠描边把角磨圆
+     风格：24×24 / 单色 / stroke 2.2 / 圆头 —— 与同目录其它图标同一套。
+     颜色由 IconImage 的 ColorOverlay 按主题染色，改色只改这里不用改页面。 -->
+<svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M8.6 4.2h6.8l4.4 4.4v6.8l-4.4 4.4H8.6l-4.4-4.4V8.6z" fill="#cdcdcd" stroke="#cdcdcd" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

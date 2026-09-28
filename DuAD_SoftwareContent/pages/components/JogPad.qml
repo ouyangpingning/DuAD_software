@@ -70,7 +70,10 @@ Item {
     // ============================================================
     component DirKey: Rectangle {
         id: key
-        property string glyph: ""
+        // ⚠ 2026-09-28：原来的 `glyph` 是 "▲"/"◀"/"▶"/"▼" **文本字形** ——
+        //   依赖 wqy-microhei 收录这些码位，渲染出来偏小、和方框不居中对齐，
+        //   而且不能单独染色。现在改成图标（同一套 24×24 单色 SVG）。
+        property url iconSource: ""
         property int dx: 0
         property int dy: 0
         property string tip: ""
@@ -89,12 +92,12 @@ Item {
 
         Behavior on color { ColorAnimation { duration: 120 } }
 
-        Text {
+        IconImage {
             anchors.centerIn: parent
-            text: key.glyph
-            font.pixelSize: Math.round(root.cell * 0.30)
-            font.bold: true
-            color: root.interactive ? Colors.textPrimary : Colors.textPlaceholder
+            source: key.iconSource
+            width: Math.round(root.cell * 0.42)
+            height: Math.round(root.cell * 0.42)
+            imageOpacity: root.interactive ? 1.0 : 0.35
         }
 
         MouseArea {
@@ -134,7 +137,7 @@ Item {
                 anchors.centerIn: parent
                 text: key.tip
                 font.pixelSize: 11
-                color: "#ffffff"
+                color: Colors.textOnAccent
             }
         }
     }
@@ -152,7 +155,7 @@ Item {
 
         DirKey {
             Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
-            glyph: "▲"; dx: 0; dy: 1
+            iconSource: "../../images/向上.svg"; dx: 0; dy: 1
             tip: qsTr("+Y 向里") + " " + root.step.toFixed(2) + " mm"
         }
 
@@ -160,7 +163,7 @@ Item {
 
         DirKey {
             Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
-            glyph: "◀"; dx: -1; dy: 0
+            iconSource: "../../images/向左.svg"; dx: -1; dy: 0
             tip: qsTr("−X 向左") + " " + root.step.toFixed(2) + " mm"
         }
 
@@ -193,7 +196,7 @@ Item {
 
         DirKey {
             Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
-            glyph: "▶"; dx: 1; dy: 0
+            iconSource: "../../images/向右.svg"; dx: 1; dy: 0
             tip: qsTr("+X 向右") + " " + root.step.toFixed(2) + " mm"
         }
 
@@ -201,7 +204,7 @@ Item {
 
         DirKey {
             Layout.preferredWidth: root.cell; Layout.preferredHeight: root.cell
-            glyph: "▼"; dx: 0; dy: -1
+            iconSource: "../../images/向下.svg"; dx: 0; dy: -1
             tip: qsTr("−Y 向外") + " " + root.step.toFixed(2) + " mm"
         }
 
