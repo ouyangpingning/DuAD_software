@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Z 轴升降平台图标：字母 Z + 上下双箭头（"能升能降的单轴平台"）。
+     单色（#cdcdcd），由 IconImage 的 ColorOverlay 跟随主题染色 ——
+     改色只改这里，不用改页面（与 二轴平台.svg 同一套约定）。 -->
+<svg viewBox="0 0 1024 1024" width="256" height="256" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#cdcdcd">
+    <!-- 字母 Z：上横 → 斜线 → 下横（描边画法，斜接处不带尖角） -->
+    <path d="M150 250 H610 L150 650 H610"
+          fill="none" stroke="#cdcdcd" stroke-width="96"
+          stroke-linecap="square" stroke-linejoin="miter"/>
+    <!-- 升降双箭头：竖杆 + 上箭头 + 下箭头 -->
+    <rect x="756" y="248" width="72" height="440" rx="8"/>
+    <polygon points="792,120 700,262 884,262"/>
+    <polygon points="792,816 700,674 884,674"/>
+  </g>
+</svg>

@@ -35,6 +35,8 @@ from PySide6.QtCore import (QCoreApplication, QObject, QSettings, QThread, QTime
                             Property, Signal, Slot)
 from PySide6.QtNetwork import QAbstractSocket, QTcpSocket
 
+from Src.proto_log import ProtoLog
+
 # ── 机械换算（GT2-16 齿带轮，每圈 32mm）────────────────────────────
 MM_PER_DEG = 32.0 / 360.0          # 0.088888…
 DEG_PER_MM = 1.0 / MM_PER_DEG      # 11.25
@@ -173,6 +175,9 @@ class StageBridge(QObject):
     # ── 预设 ──────────────────────────────────────────────
     presetsChanged = Signal()
 
+    # ── 协议显示框（与 Z 轴那块共用同一个框，见 proto_hub.py）──
+    protoChanged = Signal()
+
     def __init__(self, parent=None, settings=None):
         """settings 可注入 —— **测试必须传一个文件隔离的 QSettings**，
         否则测试会用真实程序的 `DuAD/DuADSoftware` 作用域，把假板子的
@@ -264,6 +269,12 @@ class StageBridge(QObject):
         self._in_flight: Optional[Dict[str, Any]] = None
         self._resp_lines: List[str] = []
 
+        # ── 协议显示框（2026-09-28 起：协议框改成两块板子公用的）──
+        # 每一条收发的原文都进 ProtoLog（封顶/节流/暂停语义与 Z 轴那块一致），
+        # 由 ProtoHub 汇总成一条带 [XY] 前缀的流。
+        self.proto_log = ProtoLog("XY", parent=self)
+        self.proto_log.changed.connect(self.protoChanged.emit)
+
         # 轮询定时器：连上且认证通过后才跑
         self._poll = QTimer(self)
         self._poll.setInterval(POLL_IDLE_MS)
@@ -314,6 +325,10 @@ class StageBridge(QObject):
         """
         self._error_gate = gate
         self._set_error(msg, kind="gate")
+
+    def _proto_add(self, text: str):
+        """往协议显示框追加一行（节流/封顶/暂停都在 ProtoLog 里，见 proto_log.py）。"""
+        self.proto_log.add(text)
 
     def _set_error(self, msg: str, kind: str = "action"):
         """设置错误提示。
@@ -640,7 +655,7 @@ class StageBridge(QObject):
             #   只说"板子重启过"会把人往错方向带（他明明没重启过板子）。
             self._log("⚠ 基准闸是空的：**板子重启过，或者 24V 掉过电** → "
                       "驱动器丢了多圈位置，坐标作废，需要重新立一次基准："
-                      "把滑座推到靠块/硬限位，再点「⌂ 把当前位置设为原点」")
+                      "把滑座推到靠块/硬限位，再点「⌂ 设为原点」")
             return
         if self._last_park is None:
             return                      # 上次不是正常退出（崩溃/超时），不做核对
@@ -855,7 +870,17 @@ class StageBridge(QObject):
             self._handle_line(line)
 
     def _handle_line(self, line: str):
-        # ① 认证应答（还没进入正常命令流程）
+        # ⓪ 驱动器原始帧（固件 `trace on` 时镜像回来的）—— 只进协议框，不算命令输出。
+        #    ⚠ 二轴这块板子的固件**没有** trace 命令（`supportsTrace=False`），
+        #    这一支是给"以后固件补齐了"留的；Z 轴那块是真的在用。
+        if line.startswith("@"):
+            self._proto_add(f"   {line}")
+            return
+
+        # ① 协议框：把**每一条**收到的行都记下来（含 json 轮询 / 口令应答）
+        self._proto_add(f"← {line}")
+
+        # ② 认证应答（还没进入正常命令流程）
         if not self._authenticated:
             if line == "#OK auth":
                 self._authenticated = True
@@ -958,6 +983,8 @@ class StageBridge(QObject):
         item = self._queue.pop(0)
         self._in_flight = item
         self._resp_lines = []
+        # 协议框记**真正发出去的那一行**（口令与 quit 不记：那是握手，不是调试信息）
+        self._proto_add(f"→ {item['cmd']}")
         self._sock.write(item["cmd"].encode("utf-8") + b"\n")
         self._cmd_timer.start(item["timeout_ms"])
 
@@ -1027,6 +1054,43 @@ class StageBridge(QObject):
                     self._rssi, self._board_ip or "?"))
 
     diagText = Property(str, _get_diag_text, notify=telemetryChanged)
+
+    # ── 协议显示框（公用那个框读这里；界面上不再有"二轴自己的"协议框）──
+    protoLines = Property("QVariantList", lambda self: self.proto_log.lines,
+                          notify=protoChanged)
+    protoPaused = Property(bool, lambda self: self.proto_log.paused, notify=protoChanged)
+    # 二轴板固件没有 `trace`（驱动器帧镜像）：硬编码 False，别让界面给出一个
+    # "点了没反应"的开关。以后固件补了 trace，这里改成 True 即可。
+    supportsTrace = Property(bool, lambda self: False)
+
+    @Slot(bool)
+    def setProtoPaused(self, paused: bool):
+        """暂停/继续记录协议行（不停止收发）。"""
+        self.proto_log.set_paused(paused)
+
+    @Slot()
+    def clearProto(self):
+        self.proto_log.clear()
+
+    @Slot(str, result=bool)
+    def sendCommand(self, text: str) -> bool:
+        """把用户敲的一行**原样**发给二轴板（公用协议框的自定义命令）。
+
+        故意的：板子 USB 控制台能敲的这里都能敲。运动命令仍然受固件那四道闸
+        （基准/行程/超程看门狗/运动互斥）约束，所以乱敲绕不过安全保护。
+        """
+        cmd = (text or "").strip()
+        if not cmd:
+            return False
+        if not self._authenticated:
+            self._set_error("命令未发送：还没连接")
+            return False
+        if "\n" in cmd or "\r" in cmd:
+            self._set_error("命令不能包含换行")
+            return False
+        self._maybe_clear_error()
+        self._enqueue(cmd, note=f"自定义命令 {cmd}")
+        return True
 
     # ============================================================
     # 运动

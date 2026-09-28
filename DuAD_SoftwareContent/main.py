@@ -373,6 +373,7 @@ if __name__ == "__main__":
     camera_bridge = None
     algorithm_bridge = None
     stage_bridge = None
+    zstage_bridge = None
     if backend_root.exists():
         sys.path.insert(0, str(backend_root))
         from Src.camera_bridge import CameraBridge
@@ -437,6 +438,25 @@ if __name__ == "__main__":
         stage_bridge = StageBridge()
         engine.rootContext().setContextProperty("StageBridge", stage_bridge)
         _BRIDGES.append(stage_bridge)
+
+        # Z 轴升降平台（另一块 ESP32 + 两台 PD42S1，**另一个 IP**）。
+        # 与上面的二轴平台各自独立：两块板子、两套地址/口令，两张卡可以同时连着。
+        from Src.zstage_bridge import ZStageBridge
+
+        zstage_bridge = ZStageBridge()
+        engine.rootContext().setContextProperty("ZStageBridge", zstage_bridge)
+        # ⚠ 必须进 keepalive 列表：context property 不增加 Python 引用计数，
+        #   被 GC 后 QML 侧 ZStageBridge 变 null → 界面上所有 Z 轴按钮"点了没反应"。
+        _BRIDGES.append(zstage_bridge)
+
+        # 公用协议显示框（2026-09-28 用户要求）：两块板子的协议流汇成一条，
+        # 界面上只画一个框，哪块在说话就带 [XY] / [Z] 前缀出现（见 Src/proto_hub.py）。
+        # ⚠ 同样必须进 keepalive：context property 不留引用，被 GC 后 QML 侧变 null。
+        from Src.proto_hub import ProtoHub
+
+        proto_hub = ProtoHub({"xy": stage_bridge, "z": zstage_bridge})
+        engine.rootContext().setContextProperty("ProtoHub", proto_hub)
+        _BRIDGES.append(proto_hub)
 
         # ── 采集会话仲裁（跨页互斥）────────────────────────
         # DetectPage 只负责写 AppBridge.collectingOwner；真正的
@@ -541,6 +561,14 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"[WARN] 退出回零点失败: {e}")
                 stage_bridge.disconnectDevice()
+        if zstage_bridge is not None:
+            # ⚠ Z 轴**只断开，不做"退出回零点"**：这台是升降平台，
+            #   没有"下次开机核对台面被动过没有"的需求（X/Y 那台才有），
+            #   而且它 250mm 行程走一趟要好几秒 —— 白白拖慢退出。
+            try:
+                zstage_bridge.disconnectDevice()
+            except Exception as e:
+                print(f"[WARN] 断开 Z 轴平台失败: {e}")
         if camera_bridge is not None:
             try:
                 if camera_bridge.cameraConnected:
