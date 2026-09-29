@@ -97,7 +97,10 @@ Item {
             source: key.iconSource
             width: Math.round(root.cell * 0.42)
             height: Math.round(root.cell * 0.42)
-            imageOpacity: root.interactive ? 1.0 : 0.35
+            // 禁用态用**主题里的灰**（textPlaceholder）换色，而不是把图标压到 35% 透明：
+            // 压透明度会把实心箭头淡成一片浅影 —— 用户 2026-09-28 真机截图里正是把它
+            // 看成了"这个图标是不是没有修改"。换色既表达了禁用，形状又始终清楚。
+            color: root.interactive ? Colors.iconColor : Colors.textPlaceholder
         }
 
         MouseArea {

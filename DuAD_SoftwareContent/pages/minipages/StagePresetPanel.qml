@@ -20,7 +20,9 @@ Item {
 
     property bool canUse: false            // 未连接 / 未立基准时为 false
     property var presets: []               // [{name, x, y}]
-    // 住在「高级」折叠节里时不重复报标题（折叠头写的是「高级（预设位置 · 协议显示）」）
+    // 标题画不画。⚠ 2026-09-28 起本面板住在**左列**「二轴相机平台状态」折叠节里，
+    //   折叠头没有"预设"两个字，所以页面传 showTitle: true —— 靠这个小标题
+    //   把"读数"和"预设"两块分开。
     property bool showTitle: true
 
     signal gotoRequested(int index)
@@ -37,7 +39,9 @@ Item {
         ColumnLayout {
             id: mainLayout
             spacing: 10
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 24 }
+            // ⚠ 边距 12（原 24）：本面板 2026-09-28 搬进**左列**（宽 160~420），
+            //   默认窗口下内容区只有 ~164px，24 的边距直接吃掉 48px。
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -112,7 +116,12 @@ Item {
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
+                            // 坐标：窄列里整块让位（"前往/删除"比坐标重要 ——
+                            // 坐标在列表里只是帮认路，点不动才是真问题）。
+                            // 164px 内容宽时固定项 = 序号 10 + 前往 40 + ✕ 22 + 间距 24，
+                            // 剩给名字 ~68px，够放 3~4 个汉字。
                             Text {
+                                visible: row.width >= 230
                                 text: Number(row.modelData.x).toFixed(2) + ", "
                                       + Number(row.modelData.y).toFixed(2) + " mm"
                                 font.pixelSize: 11
@@ -120,47 +129,26 @@ Item {
                                 color: Colors.textSecondary
                             }
 
-                            Button {
-                                implicitWidth: 52; implicitHeight: 24
+                            ThemedButton {
+                                implicitWidth: 44; implicitHeight: 24
+                                radius: 5; hPadding: 10; iconSize: 0
                                 enabled: root.canUse
                                 text: qsTr("前往")
                                 onClicked: root.gotoRequested(row.index)
-                                background: Rectangle {
-                                    radius: 5
-                                    color: parent.pressed ? Colors.interactivePressed
-                                                          : (parent.hovered ? Colors.interactiveHover
-                                                                            : "transparent")
-                                    border { width: 1; color: Colors.cardBorder }
-                                }
-                                contentItem: Text {
-                                    text: parent.text
-                                    font.pixelSize: 11
-                                    color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
                             }
 
                             // 删除：普通按钮就好，不要为了复用 AnimatedRefreshButton
                             // 去套一个 ✕ 文字层 —— 那层嵌套除了增加耦合没别的用。
-                            Button {
-                                implicitWidth: 26; implicitHeight: 24
+                            ThemedButton {
+                                implicitWidth: 22; implicitHeight: 24
+                                radius: 5; hPadding: 0
+                                tone: "dangerSoft"
                                 enabled: root.canUse
                                 text: "✕"
                                 onClicked: root.deleteRequested(row.index)
-                                background: Rectangle {
-                                    radius: 5
-                                    color: parent.pressed ? Colors.cardDangerHover
-                                                          : (parent.hovered ? Colors.cardDangerBg
-                                                                            : "transparent")
-                                }
-                                contentItem: Text {
-                                    text: parent.text
-                                    font.pixelSize: 12
-                                    color: parent.enabled ? Colors.textSecondary : Colors.textPlaceholder
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
+                                ToolTip.visible: hovered
+                                ToolTip.delay: 600
+                                ToolTip.text: qsTr("删除这个预设")
                             }
                         }
                     }
@@ -170,9 +158,14 @@ Item {
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
 
             // ── 记录当前位置 ──────────────────────────
-            RowLayout {
+            // ⚠ 用 GridLayout + 动态 columns（AGENTS §19-30 的老办法）：
+            //   窄列（左列默认内容区 ~164）里 InputRow 的最小宽就有 72+80=152，
+            //   再并排一个 130 的按钮 = 290 → 整列被顶破。窄了改成上下两行。
+            GridLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                columns: width >= 300 ? 2 : 1
+                columnSpacing: 8
+                rowSpacing: 8
 
                 InputRow {
                     id: nameRow
@@ -182,29 +175,17 @@ Item {
                     placeholderText: qsTr("例如：工位1")
                 }
 
-                Button {
-                    implicitWidth: 130; implicitHeight: 32
+                ThemedButton {
+                    implicitHeight: 32
+                    hPadding: 32
+                    tone: "soft"
+                    Layout.fillWidth: parent.columns > 1 ? false : true
+                    Layout.alignment: parent.columns > 1 ? Qt.AlignRight : Qt.AlignHCenter
                     enabled: root.canUse && nameRow.text.trim().length > 0
                     text: qsTr("记录当前位置")
                     onClicked: {
                         root.saveRequested(nameRow.text.trim())
                         nameRow.text = ""
-                    }
-                    background: Rectangle {
-                        radius: 6
-                        color: parent.enabled
-                               ? (parent.pressed ? Colors.interactivePressed
-                                                 : (parent.hovered ? Colors.interactiveHover
-                                                                   : "transparent"))
-                               : "transparent"
-                        border { width: 1; color: Colors.cardBorder }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        font.pixelSize: 12
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                     }
                 }
             }

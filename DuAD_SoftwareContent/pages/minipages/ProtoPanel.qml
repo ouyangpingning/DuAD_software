@@ -165,26 +165,12 @@ Item {
                     onToggled: root.pauseToggled(pauseSwitch.on)
                 }
 
-                Button {
+                // 样式走 ThemedButton（颜色只来自 Colors，换主题/配色自动跟随）
+                ThemedButton {
                     objectName: "protoClearButton"
                     implicitHeight: 32
-                    implicitWidth: implicitContentWidth + 28
                     text: qsTr("清空")
                     onClicked: root.clearRequested()
-
-                    background: Rectangle {
-                        radius: 8
-                        color: parent.pressed ? Colors.interactivePressed
-                                              : (parent.hovered ? Colors.interactiveHover : "transparent")
-                        border { width: 1; color: Colors.cardBorder }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        font.pixelSize: 12
-                        color: Colors.textPrimary
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
                 }
             }
 
@@ -268,34 +254,14 @@ Item {
                     }
                 }
 
-                Button {
+                // 发送是"提交一个动作" → tone: soft（淡强调底）
+                ThemedButton {
                     objectName: "protoSendButton"
                     implicitHeight: 32
-                    implicitWidth: implicitContentWidth + 28
+                    tone: "soft"
                     enabled: root.connected
                     text: qsTr("发送")
                     onClicked: root._send()
-
-                    background: Rectangle {
-                        radius: 8
-                        // ⚠ 用字面量 "transparent"：`Colors` 单例里**没有** transparent
-                        //   （工程里的既有写法也都是字面量）。写成 `Colors.transparent`
-                        //   会得到 undefined，运行时只报一行 `Unable to assign [undefined]
-                        //   to QColor` —— 界面看着正常但颜色是错的。
-                        color: !parent.enabled
-                               ? "transparent"
-                               : (parent.pressed ? Colors.interactivePressed
-                                                 : (parent.hovered ? Colors.interactiveHover
-                                                                   : "transparent"))
-                        border { width: 1; color: Colors.cardBorder }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        font.pixelSize: 12
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
                 }
             }
 

@@ -593,27 +593,27 @@
 <context>
     <name>JogPad</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="159" />
+        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="162" />
         <source>+Y 向里</source>
         <translation>+Y inward</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="167" />
+        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="170" />
         <source>−X 向左</source>
         <translation>−X left</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="190" />
+        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="193" />
         <source>毫米/格</source>
         <translation>mm/step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="200" />
+        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="203" />
         <source>+X 向右</source>
         <translation>+X right</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="208" />
+        <location filename="../DuAD_SoftwareContent/pages/components/JogPad.qml" line="211" />
         <source>−Y 向外</source>
         <translation>−Y outward</translation>
     </message>
@@ -917,32 +917,32 @@
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="196" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="182" />
         <source>⚠ 当前这块板子的固件没有帧镜像（`trace`）—— 只有 Z 轴那块有。二轴的驱动器报文要在板子 USB 控制台上看。</source>
         <translation>⚠ This board's firmware has no frame mirror (`trace`) — only the Z-axis board has it. To see the X/Y drives' frames, use the board's USB console.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="238" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="224" />
         <source>暂无收发记录（连接后 json 轮询会立刻出现）</source>
         <translation>No traffic yet (json polling starts as soon as you connect)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="239" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="225" />
         <source>未连接</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="255" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="241" />
         <source>自定义命令（发给本行选中的板子），例如 ver all / json / zcfg</source>
         <translation>Custom command (sent to the selected board), e.g. ver all / json / zcfg</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="276" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="263" />
         <source>发送</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="307" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="273" />
         <source>⚠ 「%1」未连接 —— 命令发不出去。先点上面的平台卡片连接。</source>
         <translation>⚠ “%1” is not connected — the command cannot be sent. Connect it with the platform card above first.</translation>
     </message>
@@ -1138,44 +1138,42 @@
         <translation>Step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="217" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="205" />
         <source>把当前位置当作 0 点（立基准）。先把滑座推到靠块/硬限位贴实再点它，每次上电都要重立一次。</source>
         <translation>Treat the current position as 0 (establish the datum). Push the carriage against its hard stop first; it must be redone after every power-up.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="178" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="179" />
         <source>失能</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="178" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="179" />
         <source>使能</source>
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="183" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="186" />
         <source>失能 = 松掉电机，可以用手推台面调机械；但台面被推动后基准就废了，要重新「设为原点」。注意「设为原点」和任何运动命令都会自动重新使能。</source>
         <translation>Disable = motors are let go so you can push the stage by hand; but once pushed, the datum is gone — set the origin again. Note that “Set origin” and every motion command re-enable the motors.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="212" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="229" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="197" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="247" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="259" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="224" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="280" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="244" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="310" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="280" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
@@ -1183,161 +1181,161 @@
 <context>
     <name>StagePage</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="128" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="132" />
         <source>未连接平台：先点上面的平台卡片连接</source>
         <translation>Stage not connected: click the stage card above to connect</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="557" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="808" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1063" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="591" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="844" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1077" />
         <source>待设置</source>
         <translation>Not set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="413" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="900" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="417" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="914" />
         <source>已使能</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="132" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="136" />
         <source>缺少基准：每次上电都要重立一次 —— 先把滑座推到靠块/硬限位贴实，再点「设为原点」</source>
         <translation>No datum yet: it must be re-established after every power-up — push the carriage against its hard stop/fixture, then click “Set origin”</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="413" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="900" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="417" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="914" />
         <source>未使能</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="415" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="902" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="419" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="916" />
         <source>已立基准</source>
         <translation>Datum set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="415" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="902" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="419" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="916" />
         <source>无基准</source>
         <translation>No datum</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="417" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="421" />
         <source>行程已设</source>
         <translation>Travel set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="417" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="421" />
         <source>行程未设</source>
         <translation>Travel not set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="487" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="491" />
         <source>还没配置板子地址 —— 点这里展开下方「平台设置」填入，板子 USB 控制台敲 net 会打印这三个值</source>
         <translation>Board address not configured — click here to open “Stage Setup” below and fill it in; typing net in the board's USB console prints these three values</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="850" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="854" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="907" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="840" />
+        <source>高级（协议显示）</source>
+        <translation>Advanced (protocol monitor)</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="864" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="868" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="921" />
         <source>Z 轴升降平台</source>
         <translation>Z-Axis Lift Stage</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="962" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="976" />
         <source>还没配置 Z 轴板子的地址 —— 点这里展开下方「Z 轴设置」填入，在 Z 轴板子的 USB 控制台上敲 net 就能看到这三个值</source>
         <translation>Z-axis board address not configured yet — click here to open “Z-axis Setup” below and fill it in; type net in the Z-axis board's USB console to see these three values</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="999" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1013" />
         <source>处置：先点「停止」（急停会同时清掉故障锁存），再把平台推到靠块重新「设为原点」。</source>
         <translation>Fix: press “Stop” first (e-stop also clears the latched fault), then push the stage against its hard stop and set the origin again.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="524" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="528" />
         <source>二轴相机平台状态</source>
         <translation>2-Axis Camera Stage Status</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="804" />
-        <source>高级（预设位置 · 协议显示）</source>
-        <translation>Advanced (presets · protocol monitor)</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1031" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1045" />
         <source>Z 轴升降平台状态</source>
         <translation>Z-Axis Lift Stage Status</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="849" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="853" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="863" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="867" />
         <source>二轴相机平台</source>
         <translation>2-Axis Camera Stage</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="908" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="922" />
         <source>正在连接 Z 轴平台...</source>
         <translation>Connecting to the Z-axis stage...</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="904" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="918" />
         <source>软限位已设</source>
         <translation>Limits set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="904" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="918" />
         <source>软限位未设</source>
         <translation>Limits not set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="133" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="137" />
         <source>未设置工作区：展开左侧「二轴相机平台设置」填写台面行程（固件不设行程就拒绝一切绝对移动）</source>
         <translation>Workspace not set: open “XY Stage Setup” on the left and enter the table travel (the firmware rejects all absolute moves until then)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="555" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="589" />
         <source>二轴相机平台设置</source>
         <translation>2-Axis Camera Stage Setup</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="643" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="677" />
         <source>实时预览</source>
         <translation>Live preview</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="649" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="683" />
         <source>↑+Y 向里   →+X 向右</source>
         <translation>↑+Y inward   →+X right</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="657" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="691" />
         <source>相机未连接</source>
         <translation>Camera not connected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="687" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="721" />
         <source>相机未连接 —— 预览需要先在「相机设置」里连上相机</source>
         <translation>Camera not connected — connect it in “Camera” first</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="689" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="723" />
         <source>正在等待画面…</source>
         <translation>Waiting for frames…</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="690" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="724" />
         <source>预览已关闭（打开右上角开关即可）</source>
         <translation>Preview off (use the switch at top right)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="698" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="732" />
         <source>⚠ 预览没能启动：相机采集没有起来。请到「相机设置」确认相机已连上且没被别的页面占着；大分辨率下也可能是系统 usbfs 缓冲太小（终端跑 bash scripts/set_usbfs.sh 后重启程序）。</source>
         <translation>⚠ Preview did not start: camera capture never came up. Check “Camera Settings” that the camera is connected and not held by another page; at high resolution the system usbfs buffer may also be too small (run bash scripts/set_usbfs.sh in a terminal, then restart the app).</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1061" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1075" />
         <source>Z 轴升降平台设置</source>
         <translation>Z-Axis Lift Stage Setup</translation>
     </message>
@@ -1345,37 +1343,42 @@
 <context>
     <name>StagePresetPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="46" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="50" />
         <source>预设位置</source>
         <translation>Preset positions</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="53" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="57" />
         <source>个</source>
         <translation>presets</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="71" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="75" />
         <source>还没有预设。把台面移到工位后，在下面起个名字记下来。</source>
         <translation>No presets yet. Move the table to a station, then name it below.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="126" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="136" />
         <source>前往</source>
         <translation>Go</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="181" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="151" />
+        <source>删除这个预设</source>
+        <translation>Delete this preset</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="174" />
         <source>名称</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="182" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="175" />
         <source>例如：工位1</source>
         <translation>e.g. Station 1</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="188" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="185" />
         <source>记录当前位置</source>
         <translation>Record position</translation>
     </message>
@@ -1463,17 +1466,17 @@
         <translation>Accel</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageSetupPanel.qml" line="222" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageSetupPanel.qml" line="225" />
         <source>应用设置</source>
         <translation>Apply</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageSetupPanel.qml" line="229" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageSetupPanel.qml" line="232" />
         <source>关机行为</source>
         <translation>On close</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageSetupPanel.qml" line="233" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageSetupPanel.qml" line="236" />
         <source>退出时回到零点</source>
         <translation>Return to origin on exit</translation>
     </message>
@@ -1491,77 +1494,77 @@
         <translation>Step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="259" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="233" />
         <source>失能 = 电机完全不出力，可以用手推平台去靠块（丝杠自锁，平台不会掉）。急停与它的分工：急停是刹车且保持使能，失能是松手可手推。</source>
         <translation>Disable = the motor outputs no torque; you can push the stage to the datum block by hand (the lead screws are self-locking, the stage won't drop). Stop vs disable: stop brakes and keeps the loop enabled; disable lets go so you can push.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="261" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="235" />
         <source>使能 = 闭环抱住平台，顶住外力（失能时被推动坐标系就废了）。</source>
         <translation>Enable = the closed loop holds the stage against external force (if pushed while disabled, the coordinate frame is ruined).</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="294" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="253" />
         <source>把当前位置当作 Z=0（立基准）。先把平台推到靠块/机械死点贴实再点它 —— 这是主线的立基准方式，每次上电都要重立一次。</source>
         <translation>Treat the current position as Z=0 (establish the datum). Push the stage against its hard stop first — this is the mainline way; it must be redone after every power-up.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="166" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="170" />
         <source>向上</source>
         <translation>Up</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="197" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="187" />
         <source>向下</source>
         <translation>Down</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="264" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="238" />
         <source>失能</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="264" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="238" />
         <source>使能</source>
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="289" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="245" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="322" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="268" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="355" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="288" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="367" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="300" />
         <source>目标 (mm)</source>
         <translation>Target (mm)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="378" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="313" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="399" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="334" />
         <source>自动回零（可选）</source>
         <translation>Auto Home (optional)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="404" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="339" />
         <source>驱动器让两个电机同时朝下顶死点、按相电流判「顶住了」。它要求两侧丝杠同时顶到各自的死点，否则会把平台拧歪 —— 主线做法是「推到靠块 → 设为原点」。</source>
         <translation>The drivers push both motors down into their hard stops and detect “stalled” by phase current. Both screws must reach their stops together, otherwise the stage twists — the mainline way is “push against the stop → Set origin”.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="430" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="351" />
         <source>中断回零</source>
         <translation>Abort homing</translation>
     </message>
@@ -1649,7 +1652,7 @@
         <translation>Active on the board: %1 ~ %2 mm</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageSetupPanel.qml" line="240" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageSetupPanel.qml" line="242" />
         <source>应用设置</source>
         <translation>Apply</translation>
     </message>

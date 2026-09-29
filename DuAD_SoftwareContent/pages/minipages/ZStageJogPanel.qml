@@ -158,66 +158,38 @@ Item {
 
             // ── 向上 / 向下 ───────────────────────────
             // fillWidth（原 260 固定）：卡收窄到 ~224，260 会被裁掉
-            Button {
+            ThemedButton {
                 objectName: "zJogUpButton"
-                Layout.fillWidth: true
+                // ⚠ 不 fillWidth（用户 2026-09-28 截图批注："这个按钮有点宽"）：
+                //   卡片在中列很宽（~420），fillWidth 会把「向上/向下」拉成一条横幅，
+                //   图标和文字之间空出两百多像素。改成与左列十字键同宽（188）并居中。
+                Layout.preferredWidth: 188
+                Layout.alignment: Qt.AlignHCenter
                 implicitHeight: 48
                 enabled: root.canJog
                 text: qsTr("向上")
+                iconSource: "../../images/向上.svg"
+                iconSize: 18
+                fontPixelSize: 15
+                fontBold: true
                 onClicked: root.jogUpRequested()
-
-                background: Rectangle {
-                    radius: 10
-                    // ⚠ 底色必须是 transparent 而不是 contentBg：卡片底现在是白的
-                    //   （CardSurface），再用 contentBg 会画出一块淡蓝，和同一张卡里的
-                    //   「失能 / 设为原点」（transparent + 描边）不是一套语言。
-                    color: !parent.enabled
-                           ? "transparent"
-                           : (parent.pressed ? Colors.interactivePressed
-                                             : (parent.hovered ? Colors.interactiveHover
-                                                               : "transparent"))
-                    border { width: 1; color: Colors.cardBorder }
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                contentItem: IconText {
-                    text: parent.text
-                    iconSource: "../../images/向上.svg"
-                    iconSize: 18
-                    fontPixelSize: 15
-                    fontBold: true
-                    color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                }
             }
 
-            Button {
+            ThemedButton {
                 objectName: "zJogDownButton"
-                Layout.fillWidth: true
+                // ⚠ 不 fillWidth（用户 2026-09-28 截图批注："这个按钮有点宽"）：
+                //   卡片在中列很宽（~420），fillWidth 会把「向上/向下」拉成一条横幅，
+                //   图标和文字之间空出两百多像素。改成与左列十字键同宽（188）并居中。
+                Layout.preferredWidth: 188
+                Layout.alignment: Qt.AlignHCenter
                 implicitHeight: 48
                 enabled: root.canJog
                 text: qsTr("向下")
+                iconSource: "../../images/向下.svg"
+                iconSize: 18
+                fontPixelSize: 15
+                fontBold: true
                 onClicked: root.jogDownRequested()
-
-                background: Rectangle {
-                    radius: 10
-                    // ⚠ 底色必须是 transparent 而不是 contentBg：卡片底现在是白的
-                    //   （CardSurface），再用 contentBg 会画出一块淡蓝，和同一张卡里的
-                    //   「失能 / 设为原点」（transparent + 描边）不是一套语言。
-                    color: !parent.enabled
-                           ? "transparent"
-                           : (parent.pressed ? Colors.interactivePressed
-                                             : (parent.hovered ? Colors.interactiveHover
-                                                               : "transparent"))
-                    border { width: 1; color: Colors.cardBorder }
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                contentItem: IconText {
-                    text: parent.text
-                    iconSource: "../../images/向下.svg"
-                    iconSize: 18
-                    fontPixelSize: 15
-                    fontBold: true
-                    color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                }
             }
 
             // ── 为什么点不动（点击前就说）──────────────
@@ -244,11 +216,13 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
 
-                Button {
+                ThemedButton {
                     objectName: "zEnableButton"
-                    implicitWidth: implicitContentWidth + 24
                     implicitHeight: 34
+                    hPadding: 24
                     enabled: root.connected
+                    iconSource: "../../images/电源.svg"
+                    iconSize: 14
                     onClicked: root.enableToggled()
 
                     // 短标签（原"失能（可手推平台）"太长，窄卡放不下）；
@@ -262,31 +236,16 @@ Item {
 
                     // ⚠ text 写在 Button 上（不只是 contentItem）：无障碍/测试要读得到
                     text: root.motorEnabled ? qsTr("失能") : qsTr("使能")
-
-                    background: Rectangle {
-                        radius: 8
-                        color: !parent.enabled
-                               ? "transparent"
-                               : (parent.pressed ? Colors.interactivePressed
-                                                 : (parent.hovered ? Colors.interactiveHover
-                                                                   : "transparent"))
-                        border { width: 1; color: Colors.cardBorder }
-                    }
-                    contentItem: IconText {
-                        text: parent.text
-                        iconSource: "../../images/电源.svg"
-                        iconSize: 14
-                        fontPixelSize: 12
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                    }
                 }
 
-                Button {
+                ThemedButton {
                     objectName: "zZeroButton"
-                    implicitWidth: implicitContentWidth + 28
                     implicitHeight: 34
                     enabled: root.connected && !root.moving
                     text: qsTr("设为原点")
+                    iconSource: "../../images/home.svg"
+                    iconSize: 15
+                    fontPixelSize: 13
                     onClicked: root.zeroRequested()
 
                     ToolTip.visible: hovered
@@ -294,50 +253,24 @@ Item {
                     ToolTip.text: qsTr("把当前位置当作 Z=0（立基准）。"
                                        + "先把平台推到靠块/机械死点贴实再点它 —— "
                                        + "这是主线的立基准方式，每次上电都要重立一次。")
-
-                    background: Rectangle {
-                        radius: 10
-                        color: parent.pressed ? Colors.interactivePressed
-                                              : (parent.hovered ? Colors.interactiveHover : "transparent")
-                        border { width: 1; color: Colors.cardBorder }
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: IconText {
-                        text: parent.text
-                        iconSource: "../../images/home.svg"
-                        iconSize: 15
-                        fontPixelSize: 13
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                    }
                 }
                 Item { Layout.fillWidth: true }   // 弹簧：控件靠左，不拉满
             }
 
             // 急停：只要连着就永远可点（不依赖 canMove / moving）
-            Button {
+            ThemedButton {
                 objectName: "zStopButton"
                 Layout.fillWidth: true
                 implicitHeight: 40
+                radius: 10
+                tone: "danger"
                 enabled: root.connected
                 text: qsTr("停止")
+                iconSource: "../../images/停止.svg"
+                iconSize: 17
+                fontPixelSize: 15
+                fontBold: true
                 onClicked: root.stopRequested()
-
-                background: Rectangle {
-                    radius: 10
-                    color: !parent.enabled
-                           ? "transparent"
-                           : (parent.pressed ? Qt.darker(Colors.statusDisconnected, 1.3)
-                                             : Colors.statusDisconnected)
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                contentItem: IconText {
-                    text: parent.text
-                    iconSource: "../../images/停止.svg"
-                    iconSize: 17
-                    fontPixelSize: 15
-                    fontBold: true
-                    color: parent.enabled ? Colors.textOnAccent : Colors.textPlaceholder
-                }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -369,11 +302,13 @@ Item {
                 placeholderText: "100.0"
             }
 
-            Button {
+            ThemedButton {
                 objectName: "zMoveToButton"
-                implicitWidth: implicitContentWidth + 44
-                Layout.alignment: Qt.AlignLeft
+                // 居中 + 主题化（与 X/Y 那张卡同一条：用户批注"我觉得可以居中"）
+                Layout.alignment: Qt.AlignHCenter
                 implicitHeight: 36
+                hPadding: 40
+                tone: "soft"
                 enabled: root.canMove
                 text: qsTr("移动到该位置")
                 onClicked: {
@@ -390,9 +325,9 @@ Item {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Button {
+                ThemedButton {
                     objectName: "zHomeButton"
-                    implicitWidth: implicitContentWidth + 36
+                    hPadding: 36
                     implicitHeight: 34
                     // 回零中禁用（但下面会出现「中断回零」，见文件头第 3 条）
                     enabled: root.connected && !root.moving
@@ -404,46 +339,17 @@ Item {
                     ToolTip.text: qsTr("驱动器让两个电机同时朝下顶死点、按相电流判「顶住了」。"
                                        + "它要求两侧丝杠同时顶到各自的死点，否则会把平台拧歪 —— "
                                        + "主线做法是「推到靠块 → 设为原点」。")
-
-                    background: Rectangle {
-                        radius: 8
-                        color: parent.pressed ? Colors.interactivePressed
-                                              : (parent.hovered ? Colors.interactiveHover : "transparent")
-                        border { width: 1; color: Colors.cardBorder }
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        font.pixelSize: 12
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
                 }
 
-                Button {
+                ThemedButton {
                     objectName: "zHomeAbortButton"
                     Layout.fillWidth: true
                     implicitHeight: 34
+                    tone: "dangerSoft"
                     visible: root.homing === 1
                     Layout.preferredWidth: visible ? implicitWidth : 0
                     text: qsTr("中断回零")
                     onClicked: root.stopRequested()
-
-                    background: Rectangle {
-                        radius: 8
-                        color: parent.pressed ? Colors.cardDangerHover
-                                              : (parent.hovered ? Colors.cardDangerHover
-                                                                : Colors.cardDangerBg)
-                        border { width: 1; color: Colors.statusDisconnected }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        font.pixelSize: 12
-                        color: Colors.statusDisconnected
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
                 }
             }
 

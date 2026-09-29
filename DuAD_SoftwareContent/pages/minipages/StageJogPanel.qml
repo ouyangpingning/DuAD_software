@@ -163,10 +163,11 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
 
-                Button {
+                // ⚠ 样式一律走 ThemedButton（颜色只来自 Colors，不再手抄 background）
+                ThemedButton {
                     objectName: "enableButton"
-                    implicitWidth: implicitContentWidth + 24
                     implicitHeight: 32
+                    hPadding: 24
                     enabled: root.connected
                     // 文案是**动作**而不是状态：免得用户看着"未使能"再去点写着"未使能"的按钮。
                     // ⚠ 写在 Button.text 上（而不是只写在 contentItem 里）：
@@ -176,6 +177,8 @@ Item {
                     // 短标签 + 悬停说明（2026-09-28 精简）：长文案是"说明"，
                     // 不是"操作"，缩到图标+两个字，细节交给 ToolTip 与文档。
                     text: root.motorEnabled ? qsTr("失能") : qsTr("使能")
+                    iconSource: "../../images/电源.svg"
+                    iconSize: 14
                     onClicked: root.enableToggled()
 
                     ToolTip.visible: hovered
@@ -183,33 +186,18 @@ Item {
                     ToolTip.text: qsTr("失能 = 松掉电机，可以用手推台面调机械；"
                                        + "但台面被推动后基准就废了，要重新「设为原点」。"
                                        + "注意「设为原点」和任何运动命令都会自动重新使能。")
-
-                    background: Rectangle {
-                        radius: 8
-                        color: parent.pressed ? Colors.interactivePressed
-                                              : (parent.hovered ? Colors.interactiveHover : "transparent")
-                        border { width: 1; color: Colors.cardBorder }
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    // ⚠ 图标+文字用 IconText：原来写的是 `⏻ 使能` —— 拿 Unicode 字形
-                    //   当图标（依赖字体收录、不能单独染色、大小不齐），见组件头注释。
-                    contentItem: IconText {
-                        text: parent.text
-                        iconSource: "../../images/电源.svg"
-                        iconSize: 14
-                        fontPixelSize: 12
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                    }
                 }
 
-                Button {
+                ThemedButton {
                     objectName: "zeroButton"
-                    implicitWidth: implicitContentWidth + 28
                     implicitHeight: 32
                     enabled: root.connected
                     // ⚠ text 写在 Button 上（不只是 contentItem）：无障碍/自动化读得到，
                     //   否则 property("text") 是空串（AGENTS 里那条"假断言"的坑）。
                     text: qsTr("设为原点")
+                    iconSource: "../../images/home.svg"
+                    iconSize: 15
+                    fontPixelSize: 13
                     onClicked: root.zeroRequested()
 
                     ToolTip.visible: hovered
@@ -217,21 +205,6 @@ Item {
                     ToolTip.text: qsTr("把当前位置当作 0 点（立基准）。"
                                        + "先把滑座推到靠块/硬限位贴实再点它，"
                                        + "每次上电都要重立一次。")
-
-                    background: Rectangle {
-                        radius: 10
-                        color: parent.pressed ? Colors.interactivePressed
-                                              : (parent.hovered ? Colors.interactiveHover : "transparent")
-                        border { width: 1; color: Colors.cardBorder }
-                        Behavior on color { ColorAnimation { duration: 120 } }
-                    }
-                    contentItem: IconText {
-                        text: qsTr("设为原点")
-                        iconSource: "../../images/home.svg"
-                        iconSize: 15
-                        fontPixelSize: 13
-                        color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                    }
                 }
 
                 Item { Layout.fillWidth: true }   // 弹簧：控件靠左，不拉满
@@ -239,30 +212,21 @@ Item {
 
             // ── 急停 ─────────────────────────────────
             // 只要连着就永远可点（不依赖 moving）——"只有动的时候才能停"的急停等于没有急停。
-            Button {
+            ThemedButton {
                 objectName: "stopButton"
                 Layout.fillWidth: true
                 implicitHeight: 40
+                radius: 10
+                // 急停：**禁用时也保留淡红底**（ThemedButton 里 danger 的处理）——
+                // 整个消失的话，用户会以为"急停按钮怎么没了"。
+                tone: "danger"
                 enabled: root.connected
                 text: qsTr("停止")      // 同上：写在 Button 上，给无障碍与测试读
+                iconSource: "../../images/停止.svg"
+                iconSize: 17
+                fontPixelSize: 15
+                fontBold: true
                 onClicked: root.stopRequested()
-
-                background: Rectangle {
-                    radius: 10
-                    color: !parent.enabled
-                           ? "transparent"
-                           : (parent.pressed ? Qt.darker(Colors.statusDisconnected, 1.3)
-                                             : Colors.statusDisconnected)
-                    Behavior on color { ColorAnimation { duration: 120 } }
-                }
-                contentItem: IconText {
-                    text: qsTr("停止")
-                    iconSource: "../../images/停止.svg"
-                    iconSize: 17
-                    fontPixelSize: 15
-                    fontBold: true
-                    color: parent.enabled ? Colors.textOnAccent : Colors.textPlaceholder
-                }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -301,11 +265,17 @@ Item {
                 text: root.posY.toFixed(2)
             }
 
-            Button {
+            ThemedButton {
                 objectName: "moveToButton"
-                implicitWidth: implicitContentWidth + 44
-                Layout.alignment: Qt.AlignLeft
+                // 居中（用户 2026-09-28 截图批注："我觉得可以居中"）—— 原来靠左，
+                // 在这张空白很多的卡片里显得没着落。
+                Layout.alignment: Qt.AlignHCenter
                 implicitHeight: 36
+                hPadding: 40
+                // soft：本卡"提交一个动作"的主按钮，淡强调底让它和周围的描边按钮分开。
+                // 原来它**没写 background** → 用的是 Fusion 默认灰渐变，换主题时纹丝不动，
+                // 正是用户截图点名"设置成可以随主题变化"的那个按钮。
+                tone: "soft"
                 enabled: root.canMove
                 text: qsTr("移动到该位置")
                 onClicked: {

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- 警告：实心三角 + 镂空叹号（替换文本 ⚠）
-     风格：24×24 / 实心（与 images/ 下 Iconfont 那套同重量）。
-     单色 #cdcdcd，颜色由 IconImage 的 ColorOverlay 按主题染色。 -->
-<svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-  <path d="M12 2.4 22.9 21.6H1.1zM10.5 8.4h3v6.2h-3zM10.5 16.6h3v2.8h-3z" fill="#cdcdcd" fill-rule="evenodd"/>
-</svg>

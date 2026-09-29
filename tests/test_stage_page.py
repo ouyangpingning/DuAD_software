@@ -1151,6 +1151,53 @@ def main():
     r.check("页面里所有 IconImage 的源文件都存在（共 %d 个图标）" % len(_srcs),
             not missing, "；".join(missing))
 
+    print("=== 12f) 按钮必须全部主题化（不许再出现 Fusion 默认灰按钮）===")
+    # 用户 2026-09-28 截图批注：「可以将这个页面中的按钮设置成可以随主题变化吗」。
+    # 根因是有 4 个 Button **压根没写 `background`** —— Qt Quick Controls 会给它们套上
+    # 当前 style（本项目强制 Fusion）的默认外观：灰底 + 深灰渐变，**完全不吃 `Colors`**，
+    # 换暗色主题/换配色时纹丝不动（详见 docs/19 §33）。
+    #
+    # 这条钉"那一类按钮不许再出现"。
+    # ⚠ 判据**不能**只看 className：页面上还有四类 Button 是**别的组件里已经用 Colors
+    #   画好的**，它们的 className 也是普通的 `Button_QMLTYPE_*`，从类型名分不出来 ——
+    #   所以按"类型名 + 祖先组件名"两张白名单放行（每一条都写明为什么可以放过）。
+    ALLOW_CLASS = {
+        # 本页按钮的标准画法
+        "ThemedButton": "用 Colors 画的通用按钮（ThemedButton.qml）",
+        # 卡片右上角的齿轮：圆形悬停底用的是 Colors.interactiveHover
+        "AnimatedRefreshButton": "齿轮按钮，悬停底色来自 Colors（AnimatedRefreshButton.qml）",
+        # 页面右侧滚动条的滑块（Qt 内部类型），contentItem/background 都已重画过
+        "QQuickIndicatorButton": "页面滚动条滑块，Qt 内部类型，外观已在 StagePage 里重画",
+    }
+    ALLOW_ANCESTOR = {
+        # SliderRow 末尾那个 ↺「恢复默认」按钮：background 用的是 Colors
+        "SliderRow": "滑块行末尾的 ↺ 重置按钮，底色来自 Colors",
+        # SwitchRow 的 pill 开关：background 用的是 Colors.interactivePressed
+        "SwitchRow": "pill 开关，底色来自 Colors（SwitchRow.qml）",
+    }
+
+    def _ancestor_classes(it):
+        out, p = set(), it.parent()
+        while p is not None:
+            out.add(p.metaObject().className())
+            p = p.parent()
+        return out
+
+    stock, themed = [], 0
+    for it in page.findChildren(QObject):
+        cls = it.metaObject().className()
+        if "Button" not in cls:
+            continue
+        if any(k in cls for k in ALLOW_CLASS):
+            themed += 1
+            continue
+        if any(k in a for a in _ancestor_classes(it) for k in ALLOW_ANCESTOR):
+            continue
+        stock.append(f"{cls}(objectName={it.property('objectName')!r} "
+                     f"text={it.property('text')!r})")
+    r.check("页面上没有'没写 background 的默认样式按钮'（已主题化/已放行 %d 个）" % themed,
+            not stock, "；".join(sorted(set(stock))))
+
     print("=== 13) 断开 ===")
     server.board.commands.clear()
     stage.disconnectDevice()

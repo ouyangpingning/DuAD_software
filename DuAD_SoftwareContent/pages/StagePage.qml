@@ -16,11 +16,12 @@ import "minipages"
       │▸二轴…状态 │ │   允许有黑边）       │ │▸Z轴…状态  │  ← 折叠节（默认收起）
       │ [缩略图/  │ └───────────────────┘ │ [高度/偏斜]│  ← 读数（状态节的内容）
       │  X/Y读数] │ ┌─────────┬─────────┐ ├─────────┤
-      ├─────────┤ │二轴手动控制│Z轴手动控制│ ├─────────┤
-      │▸二轴…设置 │ └─────────┴─────────┘ │▸Z轴…设置  │  ← 折叠节（默认收起）
-      │[网络/工作区│ ┌───────────────────┐ │[网络/限位/ │
-      │/速度/应用] │ │ ▸高级（预设+协议框） │ │ 速度/应用] │
-      └─────────┘ └───────────────────┘ └─────────┘
+      │ +预设位置 │ │二轴手动控制│Z轴手动控制│ │[高度/偏斜]│
+      ├─────────┤ └─────────┴─────────┘ ├─────────┤
+      │▸二轴…设置 │ ┌───────────────────┐ │▸Z轴…设置  │  ← 折叠节（默认收起）
+      │[网络/工作区│ │ ▸高级（协议显示）   │ │[网络/限位/ │
+      │/速度/应用] │ └───────────────────┘ │ 速度/应用] │
+      └─────────┘                        └─────────┘
 
       **三列自适应填满整页**（用户：手绘稿本来就是按全屏画的）：
       左右列 = 21% 页宽、夹在 [200,340]；中列吃满剩余。
@@ -32,7 +33,10 @@ import "minipages"
        （状态一节 + 设置一节）。手绘稿里它们就是上下堆在窄列里的。
     2. **平台设置从中央「高级」搬回各自的窄列**
        （网络/工作区/速度就在那台板子的连接卡下面）；
-       中央的「高级」只剩**预设位置 + 公用协议显示框**。
+       中央的「高级」只剩**公用协议显示框**。
+       ⚠ 2026-09-28 起时：**预设位置也搬去了左列「二轴相机平台状态」**
+       （用户要求）—— 它就是 X/Y 两个坐标，跟二轴的读数是同一件事，
+       顺带把左列下方那片空白填掉了；「高级」现在只剩协议显示。
     3. **两张手动控制卡收窄并排**（各 ~224px），
        步长 chips、急停、设原点按手绘稿的行序重排。
 
@@ -476,7 +480,7 @@ Item {
                                     IconImage {
                                         Layout.alignment: Qt.AlignTop
                                         Layout.topMargin: 2
-                                        source: "../images/alert.svg"
+                                        source: "../images/triangle-notice.svg"
                                         width: 14
                                         height: 14
                                         color: Colors.statusDisconnected
@@ -532,19 +536,49 @@ Item {
                                 Layout.fillWidth: true
                                 visible: root._xyStatusOpen
 
-                                inner: PositionReadout {
-                                    Layout.fillWidth: true
-                                    flat: true
-                                    live: root._connected
-                                    posX: StageBridge.posX
-                                    posY: StageBridge.posY
-                                    targetX: root._targetX
-                                    targetY: root._targetY
-                                    wsXMin: StageBridge.wsXMin
-                                    wsYMin: StageBridge.wsYMin
-                                    wsXMax: StageBridge.wsXMax
-                                    wsYMax: StageBridge.wsYMax
-                                }
+                                // 2026-09-28（用户要求）：**预设位置从「高级」搬进这里** ——
+                                // "预设位置"本来就是 X/Y 两个坐标，跟二轴平台的读数是同一件事，
+                                // 放在二轴这一列比塞在中列「高级」里顺着用。它也顺便把左列
+                                // 下方那片空白填掉了。
+                                inner: [
+                                    PositionReadout {
+                                        Layout.fillWidth: true
+                                        flat: true
+                                        live: root._connected
+                                        posX: StageBridge.posX
+                                        posY: StageBridge.posY
+                                        targetX: root._targetX
+                                        targetY: root._targetY
+                                        wsXMin: StageBridge.wsXMin
+                                        wsYMin: StageBridge.wsYMin
+                                        wsXMax: StageBridge.wsXMax
+                                        wsYMax: StageBridge.wsYMax
+                                    },
+
+                                    StagePresetPanel {
+                                        Layout.fillWidth: true
+                                        // 折叠头只写了"二轴相机平台状态"，没有"预设"两个字，
+                                        // 所以这里保留它自己的小标题，把"读数"和"预设"分开。
+                                        showTitle: true
+                                        canUse: root._canMove
+                                        presets: StageBridge.presets
+
+                                        onGotoRequested: function (index) {
+                                            var list = StageBridge.presets
+                                            if (index < 0 || index >= list.length) return
+                                            if (StageBridge.gotoPreset(index)) {
+                                                root._targetX = Number(list[index].x)
+                                                root._targetY = Number(list[index].y)
+                                            }
+                                        }
+                                        onDeleteRequested: function (index) {
+                                            StageBridge.deletePreset(index)
+                                        }
+                                        onSaveRequested: function (name) {
+                                            StageBridge.savePreset(name)
+                                        }
+                                    }
+                                ]
                             }
 
                             // ── 设置折叠节：网络 / 工作区 / 速度 ────
@@ -795,13 +829,15 @@ Item {
                                 }
                             }
 
-                            // ── 高级：预设位置 + 公用协议显示框 ──────
+                            // ── 高级：公用协议显示框（预设位置已搬去左列）──────
                             FoldHeader {
                                 id: advHeader
                                 objectName: "advHeader"
                                 Layout.fillWidth: true
                                 Layout.topMargin: 4
-                                title: qsTr("高级（预设位置 · 协议显示）")
+                                // 2026-09-28：预设位置搬去左列「二轴相机平台状态」了，
+                                // 这里只剩协议显示框
+                                title: qsTr("高级（协议显示）")
                                 badge: (root._connected && !StageBridge.travelSet)
                                        || (root._zConnected && !ZStageBridge.limitsSet)
                                        || !root._connected || !root._zConnected
@@ -817,28 +853,6 @@ Item {
                                 visible: root._advExpanded
 
                                 inner: [
-                                    StagePresetPanel {
-                                        Layout.fillWidth: true
-                                        showTitle: false       // 标题由「高级」折叠头负责
-                                        canUse: root._canMove
-                                        presets: StageBridge.presets
-
-                                        onGotoRequested: function (index) {
-                                            var list = StageBridge.presets
-                                            if (index < 0 || index >= list.length) return
-                                            if (StageBridge.gotoPreset(index)) {
-                                                root._targetX = Number(list[index].x)
-                                                root._targetY = Number(list[index].y)
-                                            }
-                                        }
-                                        onDeleteRequested: function (index) {
-                                            StageBridge.deletePreset(index)
-                                        }
-                                        onSaveRequested: function (name) {
-                                            StageBridge.savePreset(name)
-                                        }
-                                    },
-
                                     // ── 公用协议显示框（两块板子的流汇成一条）──
                                     ProtoPanel {
                                         Layout.fillWidth: true
@@ -951,7 +965,7 @@ Item {
                                     IconImage {
                                         Layout.alignment: Qt.AlignTop
                                         Layout.topMargin: 2
-                                        source: "../images/alert.svg"
+                                        source: "../images/triangle-notice.svg"
                                         width: 14
                                         height: 14
                                         color: Colors.statusDisconnected

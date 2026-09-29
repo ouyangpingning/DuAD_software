@@ -233,10 +233,12 @@ Item {
             //   改在控制台做（`zauto on` / `hauto on`），或用页面协议框的自定义命令框。
             //   桥的 setAutohome()/autohome 属性保留（主机侧测试仍在跑），只是没有界面入口。
 
-            Button {
+            // 样式走 ThemedButton（tone: soft）：原来没写 background，用的是 Fusion 默认灰
+            ThemedButton {
                 objectName: "zApplyButton"
                 Layout.fillWidth: true
                 implicitHeight: 34
+                tone: "soft"
                 text: qsTr("应用设置")
                 onClicked: root.applyRequested()
             }

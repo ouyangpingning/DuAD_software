@@ -216,9 +216,12 @@ Item {
             // ⚠ 必须写：不然用户把滑块拉到 3000 发现"没快多少/反而丢步"，会以为参数坏了。
             // 这条必须写出来：否则用户拿 1mm 点动去试速度，怎么试都"没反应"，
             // 然后合理地认为这个参数坏了 —— 实际上是行程太短，看不出差别。
-            Button {
+            // 样式走 ThemedButton（tone: soft = 淡强调底）：原来这里**没写 background**，
+            // 用的是 Fusion 默认灰渐变，换主题时纹丝不动（用户 2026-09-28 点名要改）。
+            ThemedButton {
                 Layout.fillWidth: true
                 implicitHeight: 34
+                tone: "soft"
                 text: qsTr("应用设置")
                 onClicked: root.applyRequested()
             }

@@ -102,7 +102,7 @@ python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（**唯一**
 
 ## 「平台控制」页（v4.3，2026-09-28 美化：图标接线 + 卡片质感）
 
-**卡片一律用 `pages/components/CardSurface.qml`**（白底 `cardBg` + 1px `cardBorderStrong` + 2px 矩形硬阴影），内嵌块（折叠头/图标 chip）用 `accentSoft`，页面底保持白 —— 层次 = 页面 → 卡片 → 内嵌块。**已连接卡片的描边是 `cardDangerBorder`（淡红），不要用 `statusDisconnected` 正红**（1px 正红围一圈像故障告警，而"已连接"是好状态）。**按钮里的图标一律走 `IconText`**（`电源/home/靶心/向上…`），不许回退到 `⏻ ⌂ ■ ▲` 字形。折叠头 = `FoldHeader`（accentSoft 条 + `下单箭头.svg` 旋转 0/−90 表示展开/收起 + 红色 pill badge）；**折叠体里的面板 `showTitle: false`**（标题由折叠头负责，别一个名字说两遍）。连接卡状态行分层：`● 已连接`（加粗、状态色）→ 闸门红项 → 地址 11px 灰 → `闪电/信号格` 图标 + 数值；**未连接时 `gates` 传 `[]`**（"未连接"由状态词说，别再出红字）。遥测拆成 `voltage`/`rssi` 独立属性（窄列 `width<300` 时整组让位）。
+**卡片一律用 `pages/components/CardSurface.qml`**（白底 `cardBg` + 1px `cardBorderStrong` + 2px 矩形硬阴影），内嵌块（折叠头/图标 chip）用 `accentSoft`，页面底保持白 —— 层次 = 页面 → 卡片 → 内嵌块。**已连接卡片的描边是 `cardDangerBorder`（淡红），不要用 `statusDisconnected` 正红**（1px 正红围一圈像故障告警，而"已连接"是好状态）。**按钮一律走 `pages/components/ThemedButton.qml`**（`tone: neutral|soft|danger|dangerSoft`）—— 本页曾有一批 Button 没写 `background`，吃的是 **Fusion 默认灰**、完全不吃 `Colors`（§19-33）；它的 contentItem 内部用 `IconText`，不许回退到 `⏻ ⌂ ■ ▲` 字形。**禁用态换颜色（`Colors.textPlaceholder`），不许压透明度**（实心图标会淡成浅影）。折叠头 = `FoldHeader`（accentSoft 条 + `下单箭头.svg` 旋转 0/−90 表示展开/收起 + 红色 pill badge）；**折叠体里的面板 `showTitle: false`**（标题由折叠头负责，别一个名字说两遍）。连接卡状态行分层：`● 已连接`（加粗、状态色）→ 闸门红项 → 地址 11px 灰 → `闪电/信号格` 图标 + 数值；**未连接时 `gates` 传 `[]`**（"未连接"由状态词说，别再出红字）。遥测拆成 `voltage`/`rssi` 独立属性（窄列 `width<300` 时整组让位）。**预设位置在左列「二轴相机平台状态」折叠节里**（`showTitle: true`，2026-09-28 用户要求从「高级」搬来）；「高级」只剩协议显示。Z 轴「向上/向下」不 fillWidth（188 居中）；「移动到该位置」居中 + `tone: soft`。`StagePresetPanel` 要能在 164px 内容宽下活：边距 12、坐标文本 `width>=230` 才显示、「名称+记录」用 `GridLayout` 动态列数（宽了并排、窄了竖排）。
 
 ## 「平台控制」页（v4.2，2026-09-28 第二张手绘稿：三列）
 
