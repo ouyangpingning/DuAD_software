@@ -40,11 +40,8 @@ Item {
     // ============================================================
     // 卡片本体
     // ============================================================
-    Rectangle {
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
-        border { width: 0; color: Colors.cardBorder }
 
         ColumnLayout {
             id: contentLayout

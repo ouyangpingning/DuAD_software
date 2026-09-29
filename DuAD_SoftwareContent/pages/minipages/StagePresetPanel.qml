@@ -130,8 +130,11 @@ Item {
                             }
 
                             ThemedButton {
-                                implicitWidth: 44; implicitHeight: 24
-                                radius: 5; hPadding: 10; iconSize: 0
+                                implicitWidth: 46; implicitHeight: 26
+                                radius: 6; hPadding: 10; iconSize: 0
+                                // 列表行里的小按钮**不要阴影**：一列小方块个个浮起来
+                                // 会比内容还吵，而且行高只有 34。
+                                raised: false
                                 enabled: root.canUse
                                 text: qsTr("前往")
                                 onClicked: root.gotoRequested(row.index)
@@ -140,9 +143,10 @@ Item {
                             // 删除：普通按钮就好，不要为了复用 AnimatedRefreshButton
                             // 去套一个 ✕ 文字层 —— 那层嵌套除了增加耦合没别的用。
                             ThemedButton {
-                                implicitWidth: 22; implicitHeight: 24
-                                radius: 5; hPadding: 0
+                                implicitWidth: 26; implicitHeight: 26
+                                radius: 6; hPadding: 0
                                 tone: "dangerSoft"
+                                raised: false
                                 enabled: root.canUse
                                 text: "✕"
                                 onClicked: root.deleteRequested(row.index)
@@ -176,7 +180,7 @@ Item {
                 }
 
                 ThemedButton {
-                    implicitHeight: 32
+                    implicitHeight: 40
                     hPadding: 32
                     tone: "soft"
                     Layout.fillWidth: parent.columns > 1 ? false : true

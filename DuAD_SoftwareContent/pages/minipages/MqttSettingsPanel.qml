@@ -26,10 +26,8 @@ Item {
 
     Behavior on implicitHeight { NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
 
-    Rectangle {
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: contentLayout

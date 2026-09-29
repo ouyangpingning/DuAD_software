@@ -40,11 +40,8 @@ Item {
     // ============================================================
     // 卡片本体
     // ============================================================
-    Rectangle {
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
-        border { width: 0; color: Colors.cardBorder }
 
         ColumnLayout {
             id: contentLayout
@@ -95,27 +92,13 @@ Item {
                         onTextEdited: root.savePath = newText
                     }
 
-                    Button {
+                    ThemedButton {
                         text: qsTr("浏览")
-                        implicitHeight: 32
-                        font.pixelSize: 12
+                        implicitHeight: 34
+                        hPadding: 24
+                        raised: false
                         enabled: !root.saving
-
-                        contentItem: Text {
-                            text: parent.text
-                            font: parent.font
-                            color: parent.enabled ? Colors.textPrimary : Colors.textPlaceholder
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
                         onClicked: picker.open()
-
-                        background: Rectangle {
-                            radius: 4
-                            color: parent.hovered && parent.enabled
-                                ? Colors.interactiveHover : Colors.interactivePressed
-                        }
                     }
                 }
 

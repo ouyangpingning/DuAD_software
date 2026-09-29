@@ -51,8 +51,9 @@ Windows: `pyqml_win\Scripts\python.exe -u main.py`；Jetson: `bash run_jetson.sh
 - **main.py venv 自检 execv**：不要绕过；打包版 frozen 分支的 `Path("Scripts","python.exe")` 写法不要改回 str/str 相除。
 - **两处 Fusion 强制**：`QT_QUICK_CONTROLS_STYLE=Fusion`（main.py `__main__` 块，QGuiApplication 创建前）——KDE Breeze 与 Qt 6.11 QML 控件不兼容（ComboBox 下拉空白）；Windows 打包无它则控件空白。**不要移除**。
 - **颜色唯一来源** `DuAD_Software/Colors.qml`：`setTheme/setPreset` 运行时切换，全部颜色走 ColorAnimation（`animDuration`）。禁止硬编码 `#rrggbb`。卡片层级另有一组令牌：`cardBg / cardBorderStrong / cardShadow / accentSoft / textOnAccent / cardDangerBorder`。
-- **不要用 shader 特效做质感**：`RectangularShadow`、`ColorOverlay` 在**软件渲染后端下整个不画、也不报错**，而 `render_page.py` 与 Jetson 都可能走软件渲染（docs/19 §32）。卡片"浮起"一律用 `pages/components/CardSurface.qml`（白底 + 1px 描边 + 普通矩形硬阴影）；按钮里"图标+文字"用 `pages/components/IconText.qml`，**不许拿 `⏻ ⌂ ■ ▲` 这类 Unicode 字形当图标**（依赖字体收录、大小不齐、不能单独染色）。
-- **图标在不在，只能靠断言不能靠截图**：offscreen 下 `IconImage` 从来是空的。`tests/test_stage_page.py` 的 12e 会逐个解析 `IconImage.source` 查文件存在 —— 改图标或搬文件后必须回跑它。
+- **卡片/按钮的底色与"浮起"一律用 `pages/components/CardSurface.qml` / `ThemedButton.qml`**（白底 + 1px 描边 + **普通矩形**硬阴影，不用 shader 特效 —— 更简单且已在页面里验证过）。按钮里"图标+文字"用 `pages/components/IconText.qml`（纯锚点居中），**不许拿 `⏻ ⌂ ■ ▲` 这类 Unicode 字形当图标**（依赖字体收录、大小不齐、不能单独染色）。
+- **别拿探针脚本的"不渲染"当结论**：探针能证明"能"、很难证明"不能"，要否定一件事得在**真实页面渲染**（`render_page.py`/`render_pages.py`）里否定。我曾据探针误判"offscreen 下图标从来是空的"，把规矩写错了 —— 详见 docs/19 §32（**已更正**）。
+- **图标路径的正确性靠断言兜底**（路径写错会**静默不画**）：`tests/test_ui_theme.py` 会逐个解析每个页面的 `IconImage.source` 查文件存在，`test_stage_page.py` 12e 同理。改图标或搬文件后必须回跑。
 - **URL 解析**：main.py 设 `QML_COMPAT_RESOLVE_URLS_ON_ASSIGNMENT=1`，`pages/` 引 `images/` 必须写 `../images/`；**测试与渲染脚本同样要设**（否则图标静默消失，§22.1-3）。跨平台 URL 转换用 `_toFileUrl()/_fromFileUrl()`（DetectPage 已内置，新增 FileDialog 照抄）。
 - **`.ui.qml` 仅供 Qt Design Studio**；StackLayout 子项顺序必须与 `navGroup.buttons` 一致（有静态校验钉着）。
 - **ComboRow 的 model 用稳定 key（不翻译）**，显示文本走 `displayFunc`；**ComboBox 下拉高度用 `combo.count * 32 + 4` 同步计算**（异步 contentHeight 有 0 高死循环），改 delegate 高度同步改公式。
@@ -92,13 +93,15 @@ QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_bridge.py    # StageBridge
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_zstage_bridge.py   # ZStageBridge 23 组
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_proto_hub.py       # 公用协议框
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_light_bridge.py    # 假光源控制器（只认 19200 + 长应答分片）
-QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1680 1700 both --dump   # 渲染 + 量几何（改版面必看）
-python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（**唯一**能目检图标的手段，见 §32）
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_ui_theme.py      # **全站**守卫：七页的按钮主题化 + 图标路径存在
+QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1680 1700 both --dump   # 平台页渲染 + 量几何（改版面必看）
+python3 tests/render_pages.py camera /tmp/camera.png 1440 980     # 渲染任意页面目检（camera/light/comm/collect/settings/detect/stage）
+python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图标**本身**的形状/粗细，见 §32）
 ```
 
 平台相关测试自带**进程内假板子**（严格按固件行为建模；替身的诚实度决定测试能发现什么，§11）。改版面/组件后先跑两个 page 测试再 render_page 目检。
 
-通用坑：**必须 `python -u`**；交互优先 `btn.clicked.emit()`（`MouseArea.clicked` 带 MouseEvent 参数 emit 不了，要 `QTest.mouseClick`，且是窗口坐标、点前先滚进视口，§28）；找控件用 **objectName**（className 是 `Button_QMLTYPE_*` 不稳定）；**Repeater delegate 不在 QObject 树**，走可视树 `childItems()`；FakeBridge 必须存变量防 GC；offscreen 屏幕 800×800 会裁窗口宽（断言前先设窗口尺寸，§25）；进程末尾的 `TypeError ... of null` 多是退出噪音，看加载完成那一刻的 warnings；`image://camera/...` 无 provider 属预期噪音。
+通用坑：**必须 `python -u`**；交互优先 `btn.clicked.emit()`（`MouseArea.clicked` 带 MouseEvent 参数 emit 不了，要 `QTest.mouseClick`，且是窗口坐标、点前先滚进视口，§28）；找控件用 **objectName**（className 是 `Button_QMLTYPE_*` 不稳定）；**Repeater delegate 不在 QObject 树**，走可视树 `childItems()`；FakeBridge 必须存变量防 GC；**`engine.rootObjects()[0]` 也必须存进变量再用**（不存的话 PySide 的 wrapper 会被回收，之后遍历子项报 `Internal C++ object already deleted`）；offscreen 屏幕 800×800 会裁窗口宽，而且**加载后还会把 QML 里写的 width/height 改掉** —— 断言/截图前一律 `win.setProperty("width", …)` 再设一次（§25）；进程末尾的 `TypeError ... of null` 多是退出噪音，看加载完成那一刻的 warnings；`image://camera/...` 无 provider 属预期噪音。
 
 ## 「平台控制」页（v4.3，2026-09-28 美化：图标接线 + 卡片质感）
 

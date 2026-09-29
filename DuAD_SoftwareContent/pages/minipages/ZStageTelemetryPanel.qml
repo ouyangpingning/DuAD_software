@@ -138,10 +138,13 @@ Item {
     implicitWidth: 460
     implicitHeight: body.implicitHeight + 32
 
-    Rectangle {
+    // flat（住在折叠节里）时整块透明：不画底、不画描边、不投影 —— 否则会变成
+    // "卡片套卡片"。非 flat 时才是正常卡片。
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: root.flat ? "transparent" : Colors.contentBg
+        shadowed: !root.flat
+        color: root.flat ? "transparent" : Colors.cardBg
+        borderColor: root.flat ? "transparent" : Colors.cardBorderStrong
 
         ColumnLayout {
             id: body

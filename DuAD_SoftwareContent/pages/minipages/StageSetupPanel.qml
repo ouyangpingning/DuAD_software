@@ -220,7 +220,7 @@ Item {
             // 用的是 Fusion 默认灰渐变，换主题时纹丝不动（用户 2026-09-28 点名要改）。
             ThemedButton {
                 Layout.fillWidth: true
-                implicitHeight: 34
+                implicitHeight: 42
                 tone: "soft"
                 text: qsTr("应用设置")
                 onClicked: root.applyRequested()

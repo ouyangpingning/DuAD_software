@@ -2,14 +2,10 @@
 # -*- coding: utf-8 -*-
 """把 `images/*.svg` 全部渲染成一张接触表，用来**目检图标本身**。
 
-为什么需要它（而不是看页面截图）：`IconImage` 内部是 `Image` + `ColorOverlay`，
-而 `ColorOverlay` 是 **shader 特效** —— 在 offscreen / 软件渲染后端下**整个图标都不渲染**
-（详见 docs/19 §32）。也就是说：
-
-    tests/render_page.py 出来的页面截图里，**所有图标从来都是空的**。
-
-所以"图标找得对不对、粗细统不统一、有没有画歪"，只能靠这个脚本直接问 QtSvgRenderer，
-绕开 QML 与渲染后端。用户新给一批 SVG 之后，改完先跑一次它。
+为什么需要它：页面截图（`render_page.py`）**能**看到图标，但那是"图标在按钮里长什么样"，
+看不清**图标本身**——形状、粗细、四边留白、和同目录其它图标是否同一套。
+本脚本用 `QSvgRenderer` 直接把 `images/*.svg` 排成接触表，绕开 QML，
+最省事也最不受环境（后端/DPI）影响。用户新给一批 SVG 之后，先跑一次它。
 
 用法：
     source DuAD_SoftwareContent/pyqml/bin/activate

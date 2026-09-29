@@ -62,14 +62,16 @@ QtObject {
     property color cardBorderStrong:       "#dbe4e9"   // 卡片描边（比 cardBorder 清楚一档）
     property color cardShadow:             "#1a0f1c24" // 卡片投影：**纯矩形硬阴影**，不是 shader
     property color accentSoft:             "#D3E6ED"   // 图标 chip / 折叠头 / 选中块的软强调底
+    // 按钮的"硬阴影"（下移 2px 的圆角矩形，按下去时消失 = 真的陷进去了）。
+    // 比 cardShadow 深一档：卡片面积大，太深会脏；按钮小，太浅就看不出是按钮。
+    property color buttonShadow:           "#2b0f1c24"
     property color textOnAccent:           "#ffffff"   // 强调底（急停红等）上的文字与图标
 
     // ⚠ 关于 cardShadow：**不要改用 QtQuick.Effects 的 RectangularShadow**。
-    //   2026-09-28 实测：它在 offscreen/软件渲染后端下**完全不渲染**（连
-    //   `color:"#ff000000" blur:20 offset:(0,10)` 都画不出任何像素，也不报错），
-    //   而本项目的截图验收（tests/render_page.py）与 Jetson 都可能走软件渲染 ——
-    //   用了它等于"本机看着有、验收环境和板子上都没有"，属于最难查的那类问题。
-    //   现在各卡片用的是「比卡片下移 2px 的圆角矩形」，任何后端都稳。
+    //   它在最小探针脚本里一个像素都不画（`color:"#ff000000" blur:20 offset:(0,10)` 也空白），
+    //   但**探针证不了"平台不支持"**（docs/19 §32 记了我据此误判、又自我更正的经过）。
+    //   选它的真实理由是：普通矩形**更简单、且已经在页面渲染里验证过**，
+    //   不必为一个 2px 的底边引入一个特效模块。
 
     // ============================================================
     // 当前状态（theme 与 preset 独立）
@@ -129,7 +131,8 @@ QtObject {
         "statusConnected", "statusDisconnected",
         "cardBorder", "cardDangerBg", "cardDangerHover", "cardDangerBorder",
         "windowBg", "iconColor",
-        "cardBg", "cardBorderStrong", "cardShadow", "accentSoft", "textOnAccent"
+        "cardBg", "cardBorderStrong", "cardShadow", "accentSoft", "textOnAccent",
+        "buttonShadow"
     ]
 
     Component.onCompleted: {
@@ -213,6 +216,7 @@ QtObject {
         _tween("cardBorderStrong", dark ? "#4a4a4a" : Qt.darker(p.border, 1.14))
         // 投影用中性深色（不跟配色走）：它是"阴影"不是"品牌色"
         _tween("cardShadow",       dark ? "#45000000" : "#1a0f1c24")
+        _tween("buttonShadow",     dark ? "#66000000" : "#2b0f1c24")
         _tween("accentSoft",       dark ? Qt.darker(p.accent, 2.2) : p.hover)
         // 强调底上的文字：急停红、深色强调块上永远要白字，暗色主题也不例外
         _tween("textOnAccent",     "#ffffff")

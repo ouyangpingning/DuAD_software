@@ -237,7 +237,7 @@ Item {
             ThemedButton {
                 objectName: "zApplyButton"
                 Layout.fillWidth: true
-                implicitHeight: 34
+                implicitHeight: 42
                 tone: "soft"
                 text: qsTr("应用设置")
                 onClicked: root.applyRequested()

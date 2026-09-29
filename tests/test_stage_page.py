@@ -1108,6 +1108,11 @@ def main():
             """QML 的 JS 数组读回 Python 是 QJSValue，要过一道 toVariant()。"""
             return v.toVariant() if hasattr(v, "toVariant") else v
 
+        # ⚠ 先等节流冲干净再比：`ProtoHub.changed` 是**节流 80ms** 才发的（AGENTS §27），
+        #   所以"面板当前值"和"hub 实时值"本来就会短暂差一条 —— 不等就比大小是个
+        #   偶发假失败（2026-09-28 实测：改版面后命中过一次 panel=65 hub=66，
+        #   紧接着连跑三次又都是 65/65）。节流本身是设计，不是 bug。
+        r.pump(0.3)
         r.check("协议框绑的是公用流（ProtoHub.lines）",
                 len(_as_list(proto.property("lines"))) == len(_as_list(proto_hub.lines)),
                 f"panel={len(_as_list(proto.property('lines')))} "
@@ -1119,11 +1124,8 @@ def main():
     print("=== 12e) 页面上的每个图标都必须真的存在（静默失效守卫）===")
     # 为什么值得单开一条：`IconImage` 内部是 `Image` + `ColorOverlay`，源文件找不到时
     # **不报错、不警告、什么都不画**（AGENTS 第 22.1-3 条记的就是同类坑：URL 解析错了
-    # 图标静默消失）。更要命的是 —— **截图验收抓不到它**：
-    # ColorOverlay 是 shader 特效，在 offscreen / 软件渲染后端下**整个图标都不渲染**
-    # （2026-09-28 实测：连项目原有的 settings.svg 也是空白），所以 render_page.py 出的图里
-    # 图标本来就是空的，"截图上有/没有"完全不能当判据。
-    # 唯一可靠的检查：把 source 解析成文件路径，查它到底在不在。
+    # 图标静默消失）。截图**能**看出"这个位置空着"，但要一张张图去盯、还容易漏；
+    # 把 source 解析成文件路径查存在，是一秒钟给出确定答案的做法。
     def _icon_sources(host):
         def walk(it):
             yield it

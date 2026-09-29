@@ -271,13 +271,12 @@ Item {
                 readonly property real _winH: _winW / root._camRatio
 
                 // 原图窗口
-                Rectangle {
+                // 两张大图（原图 / 异常热力图）——同样走 CardSurface
+                CardSurface {
+                    cornerRadius: 10
                     width: parent._winW
                     height: parent._winH
                     anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-                    radius: 10
-                    color: Colors.contentBg
-                    border { width: 0; color: Colors.cardBorder }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -387,13 +386,12 @@ Item {
                 }
 
                 // 热力图窗口
-                Rectangle {
+                // 两张大图（原图 / 异常热力图）——同样走 CardSurface
+                CardSurface {
+                    cornerRadius: 10
                     width: parent._winW
                     height: parent._winH
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                    radius: 10
-                    color: Colors.contentBg
-                    border { width: 0; color: Colors.cardBorder }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -552,23 +550,18 @@ Item {
 
             // 实时采集自锁按钮（申请 collectingOwner="detect"）
             // 相机未连接时禁用（后端无相机不可采集）
-            Button {
+            // 「开始/停止采集」：选中（强调色实底）= 正在采集。
+            // ⚠ 刻意**不设** `checkable: true`：`checked` 只由绑定驱动。设了 checkable
+            //    之后 Qt 会在点击时自己翻转 checked、**打断绑定**，外部改 _collecting 时
+            //    按钮高亮就不同步了（ZStageJogPanel 文件头第 2 条记过同一个坑）。
+            ThemedButton {
                 Layout.fillWidth: true
+                implicitHeight: 42
                 text: root._collecting ? qsTr("停止采集") : qsTr("开始采集")
-                implicitHeight: 36
-                font.pixelSize: 13; font.bold: true
-                enabled: AppBridge.cameraConnected
-
-                contentItem: Text {
-                    text: parent.text
-                    font: parent.font
-                    color: !parent.enabled ? Colors.textPlaceholder
-                        : (parent.checked ? "#ffffff" : Colors.textPrimary)
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
+                fontBold: true
                 checked: root._collecting
+                tone: "soft"
+                enabled: AppBridge.cameraConnected
 
                 onClicked: {
                     var startLive = !root._collecting
@@ -577,15 +570,9 @@ Item {
                         // 实时采集优先：立即切到实时画面，并让在途的
                         // 测试推理结果返回后自动作废，不会抢回画面。
                         root._enterLiveMode()
+                    } else {
+                        root._leaveLiveMode()
                     }
-                }
-
-                background: Rectangle {
-                    radius: 4
-                    color: !parent.enabled ? Colors.pageBg
-                        : (parent.checked
-                            ? Colors.statusDisconnected
-                            : (parent.hovered ? Colors.interactiveHover : Colors.interactivePressed))
                 }
             }
 
@@ -692,28 +679,13 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            Button {
+            ThemedButton {
                 Layout.fillWidth: true
+                implicitHeight: 38
+                tone: "neutral"
                 text: qsTr("选择模型")
-                implicitHeight: 32
-                font.pixelSize: 12
                 enabled: !root._collecting
-
-                contentItem: Text {
-                    text: parent.text
-                    font: parent.font
-                    color: !parent.enabled ? Colors.textPlaceholder : Colors.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
                 onClicked: modelPicker.open()
-
-                background: Rectangle {
-                    radius: 4
-                    color: !parent.enabled ? Colors.pageBg
-                        : (parent.hovered ? Colors.interactiveHover : Colors.interactivePressed)
-                }
             }
 
             // 当前模型名（简短显示；切换类别需重新选择 onnx 文件）
@@ -728,55 +700,22 @@ Item {
                 elide: Text.ElideMiddle
             }
 
-            Button {
+            ThemedButton {
                 Layout.fillWidth: true
+                implicitHeight: 38
+                tone: "neutral"
                 text: qsTr("卸载模型")
-                implicitHeight: 32
-                font.pixelSize: 12
-                enabled: !root._collecting && AlgorithmBridge.modelPath.length > 0
-
-                contentItem: Text {
-                    text: parent.text
-                    font: parent.font
-                    color: !parent.enabled ? Colors.textPlaceholder : Colors.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                onClicked: {
-                    console.log("[DetectPage] 卸载模型，释放 ONNX session 内存")
-                    AlgorithmBridge.unloadModel()
-                }
-
-                background: Rectangle {
-                    radius: 4
-                    color: !parent.enabled ? Colors.pageBg
-                        : (parent.hovered ? Colors.interactiveHover : Colors.interactivePressed)
-                }
+                enabled: !root._collecting
+                onClicked: AlgorithmBridge.unloadModel()
             }
 
-            Button {
+            ThemedButton {
                 Layout.fillWidth: true
+                implicitHeight: 38
+                tone: "neutral"
                 text: qsTr("打开图片")
-                implicitHeight: 32
-                font.pixelSize: 12
                 enabled: !root._collecting
-
-                contentItem: Text {
-                    text: parent.text
-                    font: parent.font
-                    color: !parent.enabled ? Colors.textPlaceholder : Colors.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
                 onClicked: imagePicker.open()
-
-                background: Rectangle {
-                    radius: 4
-                    color: !parent.enabled ? Colors.pageBg
-                        : (parent.hovered ? Colors.interactiveHover : Colors.interactivePressed)
-                }
             }
 
             // 已选图片路径（简短显示）
@@ -789,22 +728,15 @@ Item {
                 elide: Text.ElideMiddle
             }
 
-            Button {
+            ThemedButton {
                 Layout.fillWidth: true
+                implicitHeight: 42
+                tone: "soft"
+                fontBold: true
                 text: root._inferring ? qsTr("推理中...") : qsTr("执行推理")
-                implicitHeight: 32
-                font.pixelSize: 12
                 enabled: !root._collecting
                           && root._testImagePath.length > 0
                           && AlgorithmBridge.modelPath.length > 0 && !root._inferring
-
-                contentItem: Text {
-                    text: parent.text
-                    font: parent.font
-                    color: !parent.enabled ? Colors.textPlaceholder : Colors.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
 
                 onClicked: {
                     root._testSession++
@@ -813,12 +745,6 @@ Item {
                     root._testHeatmapPath = ""
                     root._testMaskPath = ""
                     AlgorithmBridge.inferImage(root._testImagePath)
-                }
-
-                background: Rectangle {
-                    radius: 4
-                    color: !parent.enabled ? Colors.pageBg
-                        : (parent.hovered ? Colors.interactiveHover : Colors.interactivePressed)
                 }
             }
 

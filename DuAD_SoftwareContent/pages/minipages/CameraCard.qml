@@ -45,17 +45,16 @@ Item {
     // ============================================================
     // 卡片本体
     // ============================================================
-    Rectangle {
+    CardSurface {
         id: cardBg
 
         anchors.fill: parent
-        radius: 12
         // 背景色区分三种状态：默认 / 可连接(青) / 可断开(红)
         color: {
             if (root.connected && _hovered) return Colors.cardDangerHover  // 断开警告
             if (root.connected)             return Colors.cardDangerBg     // 已连接
             if (_hovered && root.hasCamera) return Colors.interactiveHover // 可连接
-            return Colors.contentBg                                       // 默认
+            return Colors.cardBg                                       // 默认
         }
 
         RowLayout {
@@ -159,20 +158,6 @@ Item {
 
                 }
 
-            }
-
-        }
-
-        Behavior on color {
-            ColorAnimation {
-                duration: 200
-            }
-
-        }
-
-        Behavior on border.width {
-            NumberAnimation {
-                duration: 200
             }
 
         }

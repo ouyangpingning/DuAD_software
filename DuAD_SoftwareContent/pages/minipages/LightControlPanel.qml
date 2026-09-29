@@ -63,11 +63,8 @@ Item {
     // ============================================================
     // 卡片本体
     // ============================================================
-    Rectangle {
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
-        border { width: 0; color: Colors.cardBorder }
 
         ColumnLayout {
             id: contentLayout
@@ -169,26 +166,12 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            Button {
+            ThemedButton {
                 objectName: "lightSaveButton"
                 Layout.fillWidth: true
-                implicitHeight: 30
+                implicitHeight: 40
+                tone: "soft"
                 text: qsTr("保存到控制器（掉电保存）")
-
-                contentItem: Text {
-                    text: parent.text
-                    font.pixelSize: 12
-                    color: Colors.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                background: Rectangle {
-                    radius: 4
-                    color: parent.hovered ? Colors.interactiveHover : Colors.pageBg
-                    border { width: 1; color: Colors.interactivePressed }
-                }
-
                 onClicked: LightBridge.saveToDevice()
             }
 

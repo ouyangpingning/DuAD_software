@@ -32,19 +32,17 @@ Item {
         onClicked: { if (!root.connecting) root.clicked() }
     }
 
-    Rectangle {
+    CardSurface {
         id: cardBg
         anchors.fill: parent
-        radius: 12
         color: {
             if (root.connecting)              return Colors.cardDangerBg
             if (root.connected && _hovered)   return Colors.cardDangerHover
             if (root.connected)               return Colors.cardDangerBg
             if (_hovered)                     return Colors.interactiveHover
-            return Colors.contentBg
+            return Colors.cardBg
         }
 
-        Behavior on color { ColorAnimation { duration: 200 } }
 
         RowLayout {
             anchors { fill: parent; margins: 16 }

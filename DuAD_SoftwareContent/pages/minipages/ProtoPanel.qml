@@ -168,7 +168,7 @@ Item {
                 // 样式走 ThemedButton（颜色只来自 Colors，换主题/配色自动跟随）
                 ThemedButton {
                     objectName: "protoClearButton"
-                    implicitHeight: 32
+                    implicitHeight: 38
                     text: qsTr("清空")
                     onClicked: root.clearRequested()
                 }
@@ -257,7 +257,7 @@ Item {
                 // 发送是"提交一个动作" → tone: soft（淡强调底）
                 ThemedButton {
                     objectName: "protoSendButton"
-                    implicitHeight: 32
+                    implicitHeight: 38
                     tone: "soft"
                     enabled: root.connected
                     text: qsTr("发送")

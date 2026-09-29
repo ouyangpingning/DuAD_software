@@ -114,7 +114,7 @@ Item {
         visible: root.drawingEnabled
         anchors.fill: parent
         color: "transparent"
-        border { width: 2; color: "#e74c3c" }
+        border { width: 2; color: Colors.statusDisconnected }
     }
 
     Rectangle {
@@ -123,6 +123,7 @@ Item {
         width: hintText.width + 20
         height: 30
         radius: 6
+        // 压在图上的遮罩：刻意**不跟主题**（亮/暗都该是同一个黑度），见文件顶注释
         color: "#99000000"
         z: 4
 
@@ -130,7 +131,7 @@ Item {
             id: hintText
             anchors.centerIn: parent
             text: qsTr("在画面上拖动鼠标，框选 ROI 区域")
-            color: "#ffffff"
+            color: Colors.textOnAccent
             font.pixelSize: 12
         }
     }
@@ -182,12 +183,12 @@ Item {
         width: root._curRect.width
         height: root._curRect.height
         color: "transparent"
-        border { width: 2; color: "#e74c3c" }
+        border { width: 2; color: Colors.statusDisconnected }
         z: 2
 
         Rectangle {
             anchors.fill: parent
-            color: "#e74c3c"
+            color: Colors.statusDisconnected
             opacity: 0.15
         }
     }
@@ -202,7 +203,8 @@ Item {
         x: Math.max(2, Math.min(root._curRect.x, root.width - width - 2))
         y: Math.max(0, root._curRect.y - height - 4)
         radius: 3
-        color: "#cc000000"
+        // 同上：压在图上的遮罩，刻意不跟主题
+            color: "#cc000000"
 
         Text {
             id: pixelRangeText
@@ -218,7 +220,7 @@ Item {
                 return qsTr("框选像素: X=%1 Y=%2  W=%3 H=%4")
                     .arg(raw.x).arg(raw.y).arg(raw.width).arg(raw.height)
             }
-            color: "#ffffff"
+            color: Colors.textOnAccent
             font.pixelSize: 11
         }
     }
@@ -231,7 +233,7 @@ Item {
         width: root.roiRect.width * _contentRect().width
         height: root.roiRect.height * _contentRect().height
         color: "transparent"
-        border { width: 1; color: "#e74c3c" }
+        border { width: 1; color: Colors.statusDisconnected }
     }
 
     // ============================================================
@@ -247,18 +249,16 @@ Item {
         y: Math.min(root._curRect.y + root._curRect.height + 2,
                     root.height - height - 2)
 
-        Button {
+        // ⚠ 这两个原来是**硬编码颜色**的按钮（#e74c3c / #95a5a6，连暗色主题都不跟），
+        //   换成 ThemedButton 之后颜色只来自 Colors（§19-33）。
+        //   仍然是 28px 的小按钮 + 不投影：它们浮在图像上，加阴影会显脏。
+        ThemedButton {
             text: qsTr("确定")
             implicitHeight: 28
-            font.pixelSize: 12
-
-            contentItem: Text {
-                text: parent.text
-                font: parent.font
-                color: "#ffffff"
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
+            hPadding: 14
+            fontPixelSize: 12
+            raised: false
+            tone: "danger"
 
             onClicked: {
                 root.roiRect = root._normalize(root._curRect)
@@ -270,33 +270,18 @@ Item {
                 root.roiApplied(root.roiRect)
             }
 
-            background: Rectangle {
-                radius: 4
-                color: parent.hovered ? "#c0392b" : "#e74c3c"
-            }
         }
 
-        Button {
+        ThemedButton {
             text: qsTr("重绘")
             implicitHeight: 28
-            font.pixelSize: 12
-
-            contentItem: Text {
-                text: parent.text
-                font: parent.font
-                color: "#ffffff"
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
+            hPadding: 14
+            fontPixelSize: 12
+            raised: false
 
             onClicked: {
                 // 保持绘制模式，清空当前预览重新画
                 root.cancelDrawing()
-            }
-
-            background: Rectangle {
-                radius: 4
-                color: parent.hovered ? "#7f8c8d" : "#95a5a6"
             }
         }
     }

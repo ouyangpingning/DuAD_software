@@ -32,10 +32,8 @@ Item {
 
     Behavior on implicitHeight { NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
 
-    Rectangle {
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: contentLayout
@@ -53,27 +51,13 @@ Item {
             InputRow { label: qsTr("消息"); text: root.testMessage
                 onTextEdited: root.testMessage = text }
 
-            Button {
+            ThemedButton {
                 text: qsTr("发送测试消息")
                 Layout.alignment: Qt.AlignRight
-                implicitHeight: 32
-                font.pixelSize: 12
-
-                contentItem: Text {
-                    text: parent.text
-                    font: parent.font
-                    color: Colors.textPrimary
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
+                implicitHeight: 38
+                tone: "soft"
                 onClicked: {
                     MqttBridge.publish(root.testTopic, root.testMessage, root.qos)
-                }
-
-                background: Rectangle {
-                    radius: 4
-                    color: parent.hovered ? Colors.interactiveHover : Colors.interactivePressed
                 }
             }
 

@@ -13,11 +13,9 @@ Item {
     implicitWidth: 420
     implicitHeight: contentLayout.implicitHeight + 32
 
-    Rectangle {
+    // 底板 = CardSurface（白底 + 1px 描边 + 硬阴影），全站统一（见 components/CardSurface.qml）
+    CardSurface {
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
-        border { width: 0; color: Colors.cardBorder }
 
         ColumnLayout {
             id: contentLayout
@@ -58,29 +56,16 @@ Item {
                 }
 
                 // 使用说明 — 随时重开启动时的说明页
-                Button {
+                ThemedButton {
                     text: qsTr("使用说明")
                     Layout.alignment: Qt.AlignHCenter
                     Layout.topMargin: 6
-                    implicitHeight: 30
-                    font.pixelSize: 12
-
-                    contentItem: Text {
-                        text: parent.text
-                        font: parent.font
-                        color: Colors.textPrimary
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                    implicitHeight: 38
+                    tone: "soft"
 
                     // 经 AppBridge 信号打开（.ui.qml 不能加逻辑，信号链路过长）。
                     // 注意：QML 调用 Python 信号直接函数调用，不能用 .emit()
                     onClicked: AppBridge.helpRequested()
-
-                    background: Rectangle {
-                        radius: 4
-                        color: parent.hovered ? Colors.interactiveHover : Colors.interactivePressed
-                    }
                 }
             }
         }

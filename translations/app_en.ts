@@ -3,17 +3,17 @@
 <context>
     <name>AboutCard</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AboutCard.qml" line="27" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AboutCard.qml" line="25" />
         <source>其他</source>
         <translation>Other</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AboutCard.qml" line="41" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AboutCard.qml" line="39" />
         <source>融合 Dinov2 与双分支训练架构的工业异常检测</source>
         <translation>Industrial Anomaly Detection with Dinov2 and Dual-Branch Training Architecture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AboutCard.qml" line="62" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AboutCard.qml" line="60" />
         <source>使用说明</source>
         <translation>User Guide</translation>
     </message>
@@ -21,42 +21,42 @@
 <context>
     <name>AcquisitionCard</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="76" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="74" />
         <source>相机 @ %1 fps</source>
         <translation>Camera @ %1 fps</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="77" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="75" />
         <source>图像采集</source>
         <translation>Image Capture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="95" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="93" />
         <source>相机未连接</source>
         <translation>Camera not connected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="96" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="94" />
         <source>采集中</source>
         <translation>Capturing</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="96" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="94" />
         <source>未采集</source>
         <translation>Not Capturing</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="123" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="121" />
         <source>请先在相机设置页连接相机</source>
         <translation>Connect the camera on the Camera page first</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="124" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="122" />
         <source>点击停止采集</source>
         <translation>Click to Stop Capture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="124" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/AcquisitionCard.qml" line="122" />
         <source>点击开始采集</source>
         <translation>Click to Start Capture</translation>
     </message>
@@ -77,42 +77,42 @@
 <context>
     <name>CameraCard</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="188" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="173" />
         <source>正在连接相机...</source>
         <translation>Connecting to Camera...</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="119" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="118" />
         <source>未知相机</source>
         <translation>Unknown Camera</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="134" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="133" />
         <source>序列号</source>
         <translation>Serial Number</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="142" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="141" />
         <source>状态</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="155" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="154" />
         <source>已连接</source>
         <translation>Connected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="155" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="154" />
         <source>已断开</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="236" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="221" />
         <source>点击断开连接</source>
         <translation>Click to disconnect</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="236" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraCard.qml" line="221" />
         <source>点击连接相机</source>
         <translation>Click to Connect Camera</translation>
     </message>
@@ -128,67 +128,67 @@
 <context>
     <name>CameraSettingsPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="160" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="157" />
         <source>相机参数设置</source>
         <translation>Camera Parameter Settings</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="171" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="168" />
         <source>图像</source>
         <translation>Image</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="175" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="172" />
         <source>分辨率</source>
         <translation>Resolution</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="181" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="178" />
         <source>像素格式</source>
         <translation>Pixel Format</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="202" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="199" />
         <source>Gamma</source>
         <translation>Gamma</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="210" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="207" />
         <source>Gamma 模式</source>
         <translation>Gamma Mode</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="222" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="219" />
         <source>Gamma 值</source>
         <translation>Gamma Value</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="232" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="229" />
         <source>曝光 / 增益</source>
         <translation>Exposure / Gain</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="235" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="232" />
         <source>曝光时间</source>
         <translation>Exposure Time</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="249" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="246" />
         <source>增益</source>
         <translation>Gain</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="265" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="262" />
         <source>采集</source>
         <translation>Acquisition</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="268" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="265" />
         <source>采集模式</source>
         <translation>Acquisition Mode</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="278" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CameraSettingsPanel.qml" line="275" />
         <source>目标帧率</source>
         <translation>Target FPS</translation>
     </message>
@@ -196,32 +196,32 @@
 <context>
     <name>CloudServerCard</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="72" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="70" />
         <source>云服务器连接</source>
         <translation>Cloud Server Connection</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="89" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="87" />
         <source>已连接</source>
         <translation>Connected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="89" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="87" />
         <source>未连接</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="104" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="102" />
         <source>正在连接云服务器...</source>
         <translation>Connecting to Server...</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="134" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="132" />
         <source>点击断开连接</source>
         <translation>Click to disconnect</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="134" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/CloudServerCard.qml" line="132" />
         <source>点击连接云服务器</source>
         <translation>Click to Connect Server</translation>
     </message>
@@ -256,196 +256,196 @@
     </message>
     <message>
         <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="49" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="411" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="409" />
         <source>异常定位</source>
         <translation>Anomaly Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="458" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="456" />
         <source>无异常定位信息</source>
         <translation>No Anomaly Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="593" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="580" />
         <source>算法推理</source>
         <translation>Algorithm Inference</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="490" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="488" />
         <source>分数 %1</source>
         <translation>Score %1</translation>
     </message>
     <message>
         <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="47" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="295" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="294" />
         <source>原图</source>
         <translation>Original Image</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="369" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="896" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="368" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="822" />
         <source>等待图像</source>
         <translation>Waiting for Image</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="368" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="367" />
         <source>未连接</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="557" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="560" />
         <source>停止采集</source>
         <translation>Stop Capture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="557" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="560" />
         <source>开始采集</source>
         <translation>Start Capture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="369" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="465" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="368" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="463" />
         <source>未采集</source>
         <translation>Not Capturing</translation>
     </message>
     <message>
         <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="49" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="411" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="409" />
         <source>异常热力图</source>
         <translation>Anomaly Heatmap</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="305" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="862" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="304" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="788" />
         <source>ROI 绘制</source>
         <translation>ROI Draw</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="322" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="321" />
         <source>恢复全幅</source>
         <translation>Restore Full Frame</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="339" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="421" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="338" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="419" />
         <source>全屏</source>
         <translation>Fullscreen</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="460" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="458" />
         <source>算法未开启</source>
         <translation>Algorithm Off</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="464" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="896" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="462" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="822" />
         <source>等待推理结果</source>
         <translation>Waiting for Inference Result</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="477" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="475" />
         <source>采集帧率 %1 fps</source>
         <translation>Capture %1 fps</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="484" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="482" />
         <source>推理频率 %1 fps</source>
         <translation>Inference %1 fps</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="499" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="497" />
         <source>推理耗时 %1 ms</source>
         <translation>Inference Time %1 ms</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="500" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="498" />
         <source>实时推理 %1 ms</source>
         <translation>Realtime Inference %1 ms</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="543" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="541" />
         <source>控制</source>
         <translation>Controls</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="610" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="597" />
         <source>异常阈值</source>
         <translation>Anomaly Threshold</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="626" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="613" />
         <source>像素阈值</source>
         <translation>Pixel Threshold</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="631" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="618" />
         <source>未标定</source>
         <translation>Not Calibrated</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="648" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="635" />
         <source>F1 阈值定位</source>
         <translation>F1 Threshold Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="659" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="646" />
         <source>精细定位</source>
         <translation>Refine Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="677" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="664" />
         <source>测试推理</source>
         <translation>Test Inference</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="688" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="675" />
         <source>实时采集中，测试推理已暂停</source>
         <translation>Live capture in progress; test inference paused</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="697" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="686" />
         <source>选择模型</source>
         <translation>Select Model</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="878" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="804" />
         <source>退出全屏</source>
         <translation>Exit Fullscreen</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="463" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="724" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="461" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="696" />
         <source>未选择模型</source>
         <translation>No Model Selected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="733" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="707" />
         <source>卸载模型</source>
         <translation>Unload Model</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="760" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="716" />
         <source>打开图片</source>
         <translation>Open Image</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="456" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="794" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="454" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="736" />
         <source>推理中...</source>
         <translation>Inferring...</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="794" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="736" />
         <source>执行推理</source>
         <translation>Run Inference</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="511" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="509" />
         <source>异常</source>
         <translation>Anomaly</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="511" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="509" />
         <source>正常</source>
         <translation>Normal</translation>
     </message>
@@ -453,12 +453,12 @@
 <context>
     <name>GeneralSettingsCard</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="59" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="56" />
         <source>通用设置</source>
         <translation>General Settings</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="63" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="60" />
         <source>主题</source>
         <translation>Theme</translation>
     </message>
@@ -479,12 +479,12 @@
         <translation>Follow System</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="74" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="71" />
         <source>语言</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="85" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/GeneralSettingsCard.qml" line="82" />
         <source>配色</source>
         <translation>Color Scheme</translation>
     </message>
@@ -621,77 +621,77 @@
 <context>
     <name>LightControlPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="82" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="79" />
         <source>光源亮度调节</source>
         <translation>Light Brightness Control</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="95" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="92" />
         <source>光源 1</source>
         <translation>Light 1</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="109" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="106" />
         <source>光源 2</source>
         <translation>Light 2</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="120" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="117" />
         <source>光源 3</source>
         <translation>Light 3</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="131" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="128" />
         <source>光源 4</source>
         <translation>Light 4</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="152" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="149" />
         <source>触发方式</source>
         <translation>Trigger Mode</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="155" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="152" />
         <source>E0L 外部跟随低电平</source>
         <translation>E0L Follow Low Level</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="156" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="153" />
         <source>E1H 外部跟随高电平</source>
         <translation>E1H Follow High Level</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="157" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="154" />
         <source>E2L 外部下降沿触发</source>
         <translation>E2L Falling Edge Trigger</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="158" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="155" />
         <source>E3H 外部上升沿触发</source>
         <translation>E3H Rising Edge Trigger</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="166" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="163" />
         <source>出厂默认 E0L：灯的亮灭还受 TRIG IN 电平控制，触发方式要与实际接线一致。</source>
         <translation>Factory default is E0L: the lamp is also gated by the TRIG IN level, so the trigger mode must match your wiring.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="176" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="174" />
         <source>保存到控制器（掉电保存）</source>
         <translation>Save to Controller (kept after power-off)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="202" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="185" />
         <source>控制器</source>
         <translation>Controller</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="206" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="189" />
         <source>最近指令</source>
         <translation>Last Command</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="210" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControlPanel.qml" line="193" />
         <source>控制器响应</source>
         <translation>Controller Response</translation>
     </message>
@@ -699,37 +699,37 @@
 <context>
     <name>LightControllerCard</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="94" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="92" />
         <source>光源控制器</source>
         <translation>Light Controller</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="111" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="109" />
         <source>状态</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="120" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="118" />
         <source>已连接</source>
         <translation>Connected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="120" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="118" />
         <source>未连接</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="135" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="133" />
         <source>正在连接光源控制器...</source>
         <translation>Connecting to Light Controller...</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="180" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="178" />
         <source>点击断开连接</source>
         <translation>Click to disconnect</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="180" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/LightControllerCard.qml" line="178" />
         <source>点击连接光源</source>
         <translation>Click to Connect Light</translation>
     </message>
@@ -788,42 +788,42 @@
 <context>
     <name>MqttSettingsPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="39" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="37" />
         <source>MQTT 通讯设置</source>
         <translation>MQTT Settings</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="42" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="40" />
         <source>服务器地址</source>
         <translation>Server Address</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="45" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="43" />
         <source>端口号</source>
         <translation>Port</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="48" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="46" />
         <source>用户名</source>
         <translation>Username</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="51" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="49" />
         <source>密码</source>
         <translation>Password</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="54" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="52" />
         <source>TLS/SSL</source>
         <translation>TLS/SSL</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="57" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="55" />
         <source>QoS 等级</source>
         <translation>QoS Level</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="61" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttSettingsPanel.qml" line="59" />
         <source>心跳间隔</source>
         <translation>Keep Alive</translation>
     </message>
@@ -831,32 +831,32 @@
 <context>
     <name>MqttTestPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="45" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="43" />
         <source>连接测试</source>
         <translation>Connection Test</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="49" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="47" />
         <source>发布测试消息</source>
         <translation>Publish Test Message</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="51" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="49" />
         <source>Topic</source>
         <translation>Topic</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="53" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="51" />
         <source>消息</source>
         <translation>Message</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="57" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="55" />
         <source>发送测试消息</source>
         <translation>Send Test Message</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="81" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/MqttTestPanel.qml" line="65" />
         <source>消息日志</source>
         <translation>Message Log</translation>
     </message>
@@ -950,27 +950,27 @@
 <context>
     <name>RoiOverlay</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="132" />
+        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="133" />
         <source>在画面上拖动鼠标，框选 ROI 区域</source>
         <translation>Drag on the image to draw the ROI area</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="215" />
+        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="217" />
         <source>应用 ROI: X=%1 Y=%2  W=%3 H=%4</source>
         <translation>Apply ROI: X=%1 Y=%2  W=%3 H=%4</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="218" />
+        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="220" />
         <source>框选像素: X=%1 Y=%2  W=%3 H=%4</source>
         <translation>Selected pixels: X=%1 Y=%2  W=%3 H=%4</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="251" />
+        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="256" />
         <source>确定</source>
         <translation>OK</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="280" />
+        <location filename="../DuAD_SoftwareContent/pages/components/RoiOverlay.qml" line="276" />
         <source>重绘</source>
         <translation>Redraw</translation>
     </message>
@@ -978,42 +978,42 @@
 <context>
     <name>SaveSettingsPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="59" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="56" />
         <source>定时保存设置</source>
         <translation>Timed Save Settings</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="76" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="73" />
         <source>保存间隔</source>
         <translation>Save Interval</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="91" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="88" />
         <source>保存路径</source>
         <translation>Save Path</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="99" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="96" />
         <source>浏览</source>
         <translation>Browse</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="123" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="106" />
         <source>文件前缀</source>
         <translation>File Prefix</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="131" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="114" />
         <source>图片格式</source>
         <translation>Image Format</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="142" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="125" />
         <source>已保存</source>
         <translation>Saved</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="143" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SaveSettingsPanel.qml" line="126" />
         <source>%1 张</source>
         <translation>%1 image(s)</translation>
     </message>
@@ -1021,32 +1021,32 @@
 <context>
     <name>SerialSettingsPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="59" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="56" />
         <source>串口通讯设置</source>
         <translation>Serial Port Settings</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="70" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="67" />
         <source>串口号</source>
         <translation>Serial Port</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="82" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="79" />
         <source>波特率</source>
         <translation>Baud Rate</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="92" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="89" />
         <source>数据位</source>
         <translation>Data Bits</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="99" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="96" />
         <source>停止位</source>
         <translation>Stop Bits</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="106" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/SerialSettingsPanel.qml" line="103" />
         <source>校验位</source>
         <translation>Parity</translation>
     </message>
@@ -1138,42 +1138,42 @@
         <translation>Step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="205" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="209" />
         <source>把当前位置当作 0 点（立基准）。先把滑座推到靠块/硬限位贴实再点它，每次上电都要重立一次。</source>
         <translation>Treat the current position as 0 (establish the datum). Push the carriage against its hard stop first; it must be redone after every power-up.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="179" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="182" />
         <source>失能</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="179" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="182" />
         <source>使能</source>
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="186" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="189" />
         <source>失能 = 松掉电机，可以用手推台面调机械；但台面被推动后基准就废了，要重新「设为原点」。注意「设为原点」和任何运动命令都会自动重新使能。</source>
         <translation>Disable = motors are let go so you can push the stage by hand; but once pushed, the datum is gone — set the origin again. Note that “Set origin” and every motion command re-enable the motors.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="197" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="201" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="224" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="229" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="244" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="248" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="280" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="284" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
@@ -1358,27 +1358,27 @@
         <translation>No presets yet. Move the table to a station, then name it below.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="136" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="139" />
         <source>前往</source>
         <translation>Go</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="151" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="155" />
         <source>删除这个预设</source>
         <translation>Delete this preset</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="174" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="178" />
         <source>名称</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="175" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="179" />
         <source>例如：工位1</source>
         <translation>e.g. Station 1</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="185" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StagePresetPanel.qml" line="189" />
         <source>记录当前位置</source>
         <translation>Record position</translation>
     </message>
@@ -1504,7 +1504,7 @@
         <translation>Enable = the closed loop holds the stage against external force (if pushed while disabled, the coordinate frame is ruined).</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="253" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="254" />
         <source>把当前位置当作 Z=0（立基准）。先把平台推到靠块/机械死点贴实再点它 —— 这是主线的立基准方式，每次上电都要重立一次。</source>
         <translation>Treat the current position as Z=0 (establish the datum). Push the stage against its hard stop first — this is the mainline way; it must be redone after every power-up.</translation>
     </message>
@@ -1529,42 +1529,42 @@
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="245" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="246" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="268" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="270" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="288" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="289" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="300" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="301" />
         <source>目标 (mm)</source>
         <translation>Target (mm)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="313" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="314" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="334" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="335" />
         <source>自动回零（可选）</source>
         <translation>Auto Home (optional)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="339" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="340" />
         <source>驱动器让两个电机同时朝下顶死点、按相电流判「顶住了」。它要求两侧丝杠同时顶到各自的死点，否则会把平台拧歪 —— 主线做法是「推到靠块 → 设为原点」。</source>
         <translation>The drivers push both motors down into their hard stops and detect “stalled” by phase current. Both screws must reach their stops together, otherwise the stage twists — the mainline way is “push against the stop → Set origin”.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="351" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="352" />
         <source>中断回零</source>
         <translation>Abort homing</translation>
     </message>
@@ -1665,17 +1665,17 @@
         <translation>schematic</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageTelemetryPanel.qml" line="179" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageTelemetryPanel.qml" line="182" />
         <source>Z 轴高度</source>
         <translation>Z-Axis Height</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageTelemetryPanel.qml" line="209" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageTelemetryPanel.qml" line="212" />
         <source>两侧偏斜</source>
         <translation>Side Skew</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageTelemetryPanel.qml" line="261" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageTelemetryPanel.qml" line="264" />
         <source>处置：先点「停止」（急停会同时清掉故障锁存），再把平台推到靠块重新「设为原点」。</source>
         <translation>Fix: press “Stop” first (e-stop also clears the latched fault), then push the stage against its hard stop and set the origin again.</translation>
     </message>

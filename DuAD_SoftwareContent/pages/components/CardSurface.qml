@@ -8,12 +8,11 @@ import DuAD_Software
     设置卡、协议卡）。样式散在 6 个文件里手抄"白底 + 描边 + 阴影"，迟早漂移；
     做成组件后改一处全页一致。
 
-    ⚠ 为什么不用 QtQuick.Effects 的 RectangularShadow（看起来更"正宗"）：
-      实测它在 **offscreen / 软件渲染后端下完全不渲染** —— 连
-      `color:"#ff000000" blur:20 offset:(0,10)` 都画不出一个像素，而且**不报错**。
-      本项目的截图验收（tests/render_page.py）和 Jetson 都可能走软件渲染，
-      用 shader 阴影等于"本机看着有、验收环境和板子上没有"，属于最难查的那类问题。
-      所以这里用的是最土的「下移 2px 的圆角矩形」硬阴影：任何后端都稳。
+    ⚠ 为什么不用 QtQuick.Effects 的 RectangularShadow：它在最小探针脚本里一个像素都不画
+      （`color:"#ff000000" blur:20 offset:(0,10)` 也空白）。但**别把探针结果当平台结论** ——
+      docs/19 §32 记了我据此误判、又自我更正的完整经过。
+      选普通矩形的真实理由很朴素：**更简单、零依赖，而且已经在页面渲染里验证过**，
+      不必为了一个 2px 的底边去引一个特效模块（还得担心 Jetson 那边）。
 
     用法（把卡片原来的 `Rectangle { anchors.fill: parent; radius: 12; color: … }` 换掉）：
         CardSurface {

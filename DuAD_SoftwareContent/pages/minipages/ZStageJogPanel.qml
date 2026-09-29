@@ -165,7 +165,7 @@ Item {
                 //   图标和文字之间空出两百多像素。改成与左列十字键同宽（188）并居中。
                 Layout.preferredWidth: 188
                 Layout.alignment: Qt.AlignHCenter
-                implicitHeight: 48
+                implicitHeight: 52
                 enabled: root.canJog
                 text: qsTr("向上")
                 iconSource: "../../images/向上.svg"
@@ -182,7 +182,7 @@ Item {
                 //   图标和文字之间空出两百多像素。改成与左列十字键同宽（188）并居中。
                 Layout.preferredWidth: 188
                 Layout.alignment: Qt.AlignHCenter
-                implicitHeight: 48
+                implicitHeight: 52
                 enabled: root.canJog
                 text: qsTr("向下")
                 iconSource: "../../images/向下.svg"
@@ -218,8 +218,8 @@ Item {
 
                 ThemedButton {
                     objectName: "zEnableButton"
-                    implicitHeight: 34
-                    hPadding: 24
+                    implicitHeight: 38
+                    hPadding: 22
                     enabled: root.connected
                     iconSource: "../../images/电源.svg"
                     iconSize: 14
@@ -240,7 +240,8 @@ Item {
 
                 ThemedButton {
                     objectName: "zZeroButton"
-                    implicitHeight: 34
+                    implicitHeight: 38
+                    hPadding: 22
                     enabled: root.connected && !root.moving
                     text: qsTr("设为原点")
                     iconSource: "../../images/home.svg"
@@ -261,13 +262,13 @@ Item {
             ThemedButton {
                 objectName: "zStopButton"
                 Layout.fillWidth: true
-                implicitHeight: 40
+                implicitHeight: 46
                 radius: 10
+                iconSize: 18
                 tone: "danger"
                 enabled: root.connected
                 text: qsTr("停止")
                 iconSource: "../../images/停止.svg"
-                iconSize: 17
                 fontPixelSize: 15
                 fontBold: true
                 onClicked: root.stopRequested()
@@ -306,8 +307,8 @@ Item {
                 objectName: "zMoveToButton"
                 // 居中 + 主题化（与 X/Y 那张卡同一条：用户批注"我觉得可以居中"）
                 Layout.alignment: Qt.AlignHCenter
-                implicitHeight: 36
-                hPadding: 40
+                implicitHeight: 42
+                hPadding: 44
                 tone: "soft"
                 enabled: root.canMove
                 text: qsTr("移动到该位置")
@@ -328,7 +329,7 @@ Item {
                 ThemedButton {
                     objectName: "zHomeButton"
                     hPadding: 36
-                    implicitHeight: 34
+                    implicitHeight: 38
                     // 回零中禁用（但下面会出现「中断回零」，见文件头第 3 条）
                     enabled: root.connected && !root.moving
                     text: qsTr("自动回零（可选）")
@@ -344,7 +345,7 @@ Item {
                 ThemedButton {
                     objectName: "zHomeAbortButton"
                     Layout.fillWidth: true
-                    implicitHeight: 34
+                    implicitHeight: 38
                     tone: "dangerSoft"
                     visible: root.homing === 1
                     Layout.preferredWidth: visible ? implicitWidth : 0

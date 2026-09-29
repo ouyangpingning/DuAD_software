@@ -166,8 +166,11 @@ Item {
                 // ⚠ 样式一律走 ThemedButton（颜色只来自 Colors，不再手抄 background）
                 ThemedButton {
                     objectName: "enableButton"
-                    implicitHeight: 32
-                    hPadding: 24
+                    // 这一行要塞进 192px（窄卡内容宽），所以留白压到 22：
+                    //   使能 22+16+6+26=70，设为原点 22+16+6+52=96，+8 间距 = 174 ✓
+                    // 两个"次要动作"挤一行；主按钮（停止/移动到该位置）才是加大的那批。
+                    implicitHeight: 38
+                    hPadding: 22
                     enabled: root.connected
                     // 文案是**动作**而不是状态：免得用户看着"未使能"再去点写着"未使能"的按钮。
                     // ⚠ 写在 Button.text 上（而不是只写在 contentItem 里）：
@@ -190,7 +193,8 @@ Item {
 
                 ThemedButton {
                     objectName: "zeroButton"
-                    implicitHeight: 32
+                    implicitHeight: 38
+                    hPadding: 22
                     enabled: root.connected
                     // ⚠ text 写在 Button 上（不只是 contentItem）：无障碍/自动化读得到，
                     //   否则 property("text") 是空串（AGENTS 里那条"假断言"的坑）。
@@ -215,15 +219,15 @@ Item {
             ThemedButton {
                 objectName: "stopButton"
                 Layout.fillWidth: true
-                implicitHeight: 40
+                implicitHeight: 46
                 radius: 10
+                iconSize: 18
                 // 急停：**禁用时也保留淡红底**（ThemedButton 里 danger 的处理）——
                 // 整个消失的话，用户会以为"急停按钮怎么没了"。
                 tone: "danger"
                 enabled: root.connected
                 text: qsTr("停止")      // 同上：写在 Button 上，给无障碍与测试读
                 iconSource: "../../images/停止.svg"
-                iconSize: 17
                 fontPixelSize: 15
                 fontBold: true
                 onClicked: root.stopRequested()
@@ -270,8 +274,8 @@ Item {
                 // 居中（用户 2026-09-28 截图批注："我觉得可以居中"）—— 原来靠左，
                 // 在这张空白很多的卡片里显得没着落。
                 Layout.alignment: Qt.AlignHCenter
-                implicitHeight: 36
-                hPadding: 40
+                implicitHeight: 42
+                hPadding: 44
                 // soft：本卡"提交一个动作"的主按钮，淡强调底让它和周围的描边按钮分开。
                 // 原来它**没写 background** → 用的是 Fusion 默认灰渐变，换主题时纹丝不动，
                 // 正是用户截图点名"设置成可以随主题变化"的那个按钮。
