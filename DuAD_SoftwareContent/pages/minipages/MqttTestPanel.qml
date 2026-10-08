@@ -33,6 +33,7 @@ Item {
     Behavior on implicitHeight { NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
 
     CardSurface {
+        variant: "panel"
         anchors.fill: parent
 
         ColumnLayout {
@@ -41,7 +42,7 @@ Item {
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 24 }
 
             Text { text: qsTr("连接测试"); font.pixelSize: 14; font.bold: true; color: Colors.textPrimary }
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ── 发布测试 ──────────────────────────
             SectionHeader { text: qsTr("发布测试消息") }
@@ -79,7 +80,7 @@ Item {
 
                     background: Rectangle {
                         radius: 4; color: Colors.pageBg
-                        border { width: 1; color: Colors.cardBorder }
+                        border { width: 1; color: Colors.panelBorder }
                     }
                 }
             }

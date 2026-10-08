@@ -114,7 +114,7 @@ Item {
     readonly property bool homeMaTooHigh: fieldHomeMa > ZStageBridge.uiHomeMaSweetHi
 
     implicitWidth: 460
-    implicitHeight: expanded ? contentLayout.implicitHeight + 32 : 0
+    implicitHeight: expanded ? contentLayout.implicitHeight + 42 : 0
     clip: true
 
     Behavior on implicitHeight {
@@ -123,6 +123,7 @@ Item {
 
     // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
     CardSurface {
+        variant: "panel"
         anchors.fill: parent
 
         ColumnLayout {
@@ -141,7 +142,7 @@ Item {
             }
             Rectangle {
                 visible: root.showTitle
-                Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder
+                Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder
             }
 
             // ── 网络（另一块板子）──────────────────────────
@@ -186,7 +187,7 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ── 速度 ────────────────────────────────────────
             SectionHeader { text: qsTr("速度") }
@@ -219,7 +220,7 @@ Item {
                 onReleased: root.speedChanged(rpmRow.sliderValue, accRow.sliderValue)
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ── 软限位 ──────────────────────────────────────
             SectionHeader { text: qsTr("软限位（mm，相对基准零点）") }
@@ -257,7 +258,7 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ── 无限位回零的参数（`zset home`）──────────────
             SectionHeader { text: qsTr("自动回零参数（存板子）") }
@@ -367,7 +368,7 @@ Item {
                                                    root.fieldHomeTmo)
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ── 上电自动回零（2026-09-29 按用户要求加回界面）──────
             //    2026-09-28 曾因"只留最常用的操作"删掉；用户这次要求加回来 ——
@@ -400,7 +401,7 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // 样式走 ThemedButton（tone: soft）：原来没写 background，用的是 Fusion 默认灰
             ThemedButton {

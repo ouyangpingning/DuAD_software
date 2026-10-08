@@ -30,10 +30,11 @@ Item {
     signal saveRequested(string name)
 
     implicitWidth: 460
-    implicitHeight: mainLayout.implicitHeight + 32
+    implicitHeight: mainLayout.implicitHeight + 42
 
     // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
     CardSurface {
+        variant: "panel"
         anchors.fill: parent
 
         ColumnLayout {
@@ -60,7 +61,7 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // 单圈编码器的警告：常驻，不折叠 —— 这条一旦忽略就会走错位置。
             // 口径是「每次上电重立基准（推到位 → 设为原点）」，**不是**「必须回零」：
@@ -91,7 +92,7 @@ Item {
                         implicitHeight: 34
                         radius: 6
                         color: rowMa.containsMouse ? Colors.interactiveHover : "transparent"
-                        border { width: 1; color: Colors.cardBorder }
+                        border { width: 1; color: Colors.panelBorder }
 
                         MouseArea {
                             id: rowMa
@@ -159,7 +160,7 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ── 记录当前位置 ──────────────────────────
             // ⚠ 用 GridLayout + 动态 columns（AGENTS §19-30 的老办法）：

@@ -63,6 +63,7 @@ Item {
 
     // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
     CardSurface {
+        variant: "panel"
         anchors.fill: parent
 
         ColumnLayout {
@@ -108,7 +109,7 @@ Item {
                             border {
                                 width: 1
                                 color: modelData.key === root.sourceKey
-                                       ? Colors.accentPressed : Colors.cardBorder
+                                       ? Colors.accentPressed : Colors.panelBorder
                             }
 
                             Text {
@@ -141,7 +142,7 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ── 开关：帧镜像（只有 Z 轴板支持）+ 暂停 + 清空 ──
             RowLayout {
@@ -194,7 +195,7 @@ Item {
                 implicitHeight: 170
                 radius: 6
                 color: Colors.pageBg
-                border { width: 1; color: Colors.cardBorder }
+                border { width: 1; color: Colors.panelBorder }
 
                 ListView {
                     id: protoView
@@ -251,7 +252,7 @@ Item {
                         color: cmdField.enabled ? Colors.pageBg : "transparent"
                         border {
                             width: 1
-                            color: cmdField.activeFocus ? Colors.accent : Colors.cardBorder
+                            color: cmdField.activeFocus ? Colors.accent : Colors.panelBorder
                         }
                     }
                 }

@@ -53,7 +53,7 @@ Item {
                 width: 3
                 height: sch.height - 12
                 radius: 1.5
-                color: sch.live ? Colors.cardBorder : Colors.pageBg
+                color: sch.live ? Colors.panelBorder : Colors.pageBg
             }
         }
         // 螺纹装饰（隔 9px 一道短横）：让人一眼看出"这是丝杠"而不是两根柱子。
@@ -72,7 +72,7 @@ Item {
                         y: 0
                         x: index === 0 ? 0 : parent.width - width
                         width: 13; height: 1
-                        color: sch.live ? Colors.cardBorder : Colors.pageBg
+                        color: sch.live ? Colors.panelBorder : Colors.pageBg
                     }
                 }
             }
@@ -84,7 +84,7 @@ Item {
             width: sch.width - 16
             height: 6
             radius: 3
-            color: sch.live ? Colors.interactivePressed : Colors.cardBorder
+            color: sch.live ? Colors.interactivePressed : Colors.panelBorder
             readonly property real _t: Math.max(0, Math.min(1,
                 sch.posZ / Math.max(1, sch.stroke)))
             y: (sch.height - 12) - _t * (sch.height - 40)
@@ -104,7 +104,7 @@ Item {
         Rectangle {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
             height: 1
-            color: Colors.cardBorder
+            color: Colors.panelBorder
         }
         Text {
             anchors { right: parent.right; bottom: parent.bottom; bottomMargin: 4 }
@@ -139,12 +139,13 @@ Item {
     implicitHeight: body.implicitHeight + 32
 
     // flat（住在折叠节里）时整块透明：不画底、不画描边、不投影 —— 否则会变成
-    // "卡片套卡片"。非 flat 时才是正常卡片。
+    // "面板套卡片"。非 flat 时按 CardSurface 的 **panel** 变体画（深一档 + 立体感）。
     CardSurface {
+        variant: "panel"
         anchors.fill: parent
         shadowed: !root.flat
-        color: root.flat ? "transparent" : Colors.cardBg
-        borderColor: root.flat ? "transparent" : Colors.cardBorderStrong
+        color: root.flat ? "transparent" : Colors.panelBg
+        borderColor: root.flat ? "transparent" : Colors.panelBorder
 
         ColumnLayout {
             id: body

@@ -73,6 +73,26 @@ QtObject {
     property color buttonShadow:           "#2b0f1c24"
     property color textOnAccent:           "#ffffff"   // 强调底（急停红等）上的文字与图标
 
+    // ── 面板层级（2026-10-08：齿轮 / 折叠"展开出来"的设置界面）──────
+    // 为什么要有：这些面板原来跟卡片一样是**白底**，展开后贴在同样是白的页面上，
+    // 只剩一圈 1px 描边 + 2px 投影 —— 用户原话"和背景一个颜色，没有立体感"。
+    // 于是层次从三级补成四级：
+    //   页面（白）→ 卡片（白底 + 描边 + 轻投影，**常驻**的）
+    //   → **面板（深一档 + 顶边内阴影 + 底边内高光，点出来的）** → 内嵌块（accentSoft）
+    // ⚠ panelBg 跟着**预设**走（从预设的 sidebar 再压深一档），四套配色各自同色系；
+    //   暗色主题取"页面(#1e1e1e)与卡片(#2f2f2f)之间"的一档：比卡片深（用户要的"深一些"）、
+    //   又比页面浅（否则整块陷进背景里，更看不出是一块面）。
+    // ⚠ 面板里的**分隔线/输入框描边**要用 panelBorder，不要再用 cardBorder：
+    //   cardBorder(#e0e0e0) 画在深一档的面板底上几乎看不见（这是"面板一深就散架"的坑）。
+    property color panelBg:                "#dfe8eb"
+    property color panelBorder:            "#c8d1d3"
+    property color panelShadow:            "#330f1c24" // 面板投影：比 cardShadow 重一档
+    // 输入框描边 / 开关"关"的轨道 / 滑块槽 —— 这组中性件**要同时坐在白卡片和面板上**。
+    // 原来它们用 cardBorder(#e0e0e0) / cardBorderStrong(#dbe4e9)：在白卡片上刚好，
+    // 一挪到深一档的面板上就"消失"（滑块只剩一个悬空的圆钮、开关只剩个钮）。所以单独
+    // 提一档灰度出来 —— 白底上读得清，面板上也读得清。
+    property color fieldBorder:            "#bcc9cf"
+
     // ── 实色强调（2026-10-08 UI 评审引入）──────────────────
     // 为什么要有：原来唯一的强调色 accent(#aee9e7) 只是"淡薄荷"，白底上对比度 ~1.4:1，
     // 选中的步长、当前导航项、主操作按钮在一片白卡片里分不出主次。
@@ -156,6 +176,7 @@ QtObject {
         "windowBg", "iconColor",
         "cardBg", "cardBorderStrong", "cardShadow", "accentSoft", "textOnAccent",
         "buttonShadow",
+        "panelBg", "panelBorder", "panelShadow", "fieldBorder",
         "accent", "accentHover", "accentPressed", "accentContent", "accentText"
     ]
 
@@ -246,6 +267,11 @@ QtObject {
         // 暗色用 ×3.2（与 interactiveChecked 同档）而不是 ×2.2：
         // ×2.2 的底上放亮强调字只有 ~2.9:1，导航选中项读不清
         _tween("accentSoft",       dark ? Qt.darker(p.accent, 3.2) : p.hover)
+        // ── 面板层级：预设 sidebar 压深一档（跟着配色走）；暗色取页面与卡片之间 ──
+        _tween("panelBg",          dark ? "#2a2a2a" : Qt.darker(p.sidebar, 1.055))
+        _tween("panelBorder",      dark ? "#454545" : Qt.darker(p.sidebar, 1.17))
+        _tween("panelShadow",      dark ? "#8c000000" : "#330f1c24")
+        _tween("fieldBorder",      dark ? "#4a4a4a" : "#bcc9cf")
         // 强调底上的文字：急停红、深色强调块上永远要白字，暗色主题也不例外
         _tween("textOnAccent",     "#ffffff")
 

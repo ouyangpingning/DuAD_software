@@ -119,7 +119,8 @@ RowLayout {
             height: 6
             radius: 3
             anchors.verticalCenter: parent.verticalCenter
-            color: "#e0e0e0"
+            // ⚠ 原来是写死的 "#e0e0e0"：白卡片上刚好，面板上就消失（见 Colors.fieldBorder）
+            color: Colors.fieldBorder
         }
 
         // 已填充轨道
@@ -128,7 +129,7 @@ RowLayout {
             width: Math.min(track.width, track.width * control.ratio)
             height: track.height
             radius: track.radius
-            color: control.enabled ? Colors.accent : Colors.cardBorderStrong
+            color: control.enabled ? Colors.accent : Colors.fieldBorder
         }
 
         // 标准刻度线：snapTicks 里的每个值在轨道上画一条短竖线
@@ -144,7 +145,7 @@ RowLayout {
                     return Math.max(0, Math.min(track.width - width, px))
                 }
                 anchors.verticalCenter: track.verticalCenter
-                color: control.enabled ? "#8a8a8a" : "#c8c8c8"
+                color: control.enabled ? Colors.textSecondary : Colors.fieldBorder
                 opacity: 0.55
             }
         }

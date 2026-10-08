@@ -39,7 +39,7 @@ RowLayout {
         background: Rectangle {
             anchors.fill: parent
             radius: height / 2
-            color: toggleBtn.on ? Colors.accent : Colors.cardBorderStrong
+            color: toggleBtn.on ? Colors.accent : Colors.fieldBorder
 
             Behavior on color { ColorAnimation { duration: 200 } }
 

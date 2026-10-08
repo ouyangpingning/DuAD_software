@@ -46,10 +46,12 @@ Item {
         NumberAnimation { duration: 250; easing.type: Easing.InOutCubic }
     }
 
-    Rectangle {
+    // 面板底板：按 CardSurface 的 **panel** 变体画（深一档 + 顶边内阴影 + 底边内高光）。
+    // 原来这里是手抄的 `Rectangle { radius: 12; color: Colors.contentBg }` —— 一深一浅
+    // 两块面板各写各的，改一处就会漂移，所以并到 CardSurface 里。
+    CardSurface {
+        variant: "panel"
         anchors.fill: parent
-        radius: 12
-        color: Colors.contentBg
 
         ColumnLayout {
             id: contentLayout
@@ -63,7 +65,7 @@ Item {
                 color: Colors.textPrimary
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             // ① 最近错误
             Text {
@@ -109,7 +111,7 @@ Item {
                 implicitHeight: 120
                 radius: 6
                 color: Colors.pageBg
-                border { width: 1; color: Colors.cardBorder }
+                border { width: 1; color: Colors.panelBorder }
 
                 ListView {
                     id: logView

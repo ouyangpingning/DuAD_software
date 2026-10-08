@@ -94,7 +94,7 @@ RowLayout {
             background: Rectangle {
                 color: Colors.contentBg
                 radius: 6
-                border { width: 1; color: Colors.cardBorder }
+                border { width: 1; color: Colors.fieldBorder }
             }
         }
 

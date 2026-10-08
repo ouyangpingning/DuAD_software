@@ -30,7 +30,7 @@ Item {
     // 尺寸
     // ============================================================
     implicitWidth: 420
-    implicitHeight: expanded ? contentLayout.implicitHeight + 32 : 0
+    implicitHeight: expanded ? contentLayout.implicitHeight + 42 : 0
     clip: true
 
     Behavior on implicitHeight {
@@ -41,6 +41,7 @@ Item {
     // 卡片本体
     // ============================================================
     CardSurface {
+        variant: "panel"
         anchors.fill: parent
 
         ColumnLayout {
@@ -60,7 +61,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 1
-                color: Colors.cardBorder
+                color: Colors.panelBorder
             }
 
             ComboRow {

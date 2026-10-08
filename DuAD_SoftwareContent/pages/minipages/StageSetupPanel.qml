@@ -69,7 +69,7 @@ Item {
     readonly property int fieldAcc: accRow.sliderValue
 
     implicitWidth: 460
-    implicitHeight: expanded ? contentLayout.implicitHeight + 32 : 0
+    implicitHeight: expanded ? contentLayout.implicitHeight + 42 : 0
     clip: true
 
     Behavior on implicitHeight {
@@ -78,6 +78,7 @@ Item {
 
     // 卡片底板：白底 + 描边 + 硬阴影（与连接卡/手动控制卡同一套，见 CardSurface.qml）
     CardSurface {
+        variant: "panel"
         anchors.fill: parent
 
         ColumnLayout {
@@ -98,7 +99,7 @@ Item {
             }
             Rectangle {
                 visible: root.showTitle
-                Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder
+                Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder
             }
 
             SectionHeader { text: qsTr("网络") }
@@ -133,7 +134,7 @@ Item {
                 wrapMode: Text.Wrap
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             SectionHeader { text: qsTr("工作区（台面行程，mm）") }
 
@@ -164,7 +165,7 @@ Item {
                 label: qsTr("Y 大"); text: root.wsYMax.toFixed(1)
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
 
             SectionHeader { text: qsTr("速度") }
 
