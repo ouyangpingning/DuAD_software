@@ -817,6 +817,8 @@ Item {
                                     step: ZStageBridge.step
                                     stepChoices: ZStageBridge.stepChoices
                                     homing: ZStageBridge.homing
+                                    // 自动回零的方向（只存上位机；板子里那个方向归「上电自动回零」）
+                                    homeDir: ZStageBridge.homeDir
 
                                     onStepPicked: function (mm) { ZStageBridge.setStep(mm) }
                                     onJogUpRequested: ZStageBridge.jogUp(0)
@@ -824,7 +826,9 @@ Item {
                                     onMoveToRequested: function (mm) { ZStageBridge.moveTo(mm) }
                                     onZeroRequested: ZStageBridge.setZero()
                                     onHomeRequested: ZStageBridge.homeNow()
-                                    // 急停同一入口：中断回零也走它（固件 `stop all` 能打断回零）
+                                    onHomeDirPicked: function (dir) { ZStageBridge.setHomeDir(dir) }
+                                    // 急停同一入口：中断回零也走它（固件 `stop all` 能打断回零，
+                                    // 而且固件侧会把 0x93 提前并重发到送达 —— 见固件 docs/使用说明 §6）
                                     onStopRequested: ZStageBridge.stopNow()
                                 }
                             }
@@ -1101,9 +1105,21 @@ Item {
                                     firmwareLo: ZStageBridge.firmwareLo
                                     firmwareHi: ZStageBridge.firmwareHi
                                     limitsSet: ZStageBridge.limitsSet
+                                    // 无限位回零的参数：板子实际在用的（json hma/hrpm/htmo）
+                                    // + 上电自动回零开关（json auto）
+                                    homeRpm: ZStageBridge.homeRpm
+                                    homeMa: ZStageBridge.homeMa
+                                    homeTmo: ZStageBridge.homeTmo
+                                    autohome: ZStageBridge.autohome
 
                                     onSpeedChanged: function (rpm, acc) {
                                         ZStageBridge.setSpeed(rpm, acc)
+                                    }
+                                    onHomeApplyRequested: function (rpm, ma, tmo) {
+                                        ZStageBridge.setHomeParams(rpm, ma, tmo)
+                                    }
+                                    onAutohomeToggled: function (on) {
+                                        ZStageBridge.setAutohome(on)
                                     }
                                     onApplyRequested: {
                                         // ⚠ 全部走面板暴露出来的 field* 属性，**不要**写

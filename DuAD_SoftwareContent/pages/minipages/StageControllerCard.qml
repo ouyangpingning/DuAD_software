@@ -226,11 +226,33 @@ Item {
 
                     // 电压 / 信号：小图标 + 数字（用户新给的 闪电/信号格 图标）。
                     // 比 "24.2V · -58dBm" 这种纯文字更快扫读，也短得多。
+                    // ⚠ 这两个图标的尺寸/颜色踩过两次坑（2026-09-29），三条一起才稳：
+                    //   ① 原来写的 `width: 11` **从来没生效**：它们是 RowLayout 的直接子项，
+                    //      布局会覆盖 width/height，实际按 `IconImage` 的 implicitWidth=24 画
+                    //      —— 用户说"有点大"就是这个 24px。
+                    //   ② 只把它改小（Layout.preferred 9）用户反馈"图标直接消失了"：
+                    //      `IconImage` 的染色走 `ColorOverlay`(ShaderEffectSource)，
+                    //      **创建之后被布局改尺寸**可能拿到过期纹理；而且我把颜色改成
+                    //      `textPlaceholder`(浅灰) 后，9px 浅灰在浅色卡片上几乎看不见。
+                    //   ③ 所以：尺寸**在创建时就定死**（implicit* 也是 10，布局不会再改它）、
+                    //      颜色**保持默认的 iconColor**（全站图标的语言就是"图标深、标签灰"）、
+                    //      大小取 10px（比 24 小一大截，又比 9 好认）。
                     IconImage {
+                        // objectName 给测试用：这两个图标的"大小与颜色"是用户点名的版面决定
+                        // （2026-09-29"后面两个图标有点大"），靠离屏截图证不了
+                        // （ColorOverlay 在离屏下不一定画出来，见 docs/19 §32），
+                        // 所以在页面测试里用断言钉住。两张卡共用本组件，改一处两张都变。
+                        objectName: "cardVoltageIcon"
                         visible: root._showTelemetry
                         Layout.alignment: Qt.AlignVCenter
-                        source: "../../images/闪电.svg"
-                        width: 11; height: 11
+                        // ⚠ 必须用 Layout.preferred*：这两个图标是 RowLayout 的**直接子项**，
+                        //   而 Layout 会覆盖子项的 width/height —— 原来看起来"大"就是因为
+                        //   `width: 11` 从来没生效，实际按 IconImage 的 implicitWidth=24 画。
+                        implicitWidth: 10          // ← 创建时就是最终尺寸（见上面 ②）
+                        implicitHeight: 10
+                        Layout.preferredWidth: 10
+                        Layout.preferredHeight: 10
+                        // ⚠ 不写 color：保持 IconImage 默认的 Colors.iconColor（深色）
                     }
                     Text {
                         visible: root._showTelemetry
@@ -239,10 +261,13 @@ Item {
                         color: Colors.textPlaceholder
                     }
                     IconImage {
+                        objectName: "cardRssiIcon"        // 同上：测试按名字找它
                         visible: root._showTelemetry
                         Layout.alignment: Qt.AlignVCenter
-                        source: "../../images/信号格.svg"
-                        width: 11; height: 11
+                        implicitWidth: 10          // 同上：创建时定死 + 保持默认深色
+                        implicitHeight: 10
+                        Layout.preferredWidth: 10
+                        Layout.preferredHeight: 10
                     }
                     Text {
                         visible: root._showTelemetry

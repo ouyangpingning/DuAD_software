@@ -71,6 +71,12 @@ class FakeBoard:
         self.fault = "none"
         self.auto = 0
         self.en = 1                      # 两轴是否使能（json 的 en）
+        # 无限位回零的参数（固件 NVS 出厂默认；`zset home` 改它，json 报它）
+        self.home_rpm = 400
+        self.home_ma = 100        # 出厂默认（2026-09-29 现场实测：100mA 可用）
+        self.home_tmo = 12000
+        self.home_dir = "down"           # 板子里存的方向（只给 zautohome 用）
+        self.home_dir_cmd = None         # 最后一次 `zhome <dir>` 用的方向
         self.rpm = 300
         self.acc = 100
         self.tgt = 0.0
@@ -95,6 +101,8 @@ class FakeBoard:
             "zmin": round(self.zmin, 2), "zmax": round(self.zmax, 2),
             "moving": self.moving, "homing": self.homing, "last": self.last,
             "fault": self.fault, "tgt": round(self.tgt, 2), "auto": self.auto,
+            # 回零参数（固件 json 的 hma/hrpm/htmo）：`zset home` 改它，界面回读它
+            "hma": self.home_ma, "hrpm": self.home_rpm, "htmo": self.home_tmo,
             "umrev": 8000, "rssi": -58, "ip": "192.168.1.43",
         })
 
@@ -175,7 +183,11 @@ class FakeBoard:
                 if "nowait" not in a:
                     # 阻塞版：固件会一直等到回零结束 —— 用来证明"界面绝不能走这条"
                     time.sleep(0.5)
-                if a[1:2] and a[1] in ("up", "down") and a[1] == "up":
+                if a[1:2] and a[1] in ("up", "down"):
+                    self.home_dir_cmd = a[1]
+                else:
+                    self.home_dir_cmd = "down"
+                if self.home_dir_cmd == "up":
                     self.homing = 1
                     return ["  向上回零 …（可选路径）"], True
                 self.homing = 1
@@ -205,11 +217,25 @@ class FakeBoard:
                     self.rpm = int(a[2])
                 elif a[1] == "acc":
                     self.acc = int(a[2])
+                elif a[1] == "home":
+                    # 固件 `zset home <rpm> <mA> [timeout_ms]`：rpm/mA 必须在场
+                    # （`argc > 3`），少一个就是 #ERR —— 照抄这条，桥少发字段能测出来
+                    if len(a) < 4:
+                        return ["  home 参数范围: rpm 1~6000, mA 1~3000"], False
+                    self.home_rpm, self.home_ma = int(a[2]), int(a[3])
+                    if len(a) > 4:
+                        self.home_tmo = int(a[4])
+                    return ["  回零参数 = %drpm / %umA / %ums"
+                            % (self.home_rpm, self.home_ma, self.home_tmo)], True
                 return ["  ok"], True
 
             if h == "zautohome":
                 self.auto = 1 if a[1] == "on" else 0
-                return ["  上电自动回零 = %s" % ("开" if self.auto else "关")], True
+                # 方向是可选参数；带了才改板子里的方向（固件 cmd_zautohome）
+                if len(a) > 2:
+                    self.home_dir = a[2]
+                return ["  上电自动回零 = %s，方向 = %s"
+                        % ("开" if self.auto else "关", self.home_dir)], True
 
             if h == "trace":
                 self.trace = (len(a) > 1 and a[1] == "on")
@@ -597,6 +623,106 @@ def main():
             str(board.commands[-2:]))
     r.check("固件侧 en 变 1", r.wait_for(lambda: b.enabled))
 
+    print("=== 20d) 无限位回零的参数（限位电流 / 转速 / 超时）===")
+    # 背景（2026-09-29 用户提的）：界面上**没法设限位电流** —— 而它正是"自动回零能不能成"
+    # 的关键。⚠ 本机经验区是**实测**出来的 60~300mA（100mA 可用；200~250mA 顶到超时也不触发），
+    # 不是 42 电机手册口径的 600mA 级 —— 早先的 300~1500 已被现场否掉。
+    # 固件早就有 `zset home <rpm> <mA> [timeout_ms]`（存 NVS），只是桥里没接。
+    r.check("默认值 = 固件出厂（400rpm / **100mA** / 12000ms）",
+            (b.homeRpm, b.homeMa, b.homeTmo) == (400, 100, 12000),
+            f"{b.homeRpm}/{b.homeMa}/{b.homeTmo}")
+    r.check("经验区是从桥里读的（QML 不许再抄一份 60/300）",
+            (b.uiHomeMaSweetLo, b.uiHomeMaSweetHi) == (60, 300),
+            f"{b.uiHomeMaSweetLo}~{b.uiHomeMaSweetHi}")
+    # ⚠ 「超时够不够」的体检值（与固件 home_travel_ms() 同一套算法）：
+    #   现场实测用户填 4000ms，而满行程要好几秒 —— 回零会在中途被判超时失败，
+    #   而现象只是"回零没跑完就停了"，用户无从判断。
+    r.check("满行程需求按板子参数算（0~250mm / 8mm 导程 / 400rpm → 7~9s）",
+            7000 <= int(b.homeTmoNeedMs) <= 9000, str(b.homeTmoNeedMs))
+    r.check("量程与固件 `zset home` 的检查一致（rpm 1~6000 / mA 1~3000）",
+            (b.uiHomeRpmMin, b.uiHomeRpmMax) == (1, 6000)
+            and (b.uiHomeMaMin, b.uiHomeMaMax) == (1, 3000),
+            f"{b.uiHomeRpmMin}~{b.uiHomeRpmMax} / {b.uiHomeMaMin}~{b.uiHomeMaMax}")
+
+    n_before = len([c for c in board.commands if c.startswith("zset home")])
+    r.check("setHomeParams 接受合法值", b.setHomeParams(500, 200, 15000) is True)
+    r.check("三个值**一起**发（固件要求 rpm+mA 都在场）",
+            r.wait_for(lambda: any(c == "zset home 500 200 15000" for c in board.commands)),
+            str([c for c in board.commands if c.startswith("zset home")][:2]))
+    r.pump(0.4)
+    r.check("只发了一条（不重复占在途）",
+            len([c for c in board.commands if c.startswith("zset home")]) == n_before + 1,
+            str([c for c in board.commands if c.startswith("zset home")][n_before:]))
+    r.check("板子接受后回读到新值（json hma/hrpm/htmo）",
+            r.wait_for(lambda: (b.homeMa, b.homeRpm, b.homeTmo) == (200, 500, 15000)),
+            f"{b.homeRpm}/{b.homeMa}/{b.homeTmo}")
+
+    board.commands.clear()
+    r.check("与板子当前值相同的三个数 → 本地判定，不发出去",
+            b.setHomeParams(500, 200, 15000) is True)
+    r.pump(0.4)
+    r.check("确实一条 zset home 都没发（省一次在途）",
+            not any(c.startswith("zset home") for c in board.commands),
+            str([c for c in board.commands if c.startswith("zset home")]))
+
+    # 越界值必须在**本地**被拦下：界面比固件宽 = 用户能填一个必然被拒的值（项目铁律）
+    for bad, why in (((500, 5000, 15000), "mA 超 3000"),
+                     ((500, 0, 15000), "mA 小于 1"),
+                     ((0, 800, 15000), "rpm 小于 1"),
+                     ((500, 800, 10), "超时太短")):
+        n0 = len([c for c in board.commands if c.startswith("zset home")])
+        r.check(f"{why} → 桥本地拒绝（不发出去）", b.setHomeParams(*bad) is False,
+                f"{bad} err={b.lastError}")
+        r.check(f"{why} → 理由里写清了范围（用户要知道填多少才对）",
+                "超出范围" in b.lastError and str(bad[0] if "rpm" in b.lastError else
+                                              bad[1] if "电流" in b.lastError else bad[2])
+                in b.lastError, b.lastError)
+        r.pump(0.2)
+        r.check(f"{why} → 板子确实没收到",
+                len([c for c in board.commands if c.startswith("zset home")]) == n0)
+
+    print("=== 20e) 自动回零的方向（只存上位机，发 zhome <方向>）===")
+    # 用户 2026-09-29 的选择：方向**只管手动按钮**，板子里那个方向归「上电自动回零」。
+    r.check("默认向下（出厂方向：往底座死点走，重力帮忙）", b.homeDir == "down", b.homeDir)
+    board.commands.clear()
+    r.check("切到向上", b.setHomeDir("up") is True and b.homeDir == "up", b.homeDir)
+    r.check("不认识的方向被拒，且不改状态",
+            b.setHomeDir("sideways") is False and b.homeDir == "up", f"{b.homeDir} {b.lastError}")
+    r.check("homeNow 照实发 `zhome up nowait`（原来写死 down）",
+            b.homeNow() is True and r.wait_for(lambda: "zhome up nowait" in board.commands),
+            str([c for c in board.commands if c.startswith("zhome")][:2]))
+    r.check("非阻塞版（绝不能发阻塞的 zhome）",
+            all("nowait" in c for c in board.commands if c.startswith("zhome")),
+            str([c for c in board.commands if c.startswith("zhome")][:2]))
+    b.stopNow()
+    r.pump(0.3)
+    r.check("切回向下", b.setHomeDir("down") is True and b.homeDir == "down", b.homeDir)
+
+    print("=== 20f) 上电自动回零：开关能发，但**不许带方向** ===")
+    # 带方向就等于顺手把板子里存的方向改掉 —— 而那个方向属于另一条路径（见 20e）
+    board.commands.clear()
+    r.check("setAutohome(True) 接受", b.setAutohome(True) is True)
+    r.check("发的是 `zautohome on`（正好两个词）",
+            r.wait_for(lambda: "zautohome on" in board.commands),
+            str([c for c in board.commands if c.startswith("zautohome")][:2]))
+    r.pump(0.4)
+    r.check("没有 extra 方向参数", all(len(c.split()) == 2 for c in board.commands
+                                      if c.startswith("zautohome")),
+            str([c for c in board.commands if c.startswith("zautohome")][:2]))
+    r.check("板子里存的方向**没被改**（仍是 down）", board.home_dir == "down", board.home_dir)
+    r.check("乐观置位：不等 json 就先亮", b.autohome is True)
+    r.check("setAutohome(False)", b.setAutohome(False) is True
+            and r.wait_for(lambda: not b.autohome))
+
+    print("=== 20g) 急停超时：必须比固件最坏耗时更长（否则迟到应答会配错命令）===")
+    # 固件的打断路径最坏 ≈ 0x93(2×250ms×2轴) + 刹车(150+500×2 每轴) ≈ 2.5s；
+    # 桥原来用默认 3s，而迟到的那条 `#OK` 会与**下一条**命令配对错位（本文件顶部列为事故）。
+    from Src.zstage_bridge import SLOW_CMD_TIMEOUT_MS
+    r.check("`stop` 有专门的超时档（不再吃默认 3000ms）", "stop" in SLOW_CMD_TIMEOUT_MS,
+            str(SLOW_CMD_TIMEOUT_MS))
+    r.check("它的值 >= 固件最坏耗时（含余量）", SLOW_CMD_TIMEOUT_MS.get("stop", 0) >= 6000,
+            str(SLOW_CMD_TIMEOUT_MS.get("stop")))
+
     print("=== 21) 断线：基准与软限位状态必须作废（板子可能重启过）===")
     r.check("断开前 datum=True", b.datum)
     b.disconnectDevice()
@@ -621,6 +747,8 @@ def main():
             repr(s.value("zstage/host")))
     r.check("测试用的假板子端口也写进去了（证明真的在用这个文件）",
             str(s.value("zstage/port")) == str(server.port), repr(s.value("zstage/port")))
+    r.check("回零方向也存在隔离文件里（只存本机，不写板子）",
+            str(s.value("zstage/home_dir")) in ("down", "up"), repr(s.value("zstage/home_dir")))
 
     server.close()
     print("\n========================================")

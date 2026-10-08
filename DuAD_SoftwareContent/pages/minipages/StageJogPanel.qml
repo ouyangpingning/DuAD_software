@@ -100,8 +100,13 @@ Item {
                 IconImage {
                     Layout.alignment: Qt.AlignVCenter
                     source: "../../images/二轴平台.svg"
-                    width: 16
-                    height: 16
+                    // ⚠ Layout 的子项必须用 Layout.preferred*：width/height 会被布局覆盖，
+                    //   实际按 implicitWidth(24) 画（2026-09-29 修，同 StageControllerCard 的遥测图标）
+                    // ⚠ implicit* 也在**创建时**定死：ColorOverlay 在创建后被改尺寸可能拿不到纹理
+                    implicitWidth: 16
+                    implicitHeight: 16
+                    Layout.preferredWidth: 16
+                    Layout.preferredHeight: 16
                 }
                 Text {
                     text: qsTr("二轴手动控制")
@@ -172,6 +177,11 @@ Item {
                     implicitHeight: 38
                     hPadding: 22
                     enabled: root.connected
+                    // ⚠ 颜色**就是状态**（与 Z 轴那张卡同一条，2026-09-29 用户要求
+                    //   "使能要有颜色指示"）：未使能 = success（淡绿，电机松着、可手推），
+                    //   已使能 = dangerSoft（淡红，闭环抱死 + 带电）。
+                    //   文字仍然是**动作**（"使能"/"失能"），状态由颜色说。
+                    tone: root.motorEnabled ? "dangerSoft" : "success"
                     // 文案是**动作**而不是状态：免得用户看着"未使能"再去点写着"未使能"的按钮。
                     // ⚠ 写在 Button.text 上（而不是只写在 contentItem 里）：
                     //   一是无障碍/自动化能读到，二是页面测试能断言它 ——
@@ -186,9 +196,13 @@ Item {
 
                     ToolTip.visible: hovered
                     ToolTip.delay: 600
-                    ToolTip.text: qsTr("失能 = 松掉电机，可以用手推台面调机械；"
-                                       + "但台面被推动后基准就废了，要重新「设为原点」。"
-                                       + "注意「设为原点」和任何运动命令都会自动重新使能。")
+                    ToolTip.text: root.motorEnabled
+                        ? qsTr("当前【已使能】（按钮淡红）：闭环抱住台面、带电。"
+                               + "点它 = 失能：松掉电机，可以用手推台面调机械；"
+                               + "但台面被推动后基准就废了，要重新「设为原点」。")
+                        : qsTr("当前【未使能】（按钮淡绿）：电机松着，可以手推台面。"
+                               + "点它 = 使能：闭环抱住台面、顶住外力。"
+                               + "注意「设为原点」和任何运动命令都会自动重新使能。")
                 }
 
                 ThemedButton {
@@ -242,7 +256,10 @@ Item {
                 IconImage {
                     Layout.alignment: Qt.AlignVCenter
                     source: "../../images/靶心.svg"
-                    width: 13; height: 13
+                    implicitWidth: 13                // 同上：创建时定死 + preferred
+                    implicitHeight: 13
+                    Layout.preferredWidth: 13
+                    Layout.preferredHeight: 13
                 }
                 Text {
                     text: qsTr("绝对定位")

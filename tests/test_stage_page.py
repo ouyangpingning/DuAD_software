@@ -207,6 +207,23 @@ class FakeZStageBridge(QObject):
                            notify=changed)
     limitLo = Property(float, lambda self: 0.0, notify=changed)
     limitHi = Property(float, lambda self: 250.0, notify=changed)
+    # ── 无限位回零的参数（2026-09-29 新增；替身必须补齐，否则页面报
+    #    `Unable to assign [undefined] to ...`，看着像页面写错了属性）──
+    homeDir = Property(str, lambda self: "down", notify=changed)
+    homeRpm = Property(int, lambda self: 400, notify=changed)
+    homeMa = Property(int, lambda self: 100, notify=changed)   # 出厂默认（实测 100mA 可用）
+    homeTmo = Property(int, lambda self: 12000, notify=changed)
+    # 「超时够不够」的体检值（2026-09-29 新增，替身照补：缺了页面会报
+    # `Unable to assign [undefined] to bool`）
+    homeTmoNeedMs = Property(int, lambda self: 8031, notify=changed)
+    uiHomeRpmMin = Property(int, lambda self: 1, notify=changed)
+    uiHomeRpmMax = Property(int, lambda self: 6000, notify=changed)
+    uiHomeMaMin = Property(int, lambda self: 1, notify=changed)
+    uiHomeMaMax = Property(int, lambda self: 3000, notify=changed)
+    uiHomeMaSweetLo = Property(int, lambda self: 60, notify=changed)
+    uiHomeMaSweetHi = Property(int, lambda self: 300, notify=changed)
+    uiHomeTmoMin = Property(int, lambda self: 1000, notify=changed)
+    uiHomeTmoMax = Property(int, lambda self: 120000, notify=changed)
 
     # ── 遥测 ──
     z = Property(float, lambda self: 0.0, notify=changed)
@@ -273,6 +290,18 @@ class FakeZStageBridge(QObject):
     @Slot(result=bool)
     def homeNow(self):
         self._rec("homeNow")
+        return True
+
+    @Slot(str, result=bool)
+    def setHomeDir(self, direction):
+        """自动回零方向（只存本机）—— 2026-09-29 新增，替身照补。"""
+        self._rec("setHomeDir", direction)
+        return True
+
+    @Slot(int, int, int, result=bool)
+    def setHomeParams(self, rpm, ma, tmo):
+        """无限位回零的三个参数 —— 2026-09-29 新增，替身照补。"""
+        self._rec("setHomeParams", rpm, ma, tmo)
         return True
 
     @Slot()

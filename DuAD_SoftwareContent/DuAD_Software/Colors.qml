@@ -39,6 +39,12 @@ QtObject {
     // ── 状态色 ──────────────────────────────────────────────
     property color statusConnected:        "#27ae60"
     property color statusDisconnected:     "#e74c3c"
+    // 「松 / 未使能」的软绿底（2026-09-29 用户要求：使能状态必须用颜色说话）：
+    //   绿 = 电机不出力（可以手推平台调机械，安全）
+    //   淡红（dangerSoft）= 已使能（闭环抱死、带电 —— 危险的那一侧）
+    // 只补一个"底"，描边与文字直接用 statusConnected，与 dangerSoft 的用法对称；
+    // ⚠ 不要拿它当"成功"用（那是语义污染，这个色是给"未使能"这一种状态用的）。
+    property color successSoft:            "#e8f7ee"
 
     // ── 卡片 ────────────────────────────────────────────────
     property color cardBorder:             "#e0e0e0"
@@ -128,7 +134,7 @@ QtObject {
         "sidebarBg", "contentBg", "pageBg",
         "interactiveHover", "interactivePressed", "interactiveChecked",
         "textPrimary", "textSecondary", "textPlaceholder",
-        "statusConnected", "statusDisconnected",
+        "statusConnected", "statusDisconnected", "successSoft",
         "cardBorder", "cardDangerBg", "cardDangerHover", "cardDangerBorder",
         "windowBg", "iconColor",
         "cardBg", "cardBorderStrong", "cardShadow", "accentSoft", "textOnAccent",
@@ -205,6 +211,8 @@ QtObject {
         // ── 状态色：暗色用亮版本提高可读性 ──
         _tween("statusConnected", dark ? "#4cd964" : "#27ae60")
         _tween("statusDisconnected", dark ? "#ff6b6b" : "#e74c3c")
+        // 未使能的软绿底：暗色下压成深绿底，statusConnected 的亮绿字才读得清
+        _tween("successSoft", dark ? "#1b3527" : "#e8f7ee")
 
         // ── 卡片断开红：暗色用暗红避免刺眼 ──
         _tween("cardDangerBg",    dark ? "#3a2020" : "#fef0f0")

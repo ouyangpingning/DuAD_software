@@ -83,6 +83,17 @@ class FakeZBoard:
         self.trace = False
         self.rpm = 300
         self.acc = 100
+        # 使能状态（json 的 en）：假板子照固件从 0 开始，但**本文件的历史断言**
+        # 都建立在"连着就是已使能"上（原来这里硬写 "en": 1）。为不动别处的断言，
+        # 初值仍是 1；`en all` / `dis all` 会真的改它 —— 界面颜色断言就靠这个。
+        self.en = 1
+        # 无限位回零的参数（固件 NVS 出厂默认）：`zset home` 改它，json 报它
+        self.home_rpm = 400
+        self.home_ma = 100       # 出厂默认（现场实测 100mA 可用）
+        self.home_tmo = 12000
+        self.home_dir = "down"       # 板子里存的方向（只给 zautohome 用）
+        self.home_dir_cmd = None     # 最后一次 `zhome <dir>` 用的方向
+        self.home_cmds = []
         self.step_seen = []
         self.commands = []
         # 轮询几次之后才算"走到位"（对应固件 pend_poll 的到位判定）
@@ -93,11 +104,14 @@ class FakeZBoard:
     def json_line(self):
         return json.dumps({
             "z": round(self.z, 3), "skew": 0.02, "a": int(self.z * 6400),
-            "b": int(self.z * 6400), "v": 24.1, "en": 1, "datum": self.datum,
+            "b": int(self.z * 6400), "v": 24.1, "en": self.en, "datum": self.datum,
             "lim": self.lim, "zmin": self.lim_win[0], "zmax": self.lim_win[1],
             "moving": self.moving, "homing": self.homing, "last": self.last,
             "fault": self.fault, "tgt": self.z, "auto": self.auto,
-            "umrev": 8000, "rssi": -61, "ip": "192.168.1.43",
+            "umrev": 8000,
+            # 回零参数（固件 json 的 hma/hrpm/htmo）—— 界面"板子当前生效"那一行靠它
+            "hma": self.home_ma, "hrpm": self.home_rpm, "htmo": self.home_tmo,
+            "rssi": -61, "ip": "192.168.1.43",
         })
 
     def handle(self, cmd):
@@ -167,15 +181,38 @@ class FakeZBoard:
                     self.rpm = int(a[2])
                 elif a[1] == "acc":
                     self.acc = int(a[2])
+                elif a[1] == "home":
+                    # `zset home <rpm> <mA> [timeout_ms]` —— 固件要求 rpm/mA **都在场**
+                    # （`argc > 3`），超时可省（省了=保留原值）。照抄这个语义，
+                    # 否则桥少发一个字段也测不出来。
+                    if len(a) < 4:
+                        return ["  home 参数范围: rpm 1~6000, mA 1~3000"], False
+                    self.home_rpm, self.home_ma = int(a[2]), int(a[3])
+                    if len(a) > 4:
+                        self.home_tmo = int(a[4])
+                    return ["  回零参数 = %drpm / %umA / %ums"
+                            % (self.home_rpm, self.home_ma, self.home_tmo)], True
                 else:
                     return ["  zset: 参数不合法"], False
                 return ["  已设 %s = %s" % (a[1], a[2])], True
 
+            if h in ("en", "dis"):
+                self.en = 1 if h == "en" else 0
+                return ["  left : ok", "  right: ok"], True
+
             if h == "zautohome":
+                # 方向是**可选**参数：不带就保留板子里存的方向（固件 cmd_zautohome）。
                 self.auto = 1 if (len(a) > 1 and a[1] == "on") else 0
-                return ["  上电自动回零 = %s" % ("开" if self.auto else "关")], True
+                if len(a) > 2:
+                    self.home_dir = a[2]
+                return ["  上电自动回零 = %s，方向 = %s"
+                        % ("开" if self.auto else "关", self.home_dir)], True
 
             if h == "zhome":
+                # `zhome [up|down] [nowait]`；方向写进日志供断言（桥原来写死 down）
+                self.home_cmds.append(cmd)
+                if len(a) > 1 and a[1] in ("up", "down"):
+                    self.home_dir_cmd = a[1]
                 self.homing = 1
                 self.moving = 1
                 return ["  回零已启动（非阻塞）"], True
@@ -526,21 +563,212 @@ def main():
             acc_row is not None and float(acc_row.property("from")) >= 1.0,
             f"from={acc_row.property('from') if acc_row else 'N/A'}")
 
-    # ⚠ 「上电自动回零」开关 2026-09-28 **从界面删掉**了（用户：只留最常用的操作，
-    #   细节去后端控制台）。所以这里是一条**反向断言**：控件不许偷偷回来。
+    # ⚠ 「上电自动回零」开关的历史换过一次方向，读这条之前先看日期：
+    #   2026-09-28 曾**从界面删掉**（用户：只留最常用的操作）→ 那时这里是
+    #   "控件不许偷偷回来"的反向断言；
+    #   2026-09-29 用户**要求加回来**（配合限位电流一起调）→ 断言反过来：
+    #   控件必须在、且真的发命令，而且 `zautohome` **不许带方向**
+    #   （方向归手动按钮的 setHomeDir，两条路径分开 —— 带 `down` 就等于
+    #    顺手把板子里存的方向改掉了）。
     ah = find("zAutohomeSwitch")
-    r.check("「上电自动回零」开关已从界面移除（改控制台 zauto / 协议框自定义命令）",
-            ah is None, f"找到了 {ah}")
-    # ⚠ 反向断言只钉**界面入口**，别把能力一起删了：桥的 setAutohome() 必须还在
-    #   （板子照旧认这条命令，主机侧也还能发）。删掉能力才是真回归 ——
-    #   AGENTS.md 第 18 条："删 UI 要给反向断言"，但反向的是 UI，不是功能。
+    r.check("「上电自动回零」开关在界面上（2026-09-29 用户要求加回）", ah is not None)
+    r.check("开关显示的是**板子里**的当前状态（json auto）",
+            ah is not None and bool(ah.property("on")) == bool(zstage.autohome),
+            f"switch={ah.property('on') if ah else None} bridge={zstage.autohome}")
     zserver.board.commands.clear()
     zstage.setAutohome(True)
-    r.check("桥仍然能下发 zautohome（删的是界面入口，不是能力）",
+    r.check("桥能下发 zautohome（能力一直在）",
             r.wait_for(lambda: any(c.startswith("zautohome") for c in zserver.board.commands), 3),
             str([c for c in zserver.board.commands if c.startswith("zautohome")][:1]))
+    r.check("下发的 zautohome **不带方向**（带方向会顺手改掉板子里的方向）",
+            all(len(c.split()) == 2 for c in zserver.board.commands
+                if c.startswith("zautohome")),
+            str([c for c in zserver.board.commands if c.startswith("zautohome")][:2]))
+    r.check("板子接受后开关跟着亮（乐观置位 + json 回读）",
+            r.wait_for(lambda: bool(find("zAutohomeSwitch").property("on")) is True),
+            f"switch={find('zAutohomeSwitch').property('on')} board={zserver.board.auto}")
     zstage.setAutohome(False)
+    r.pump(0.3)
+
+    # ── 使能状态的颜色指示（2026-09-29 用户："使能要有颜色指示"）──
+    # 语义是按用户原话定的：**未使能 = 绿（success）**（电机松着、可手推，安全），
+    # **已使能 = 淡红（dangerSoft）**（闭环抱死 + 带电）。刻意不用实心红 danger，
+    # 免得跟同一张卡里的「停止」撞脸。
+    # ── 遥测图标的大小与颜色（用户 2026-09-29："后面两个图标有点大"）──
+    # ⚠ 这条守卫为什么用断言而不是截图：这两个图标是 `IconImage`（ColorOverlay + SVG），
+    #   离屏渲染下不一定画得出来（连卡片右上角的齿轮都可能不画，见 docs/19 §32），
+    #   所以"大小/颜色"这类版面决定用属性断言钉住，人眼复核交给真机。
+    #   两张卡共用 StageControllerCard.qml，所以这条同时也管住 X/Y 那张。
+    print("=== 8a0) 遥测图标：比原来的 24px 小，但别小到看不见 ===")
+    # 背景（2026-09-29 两次现场）：① 用户说"后面两个图标有点大" —— 真因是它们作为
+    # RowLayout 的子项，`width: 11` 被布局覆盖，实际按 IconImage 的 implicitWidth=24 画；
+    # ② 只把尺寸改小（Layout.preferred 9）后用户反馈"图标直接消失了" ——
+    #    IconImage 染色走 ColorOverlay，**创建后被布局改尺寸**可能拿不到纹理，
+    #    而且当时还把颜色改成了浅灰，9px 浅灰在浅色卡片上几乎看不见。
+    # 所以最终写法 = 尺寸**创建时定死**（implicit 10）+ preferred 10 + **保持默认深色**。
+    for card_name, label in (("zControllerCard", "Z 轴"), ("xyControllerCard", "X/Y")):
+        card = find(card_name)
+        r.check(f"找到{label}连接卡", card is not None)
+        if card is None:
+            continue
+        for icon_name, what in (("cardVoltageIcon", "电压闪电"), ("cardRssiIcon", "信号格")):
+            ic = card.findChild(QObject, icon_name) if card else None
+            r.check(f"{label}：{what}图标存在（objectName 是测试的抓手）", ic is not None)
+            if ic is None:
+                continue
+            # 只对**可见**的图标断言实际尺寸：布局只给可见子项分配几何，
+            # 不可见时保持 implicit —— 那是正常现象，不是回归。
+            vis = bool(ic.property("visible"))
+            r.check(f"{label}：{what}图标可见时是 10×10（原来被布局按 24 画）",
+                    (not vis) or (int(ic.property("width")) == 10
+                                  and int(ic.property("height")) == 10),
+                    f"visible={vis} {ic.property('width')}x{ic.property('height')}")
+            # ⚠ implicit 也必须一起钉住：那是"创建时定尺寸"的那一半，
+            #   少了它 = ColorOverlay 可能在布局改写尺寸后画不出东西（用户实测过）。
+            r.check(f"{label}：{what}图标的 implicit 尺寸同为 10（创建时定死）",
+                    int(ic.property("implicitWidth")) == 10
+                    and int(ic.property("implicitHeight")) == 10,
+                    f"implicit={ic.property('implicitWidth')}x{ic.property('implicitHeight')}")
+
+    # 同类坑的另一半：两张手动控制卡的标题图标(16)与「绝对定位」靶心(13)，
+    # 原来也都在按 24px 画 —— 用 objectName 钉住（Z 轴那张是用户天天看的）。
+    for icon_name, want, what in (("jogTitleIcon", 16, "卡标题图标"),
+                                  ("jogTargetIcon", 13, "绝对定位靶心")):
+        ic = find(icon_name)
+        r.check(f"Z 手动控制卡：{what}存在（objectName 是抓手）", ic is not None)
+        if ic is not None:
+            r.check(f"Z 手动控制卡：{what} = {want}px（原来被布局按 24 画）",
+                    int(ic.property("width")) == want and int(ic.property("height")) == want,
+                    f"{ic.property('width')}x{ic.property('height')}")
+
+    print("=== 8a) 使能状态用颜色说话（未使能=绿 / 已使能=淡红）===")
+    en_btn = find("zEnableButton")
+    r.check("找到使能按钮", en_btn is not None)
+    r.check("假板子当前已使能（json en=1）", bool(zstage.enabled) is True,
+            f"enabled={zstage.enabled}")
+    r.check("已使能 → tone = dangerSoft（淡红）",
+            str(en_btn.property("tone")) == "dangerSoft" if en_btn else False,
+            f"tone={en_btn.property('tone') if en_btn else 'N/A'}")
+    # 文字是**动作**（此刻已使能 ⇒ 按钮写"失能"），状态由颜色说 —— 这条 2026-09-28
+    # 定下的规矩没变；先断言再点，点完文字就会翻成"使能"。
+    r.check("使能按钮的文字仍然是**动作**（本次是「失能」），不是状态词",
+            str(en_btn.property("text")) == "失能",
+            repr(en_btn.property("text")))
+    en_btn.clicked.emit()
+    r.check("点击后真的发了失能命令（dis all）",
+            r.wait_for(lambda: any(c.startswith("dis") for c in zserver.board.commands), 3),
+            str([c for c in zserver.board.commands if c.startswith("dis")][:1]))
+    r.check("失能后按钮 tone 变成 success（淡绿）",
+            r.wait_for(lambda: str(find("zEnableButton").property("tone")) == "success", 3),
+            f"tone={find('zEnableButton').property('tone')} enabled={zstage.enabled}")
+    r.check("失能后文字翻成「使能」（动作跟着状态走）",
+            str(find("zEnableButton").property("text")) == "使能",
+            repr(find("zEnableButton").property("text")))
+    r.check("X/Y 那张卡是同一套颜色语言（否则两张卡看起来像两个软件）",
+            str(find("enableButton").property("tone")) in ("success", "dangerSoft"),
+            f"tone={find('enableButton').property('tone')}")
+    find("zEnableButton").clicked.emit()          # 恢复使能，别影响后面的用例
+    r.check("使能回来（en all）", r.wait_for(lambda: bool(zstage.enabled) is True, 3))
+
+    # ── 无限位回零的参数（限位电流 / 转速 / 超时）──────────────
+    print("=== 8a2) 自动回零参数：板子值回读 + 写入 + 甜点区警告 ===")
+    ma_row = find("zHomeMaField")
+    rpm_row2 = find("zHomeRpmField")
+    tmo_row = find("zHomeTmoField")
+    r.check("三个输入框都在（限位电流/回零转速/回零超时）",
+            ma_row is not None and rpm_row2 is not None and tmo_row is not None)
+    r.check("限位电流框显示的是**板子实际在用的值**（json hma）",
+            ma_row is not None and str(ma_row.property("text")) == str(zserver.board.home_ma),
+            f"field={ma_row.property('text') if ma_row else None} board={zserver.board.home_ma}")
+    cur = find("zHomeCurrentText")
+    r.check("有「板子当前生效」那一行（我填的 vs 板子正在用的要能对上）",
+            cur is not None and "100" in str(cur.property("text")),
+            repr(cur.property("text")) if cur else "None")
+
+    warn = find("zHomeMaWarn")
+    # ⚠ 断言 `visible` 之前**必须先把折叠节展开**：Qt Quick 的 visible 会向下传染
+    #   （父项不可见 ⇒ 子项的 visible 读出来也是 false），而这里量的是"警告该不该出现"。
+    #   折叠着断言永远失败，而那不是 bug —— 这条踩过一次，别再删掉这两行。
+    page.setProperty("_zSetupOpen", True)
+    r.pump(0.4)
+    r.check("100mA 在经验区 → 不显示警告",
+            warn is not None and bool(warn.property("visible")) is False)
+    ma_row.setProperty("text", "40")
     r.pump(0.2)
+    r.check("填 40mA（已接近空转 40mA）→ 当场警告「假成功」",
+            bool(find("zHomeMaWarn").property("visible")) is True
+            and "假成功" in str(find("zHomeMaWarn").property("text")),
+            repr(find("zHomeMaWarn").property("text")))
+    ma_row.setProperty("text", "2000")
+    r.pump(0.2)
+    r.check("填 2000mA（远高于经验区）→ 警告「永远不触发」",
+            "永远不触发" in str(find("zHomeMaWarn").property("text")),
+            repr(find("zHomeMaWarn").property("text")))
+
+    ma_row.setProperty("text", "200")
+    rpm_row2.setProperty("text", "400")
+    tmo_row.setProperty("text", "20000")
+    r.pump(0.2)
+    r.check("超时 20000ms 够用 → 不显示「超时偏短」警告",
+            bool(find("zHomeTmoWarn").property("visible")) is False,
+            repr(find("zHomeTmoWarn").property("text")))
+    # ⚠ 现场实测的坑（2026-09-29）：用户把超时填成 4000ms，而满行程要好几秒 ——
+    #   平台离死点远时这次回零会在**中途**被判超时，现象只是"回零没跑完就停了"。
+    r.check("桥算出的满行程需求与固件同一套算法（限位 0~250mm / 导程 8mm / 400rpm → 7~9s）",
+            7000 <= int(zstage.homeTmoNeedMs) <= 9000, str(zstage.homeTmoNeedMs))
+    tmo_row.setProperty("text", "4000")
+    r.pump(0.3)
+    r.check("超时 4000ms 短于满行程需求 → 当场警告「超时偏短」",
+            bool(find("zHomeTmoWarn").property("visible")) is True
+            and "超时偏短" in str(find("zHomeTmoWarn").property("text")),
+            repr(find("zHomeTmoWarn").property("text")))
+    tmo_row.setProperty("text", "20000")
+    r.pump(0.2)
+    zserver.board.commands.clear()
+    find("zHomeApplyButton").clicked.emit()
+    r.check("「写入回零参数」把三个值一起发出去（固件要求 rpm+mA 都在场）",
+            r.wait_for(lambda: any(c.startswith("zset home") for c in zserver.board.commands), 3),
+            str([c for c in zserver.board.commands if c.startswith("zset home")][:1]))
+    r.check("发出去的就是界面上填的那三个值",
+            any(c == "zset home 400 200 20000" for c in zserver.board.commands),
+            str([c for c in zserver.board.commands if c.startswith("zset home")][:2]))
+    r.check("板子接受后界面回读到新值（限位电流 200）",
+            r.wait_for(lambda: int(zstage.homeMa) == 200), f"homeMa={zstage.homeMa}")
+    # 越界值要被桥**拦在本地**（界面比固件宽 = 用户能填一个必然被拒的值）
+    r.check("超出 1~3000 的限位电流被桥本地拒绝（不会发出去）",
+            zstage.setHomeParams(400, 5000, 12000) is False
+            and not any(c == "zset home 400 5000 12000" for c in zserver.board.commands),
+            repr(zstage.lastError))
+    ma_row.setProperty("text", "200")
+    r.pump(0.2)
+
+    # ── 自动回零的方向（只存上位机）──────────────────────────
+    print("=== 8a3) 自动回零方向：界面上选，发 zhome <方向> ===")
+    r.check("默认方向是「向下」（出厂方向：往底座死点走，重力帮忙）",
+            str(zstage.homeDir) == "down", f"homeDir={zstage.homeDir}")
+    down_chip, up_chip = find("zHomeDirChip_down"), find("zHomeDirChip_up")
+    r.check("方向芯片都在（向下/向上）", down_chip is not None and up_chip is not None)
+    r.check("默认高亮「向下」", down_chip is not None
+            and bool(down_chip.property("checked")) is True)
+    up_chip.clicked.emit()
+    r.check("点「向上」→ 桥里的方向跟着改（单向数据流）",
+            r.wait_for(lambda: str(zstage.homeDir) == "up"), f"homeDir={zstage.homeDir}")
+    r.check("换方向**不写板子**（板子里那个方向归「上电自动回零」）",
+            not any(c.startswith("zautohome") for c in
+                    [x for x in zserver.board.commands if "up" in x]),
+            str([c for c in zserver.board.commands if c.startswith("zautohome")][:2]))
+    zserver.board.home_cmds.clear()
+    zstage.homeNow()
+    r.check("自动回零照实发 `zhome up nowait`（原来写死 down）",
+            r.wait_for(lambda: any(c.startswith("zhome up") for c in zserver.board.commands), 3),
+            str([c for c in zserver.board.commands if c.startswith("zhome")][:2]))
+    zstage.stopNow()
+    r.pump(0.3)
+    find("zHomeDirChip_down").clicked.emit()
+    r.pump(0.2)
+    # 恢复折叠状态：后面的用例建立在"设置节收着"的基础上（展开是第 14 节干的活）
+    page.setProperty("_zSetupOpen", False)
+    r.pump(0.3)
 
     print("=== 8b) 闸门阶梯③：应用软限位 → 闸门全开 ===")
     lo, hi = find("zLimitLoField"), find("zLimitHiField")
@@ -800,9 +1028,13 @@ def main():
     # **该怎么做**（故障处置、未配置地址）。
     # 这条用"禁止短语"钉住：删了又长回来时这里会红。不写这条的话，半年后
     # 没人记得"当初为什么删" —— 然后一条条又贴回去了（AGENTS.md 第 18 条同一个道理）。
+    # ⚠ 「上电自动回零」2026-09-29 从这个黑名单里**移除**了：它不再是"删掉的静态
+    #   说明"，而是用户要求加回来的**控件**（开关的 label 就是这四个字，会命中短语
+    #   检查）。黑名单盯的是"解释性段落"，不是"控件标签" —— 两个混在一起会逼着
+    #   下一个人把控件改名来骗测试。
     banned = ["关节读数", "方向符号 %1", "固件实际在用的软限位", "可选路径",
               "json 是轮询命令", "暂停记录」只停界面追加", "自定义命令的语法",
-              "每点一次走一个步长", "超出软限位的目标", "上电自动回零"]
+              "每点一次走一个步长", "超出软限位的目标"]
     texts = []
     for t in page.findChildren(QObject):
         if "Text" in t.metaObject().className():

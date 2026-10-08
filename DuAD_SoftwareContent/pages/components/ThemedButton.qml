@@ -32,7 +32,15 @@ import DuAD_Software
         neutral     白底 + 描边 + 阴影        普通动作（使能/设为原点/前往/发送…）
         soft        淡强调底 accentSoft        "提交一个动作"（移动到该位置/应用设置/记录）
         danger      实心红 statusDisconnected  急停
-        dangerSoft  淡红底 + 红描边 + 红字      危险但次要（中断回零）
+        dangerSoft  淡红底 + 红描边 + 红字      危险但次要（中断回零）／**已使能**
+        success     淡绿底 + 绿描边 + 绿字      **未使能**（电机松着，可以手推平台）
+
+    ⚠ 使能按钮的两种状态用色（2026-09-29 用户要求"状态要看得出来"）：
+        · 未使能 → `success`（绿）—— 电机不出力 = 可以手推平台去靠块，安全的一侧
+        · 已使能 → `dangerSoft`（淡红）—— 闭环抱死 + 带电，危险的一侧
+      刻意**不**用 `danger`（实心红）：同一张卡里已经有实心红的「停止」，
+      两个实心红按钮会让人分不清哪个是急停。禁用态（未连接）一律回中性白：
+      状态未知时显示绿色等于撒谎。
 
     ⚠ 图标一律走 `IconText`（不用 Unicode 字形当图标）；文字仍然写在 **Button.text**
       上，无障碍/自动化与页面测试都靠它（写到 contentItem 里读出来是空串 —— 假断言）。
@@ -59,6 +67,7 @@ Button {
     readonly property bool _isDanger: tone === "danger"
     readonly property bool _isDangerSoft: tone === "dangerSoft"
     readonly property bool _isSoft: tone === "soft"
+    readonly property bool _isSuccess: tone === "success"
 
     readonly property color _fill: {
         if (!root.enabled) {
@@ -66,6 +75,8 @@ Button {
             // 用户会以为急停按钮没了 —— 它必须一直看得见，只是按不动）
             if (_isDanger) return Colors.cardDangerHover
             if (_isSoft || _isDangerSoft) return Colors.cardDangerBg
+            // success 禁用走中性白：它表达的是"此刻的电机状态"，而没连上时
+            // 状态是**未知**——画成绿色等于撒谎（见文件头的用途说明）。
             return Colors.cardBg
         }
         if (_isDanger)     return root.pressed ? Qt.darker(Colors.statusDisconnected, 1.25)
@@ -73,6 +84,9 @@ Button {
                                                                : Colors.statusDisconnected)
         if (_isDangerSoft) return root.pressed || root.hovered ? Colors.cardDangerHover
                                                                : Colors.cardDangerBg
+        if (_isSuccess)    return root.pressed || root.hovered
+                                  ? Qt.darker(Colors.successSoft, 1.08)
+                                  : Colors.successSoft
         // 选中态（checkable，如 DetectPage 的「开始/停止采集」开关按钮）：
         // 与项目里别处的"选中"语言一致 —— 强调色实底
         if (root.checked)  return root.pressed ? Qt.darker(Colors.interactivePressed, 1.12)
@@ -88,6 +102,7 @@ Button {
     readonly property color _borderColor: {
         if (_isDanger)     return Qt.darker(Colors.statusDisconnected, 1.15)
         if (_isDangerSoft) return Colors.statusDisconnected
+        if (_isSuccess)    return root.enabled ? Colors.statusConnected : Colors.cardBorderStrong
         // 静止态给一档更清楚的描边，悬停/按下/选中时换成强调色 —— "可点"这件事要看得见
         if (root.enabled && (root.hovered || root.pressed || root.checked))
             return Colors.interactivePressed
@@ -97,6 +112,7 @@ Button {
     readonly property color _fg: {
         if (_isDanger)     return root.enabled ? Colors.textOnAccent : Colors.textPlaceholder
         if (_isDangerSoft) return Colors.statusDisconnected
+        if (_isSuccess)    return root.enabled ? Colors.statusConnected : Colors.textPlaceholder
         return root.enabled ? Colors.textPrimary : Colors.textPlaceholder
     }
 

@@ -49,6 +49,12 @@ CMD_TIMEOUT_MS = 3000
 SLOW_CMD_TIMEOUT_MS = {
     "hcalib": 30000, "hfactory": 30000, "save": 15000, "hauto": 10000,
     "zrel": 30000, "zabs": 30000, "zhome": 60000, "ztilt": 30000,
+    # ⚠ `stop all` 不在"立即回话"那一档里：固件的打断路径最坏要
+    #   ① 0x93 打断（2 次 × 250ms × 2 轴）+ ② 刹车（150ms + 500ms×2 每轴）
+    #   ≈ 2.5s，而**原来 3s 的默认超时比它还短** —— 迟到的 `#OK` 会与下一条命令
+    #   配对错位（这个文件顶部就把它列为事故），界面还会挂一条假的"急停超时"。
+    #   给到 8s：留够重发窗口(HOME_ABORT_BUDGET_MS 1.5s) + 总线争用的余量。
+    "stop": 8000,
 }
 # `zzero` 要读两次位置再写驱动器零点，比普通命令慢；给宽一点。
 ZERO_TIMEOUT_MS = 8000
@@ -77,6 +83,31 @@ UI_MAX_ACC = MAX_ACC
 # 出厂默认（与固件 `board_config.h` 一致：300rpm / acc 100）
 DEFAULT_RPM = 300
 DEFAULT_ACC = 100
+
+# ── 无限位回零的参数（固件 `zset home <rpm> <mA> <timeout_ms>`，存板子 NVS）────
+# ⚠ 范围与固件 `cmd_zset` 的检查**逐条对齐**（super 1~6000 / mA 1~3000），
+#   这些数字只许有这一份：界面比固件宽 = 用户能填一个必然被拒的值。
+HOME_RPM_MIN, HOME_RPM_MAX = 1, 6000
+HOME_MA_MIN, HOME_MA_MAX = 1, 3000
+HOME_TMO_MIN, HOME_TMO_MAX = 1000, 120000
+# 经验甜点区：低于空转电流(≈40mA)会「一动就报完成」（假成功），
+# 高于堵转电流(≈1500~2700mA)永远不触发（假失败）。固件在 `zset home` 里
+# 会用同样两条线打警告 —— 界面在**填的当下**就把话说清楚，别等下发完才说。
+# ⚠⚠ 2026-09-29 现场实测把本机的经验区改小了：**100mA 能正常判到位**，而
+#   **200~250mA 会「顶到驱动器超时也不触发」** —— 说明这台机器顶住时相电流只有
+#   一百多 mA（不是 42 电机手册口径的 600mA 级）。早先的 300~1500 是从别处抄的
+#   经验值，**实测被否掉**。现在与固件 `board_config.h` 的 60~300mA 对齐。
+HOME_MA_SWEET_LO, HOME_MA_SWEET_HI = 60, 300
+# 出厂默认（= 固件 `board_config.h`：BOARD_Z_HOME_RPM 400 / MA 100 / TMO 12000）
+DEFAULT_HOME_RPM = 400
+DEFAULT_HOME_MA = 100
+DEFAULT_HOME_TMO = 12000
+
+# 回零方向（`zhome up|down`）。⚠ 它是**上位机侧**的选择（存 QSettings），
+#   不写板子：板子上的方向（`home_dir`）只归「上电自动回零」用 —— 用户明确
+#   要求这两条路径分开，别把它们悄悄合并。
+HOME_DIRS = ("down", "up")
+DEFAULT_HOME_DIR = "down"
 
 # 软限位默认值（固件出厂 = 0 ~ 250mm，对应 300mm 丝杠的 250mm 有效行程）。
 DEFAULT_Z_LO = 0.0
@@ -120,6 +151,30 @@ def _inum(value: Any, fallback: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _axis_fault_text(err: str) -> str:
+    """把固件 `{"err":"left=ESP_ERR_TIMEOUT right=ok"}` 翻成一句人话。
+
+    ⚠ 只在**两边都不正常**时才提超时码；一边好一边坏时只说坏的那边 ——
+    现场那条红字原来是 `{"err":"pos read failed: left=ESP_ERR_TIMEOUT right=ESP_OK"}`，
+    用户看不懂"ESP_ERR_TIMEOUT"更不知道该做什么。
+    """
+    bad = []
+    for part in err.replace("pos read failed:", "").split():
+        if "=" not in part:
+            continue
+        name, val = part.split("=", 1)
+        v = val.strip().lower()
+        # 固件可能回 `ok` 也可能回 `ESP_OK`（读成功时按轴回不同的字面量）——
+        # 判"好"用**包含 ok**，别写成等于。
+        if "ok" in v or v in ("1", "0"):
+            continue
+        bad.append("左轴" if name.strip().startswith("left") else
+                   "右轴" if name.strip().startswith("right") else name.strip())
+    if not bad:
+        return "驱动器没有应答"
+    return "、".join(bad) + "没有应答"
 
 
 def _bool(value: Any, fallback: bool = False) -> bool:
@@ -188,6 +243,10 @@ class ZStageBridge(QObject):
         self._step = _fnum(self._settings.value("zstage/step", DEFAULT_STEP), DEFAULT_STEP)
         self._lim_lo = _fnum(self._settings.value("zstage/lim_lo", DEFAULT_Z_LO), DEFAULT_Z_LO)
         self._lim_hi = _fnum(self._settings.value("zstage/lim_hi", DEFAULT_Z_HI), DEFAULT_Z_HI)
+        # 回零方向（只存本机，见 HOME_DIRS 的注释）。⚠ 也要认老值/手改的 ini：
+        #   不认的值一律回落到出厂方向，别把一个乱字符串拼进 `zhome <dir> nowait`。
+        hd = str(self._settings.value("zstage/home_dir", DEFAULT_HOME_DIR)).strip().lower()
+        self._home_dir = hd if hd in HOME_DIRS else DEFAULT_HOME_DIR
 
         # ── 状态位 ──────────────────────────────────────
         self._connecting = False
@@ -218,6 +277,11 @@ class ZStageBridge(QObject):
         self._um_per_rev = 8000
         self._rssi = 0
         self._board_ip = ""
+        # 回零参数：**板子实际在用的**（json 的 hma/hrpm/htmo）。
+        # 值先按出厂默认填，连上后由 json 覆盖 —— 界面显示"板子当前生效"靠它。
+        self._home_ma = DEFAULT_HOME_MA
+        self._home_rpm = DEFAULT_HOME_RPM
+        self._home_tmo = DEFAULT_HOME_TMO
 
         # 方向符号（`zsign` 读回来的；json 里没有这两个字段）
         self._sign_text = ""
@@ -351,6 +415,19 @@ class ZStageBridge(QObject):
     limitLo = Property(float, lambda self: self._lim_lo, notify=telemetryChanged)
     limitHi = Property(float, lambda self: self._lim_hi, notify=telemetryChanged)
 
+    # ── 无限位回零的参数 ──────────────────────────────────
+    # 量程/甜点区一律从桥里读（项目铁律：同一个数字出现在两处迟早漂移）。
+    # QML 侧只做显示，不许再抄一份 1~3000 / 300~1500。
+    homeDir = Property(str, lambda self: self._home_dir, notify=telemetryChanged)
+    uiHomeRpmMin = Property(int, lambda self: HOME_RPM_MIN, notify=telemetryChanged)
+    uiHomeRpmMax = Property(int, lambda self: HOME_RPM_MAX, notify=telemetryChanged)
+    uiHomeMaMin = Property(int, lambda self: HOME_MA_MIN, notify=telemetryChanged)
+    uiHomeMaMax = Property(int, lambda self: HOME_MA_MAX, notify=telemetryChanged)
+    uiHomeMaSweetLo = Property(int, lambda self: HOME_MA_SWEET_LO, notify=telemetryChanged)
+    uiHomeMaSweetHi = Property(int, lambda self: HOME_MA_SWEET_HI, notify=telemetryChanged)
+    uiHomeTmoMin = Property(int, lambda self: HOME_TMO_MIN, notify=telemetryChanged)
+    uiHomeTmoMax = Property(int, lambda self: HOME_TMO_MAX, notify=telemetryChanged)
+
     # ============================================================
     # 遥测属性
     # ============================================================
@@ -373,6 +450,30 @@ class ZStageBridge(QObject):
     rssi = Property(int, lambda self: self._rssi, notify=telemetryChanged)
     boardIp = Property(str, lambda self: self._board_ip, notify=telemetryChanged)
     signText = Property(str, lambda self: self._sign_text, notify=telemetryChanged)
+    # **板子实际在用的**回零参数（json hma/hrpm/htmo）—— 与上面输入框里的
+    # "待下发"值不同，界面要能同时显示两者（"我填的" vs "板子正在用的"）。
+    homeMa = Property(int, lambda self: self._home_ma, notify=telemetryChanged)
+    homeRpm = Property(int, lambda self: self._home_rpm, notify=telemetryChanged)
+    homeTmo = Property(int, lambda self: self._home_tmo, notify=telemetryChanged)
+
+    def _get_home_tmo_need_ms(self) -> int:
+        """按**板子当前参数**估算"满行程回零大约要多久"（ms）—— 与固件 `home_travel_ms()` 同一套算法。
+
+        ⚠ 它只是"够不够"的体检值，**不是控制判据**：真实回零距离通常远小于满行程。
+        为什么要在界面上给（2026-09-29 现场实测）：用户把超时填成 4000ms，而本机满行程
+        250mm 在 400rpm / 8mm 导程下要 ~4.7s（含加减速约 8s）—— 平台离死点较远时这次
+        回零会在**中途**被驱动器判超时而放弃，现象只是"回零没跑完就停了"，
+        从"失败"两个字里根本看不出是超时不够。
+        """
+        lead_mm = self._um_per_rev / 1000.0
+        travel_mm = self._json_hi - self._json_lo
+        rpm = self._home_rpm
+        if lead_mm <= 0 or travel_mm <= 0 or rpm <= 0:
+            return 0
+        sec = travel_mm / lead_mm * 60.0 / rpm
+        return int(sec * 1500.0) + 1000        # ×1.5（加减速）+ 1s 余量
+
+    homeTmoNeedMs = Property(int, _get_home_tmo_need_ms, notify=telemetryChanged)
 
     def _get_fault(self) -> str:
         return self._fault
@@ -762,10 +863,14 @@ class ZStageBridge(QObject):
         except json.JSONDecodeError:
             return
         if "err" in data:
-            # ⚠ transient：这是**总线偶发超时**的报法（驱动器偶尔晚答），固件那边的
-            #   设计就是"偶发一次不锁死"。用 action 的话红字会**永久粘住**，
+            # ⚠ transient：这是**总线偶发超时**的报法（驱动器偶尔晚答，固件已重试过一次），
+            #   固件那边的设计就是"偶发一次不锁死"。用 action 的话红字会**永久粘住**，
             #   之后一切正常也不消失（评审实测过）。
-            self._set_error(f"板子读位置失败：{data['err']}", kind="transient")
+            # ⚠ 文案要说人话：固件回的是 `left=ESP_ERR_TIMEOUT right=OK` 这种原始字符串，
+            #   直接甩到横幅上用户看不懂（2026-09-29 现场截图就是一行裸 JSON）。
+            self._set_error(f"读位置超时：{_axis_fault_text(str(data['err']))}"
+                            "——驱动器偶尔晚答，下一次轮询会自动恢复",
+                            kind="transient")
             return
 
         self._z = _fnum(data.get("z"))
@@ -784,6 +889,12 @@ class ZStageBridge(QObject):
         self._target = _fnum(data.get("tgt"))
         self._autohome = bool(_inum(data.get("auto")))
         self._um_per_rev = _inum(data.get("umrev"), 8000)
+        # 板子实际在用的回零参数（固件 json 的 hma/hrpm/htmo）。
+        # ⚠ 老固件没有这三个字段 → 这里会退回出厂默认值，界面照样能显示，
+        #   只是"板子当前生效"那一行按出厂值写。这不是错误，所以不打红字。
+        self._home_ma = _inum(data.get("hma"), DEFAULT_HOME_MA)
+        self._home_rpm = _inum(data.get("hrpm"), DEFAULT_HOME_RPM)
+        self._home_tmo = _inum(data.get("htmo"), DEFAULT_HOME_TMO)
         self._rssi = _inum(data.get("rssi"))
         self._board_ip = str(data.get("ip", ""))
 
@@ -966,11 +1077,13 @@ class ZStageBridge(QObject):
 
     @Slot(result=bool)
     def homeNow(self) -> bool:
-        """无限位回零（驱动器靠电流阈值判机械死点），**向下**、非阻塞。
+        """无限位回零（驱动器靠电流阈值判机械死点），非阻塞。
 
         ⚠ 这是可选路径：两侧丝杠必须同时顶到各自的死点，否则会把平台拧歪。
         所以界面上它要写明"可选"，主线是「推到靠块 → 设为原点」。
-        方向写死"向下"（固件的出厂方向）：向下是往底座死点走，重力帮忙、撞不坏。
+        方向来自界面（`setHomeDir`，存本机 QSettings）：出厂默认"向下"——
+        向下是往底座死点走，重力帮忙、撞不坏；"向上"只在需要往另一头找零点时用。
+        ⚠ 固件本来就支持 `zhome up|down`，这里照实发 —— 别再写死。
         """
         if not self._get_connected():
             self._set_error("自动回零未发送：还没连接")
@@ -979,8 +1092,78 @@ class ZStageBridge(QObject):
             self._set_error("自动回零被拒绝：还在运动 —— 先等它停或按急停", src="home")
             return False
         self._clear_error_if("home")
-        self._enqueue("zhome down nowait", note="自动回零（向下）", src="home")
+        self._enqueue(f"zhome {self._home_dir} nowait",
+                      note=f"自动回零（{'向上' if self._home_dir == 'up' else '向下'}）",
+                      src="home")
         self._note_motion_sent()
+        return True
+
+    @Slot(str, result=bool)
+    def setHomeDir(self, direction: str) -> bool:
+        """选自动回零的方向（`up` / `down`）。**只存本机**，不写板子。
+
+        ⚠ 与板子的 `home_dir`（`zautohome` 用的方向）是两件事，用户明确要求分开：
+           手动按钮走这里，上电自动回零走板子里存的方向。
+        """
+        d = str(direction).strip().lower()
+        if d not in HOME_DIRS:
+            self._set_error(f"回零方向 {direction} 不认识（只认 {'/'.join(HOME_DIRS)}）",
+                            src="home")
+            return False
+        self._home_dir = d
+        self._settings.setValue("zstage/home_dir", d)
+        self.telemetryChanged.emit()
+        self._log(f"自动回零方向 = {d}")
+        return True
+
+    @Slot(int, int, int, result=bool)
+    def setHomeParams(self, rpm: int, ma: int, tmo: int) -> bool:
+        """写无限位回零的三个参数（固件 `zset home <rpm> <mA> <timeout_ms>`，存 NVS）。
+
+        ⚠ **限位电流是回零能不能成的关键**：低于空转电流(≈40mA)会「一动就报完成」
+        （假成功，平台其实没顶到死点），高于堵转电流(≈1500~2700mA)永远不触发
+        （假失败，平台一直硬顶到驱动器超时）。甜点区 300~800mA。
+        界线与固件 `cmd_zset` 逐条对齐，并在**填的当下**说清楚（不等到下发后才说）。
+
+        ⚠ 三个值必须一起发：固件的 `zset home` 要求 `<rpm> <mA>` 都在场
+        （`argc > 3`），只改一个字段也得把另两个带上 —— 所以这里的输入是
+        "板子实际在用的值"（json hma/hrpm/htmo）而不是上一次点过的值。
+        """
+        if not self._get_connected():
+            self._set_error("回零参数未下发：还没连接")
+            return False
+
+        rpm, ma, tmo = int(rpm), int(ma), int(tmo)
+        if not (HOME_RPM_MIN <= rpm <= HOME_RPM_MAX):
+            self._set_error(f"回零转速 {rpm} 超出范围（{HOME_RPM_MIN}~{HOME_RPM_MAX}rpm）",
+                            src="home")
+            return False
+        if not (HOME_MA_MIN <= ma <= HOME_MA_MAX):
+            self._set_error(f"限位电流 {ma} 超出范围（{HOME_MA_MIN}~{HOME_MA_MAX}mA）",
+                            src="home")
+            return False
+        if not (HOME_TMO_MIN <= tmo <= HOME_TMO_MAX):
+            self._set_error(f"回零超时 {tmo} 超出范围（{HOME_TMO_MIN}~{HOME_TMO_MAX}ms）",
+                            src="home")
+            return False
+
+        if ma < HOME_MA_SWEET_LO or ma > HOME_MA_SWEET_HI:
+            # 警告而不是拒绝：现场确实需要改这个值（换电机/换丝杠），但后果要说清楚。
+            # 文案与固件 `zset home` 打的那两行一致（本机经验区 60~300mA，推荐 100）。
+            self._log(f"⚠ 限位电流 {ma}mA 不在本机经验区 "
+                      f"{HOME_MA_SWEET_LO}~{HOME_MA_SWEET_HI}mA（推荐 {DEFAULT_HOME_MA}）："
+                      + ("过低接近空转电流(≈40mA)，会「一动就报回零完成」（假成功）"
+                         if ma < HOME_MA_SWEET_LO
+                         else "过高会「永远不触发」——本机顶住时相电流只有一百多 mA"))
+
+        if (rpm, ma, tmo) == (self._home_rpm, self._home_ma, self._home_tmo):
+            self._clear_error_if("homeparam")
+            self._log("回零参数与板子当前值相同，没有下发")
+            return True
+
+        self._clear_error_if("homeparam")
+        self._enqueue(f"zset home {rpm} {ma} {tmo}",
+                      note=f"回零参数 {rpm}rpm/{ma}mA/{tmo}ms", src="homeparam")
         return True
 
     @Slot(float, float, result=bool)
@@ -1030,12 +1213,23 @@ class ZStageBridge(QObject):
 
     @Slot(bool, result=bool)
     def setAutohome(self, on: bool) -> bool:
-        """上电自动回零开关（`zautohome`）。⚠ 开着 = 板子一上电就自己朝死点撞一次。"""
+        """上电自动回零开关（`zautohome`，存板子 NVS）。⚠ 开着 = 板子一上电
+        （约 3 秒后）就自己朝机械死点撞一次 —— 用户不在场时那就是"平台自己动了"。
+
+        ⚠ **不带方向**（原来发的是 `on down`）：固件的方向是可选参数，带上就等于
+        顺手把板子里的方向改掉。手动按钮的方向由 `setHomeDir()` 管（只存本机），
+        两者是两件事 —— 用户明确要求不要合并。
+        """
         if not self._get_connected():
             self._set_error("自动回零开关未下发：还没连接")
             return False
-        self._enqueue("zautohome " + ("on down" if on else "off"),
+        # **乐观**置位（与 _note_motion_sent 同一套理由）：界面的开关已经拨过去了，
+        # 等下一次 json(1Hz) 才更新的话开关会先弹回旧值再弹过来 —— 一闪一闪像坏了。
+        # 板子真的拒绝时，跟着来的那一次 json 会把这一位纠正回来（UI 有回同步）。
+        self._autohome = bool(on)
+        self._enqueue("zautohome " + ("on" if on else "off"),
                       note="上电自动回零 " + ("开" if on else "关"))
+        self.telemetryChanged.emit()
         return True
 
     @Slot(float)

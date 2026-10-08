@@ -56,6 +56,9 @@ Item {
     property real step: 1.0             // mm，由页面绑定 ZStageBridge.step
     property var stepChoices: []
     property int homing: 0              // 0 没回零过 / 1 正在 / 2 完成 / 3 失败
+    // 自动回零的方向（"down"/"up"）。**只存上位机**（QSettings，见桥的 setHomeDir）：
+    // 板子里那个方向是给「上电自动回零」用的，两条路径分开 —— 用户明确要求过。
+    property string homeDir: "down"
 
     signal enableToggled()
     signal stepPicked(real mm)
@@ -64,6 +67,7 @@ Item {
     signal moveToRequested(real mm)
     signal zeroRequested()
     signal homeRequested()
+    signal homeDirPicked(string dir)
     signal stopRequested()
 
     implicitWidth: 460
@@ -104,6 +108,39 @@ Item {
         }
     }
 
+    // ============================================================
+    // 卡内小组件：回零方向
+    // ============================================================
+    // 与 StepChip 同一套约定（checkable:false + checked 只由绑定驱动，
+    // 否则点击会打断 checked 的绑定、两个方向同时高亮）。
+    component DirChip: Button {
+        id: dchip
+        property string dir: "down"
+        objectName: "zHomeDirChip_" + dir
+        checkable: false
+        checked: root.homeDir === dchip.dir
+        implicitHeight: 28
+        implicitWidth: 40
+        onClicked: root.homeDirPicked(dchip.dir)
+
+        background: Rectangle {
+            radius: 6
+            color: dchip.checked ? Colors.interactivePressed
+                                 : (dchip.hovered ? Colors.interactiveHover : "transparent")
+            border { width: 1; color: dchip.checked ? Colors.textSecondary : Colors.cardBorder }
+            Behavior on color { ColorAnimation { duration: 120 } }
+        }
+        contentItem: Text {
+            // "向上/向下"两个词与上面的大按钮共用（少两个 i18n 词条）
+            text: dchip.dir === "up" ? qsTr("向上") : qsTr("向下")
+            font.pixelSize: 12
+            font.bold: dchip.checked
+            color: dchip.enabled ? Colors.textPrimary : Colors.textPlaceholder
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+    }
+
     CardSurface {
         anchors.fill: parent
 
@@ -121,8 +158,13 @@ Item {
                 IconImage {
                     Layout.alignment: Qt.AlignVCenter
                     source: "../../images/Z轴平台.svg"
-                    width: 16
-                    height: 16
+                    // ⚠ Layout 的子项必须用 Layout.preferred*（width/height 会被覆盖成 24）；
+                    //   并且 implicit* 也在创建时定死（ColorOverlay 创建后被改尺寸可能拿不到纹理）
+                    objectName: "jogTitleIcon"
+                    implicitWidth: 16
+                    implicitHeight: 16
+                    Layout.preferredWidth: 16
+                    Layout.preferredHeight: 16
                 }
                 Text {
                     text: qsTr("Z 轴手动控制")
@@ -223,6 +265,14 @@ Item {
                     enabled: root.connected
                     iconSource: "../../images/电源.svg"
                     iconSize: 14
+                    // ⚠ 颜色**就是状态**（用户 2026-09-29 要求"使能要有颜色指示"）：
+                    //     未使能 = success（淡绿）—— 电机不出力，可以手推平台去靠块
+                    //     已使能 = dangerSoft（淡红）—— 闭环抱死 + 带电，危险的一侧
+                    //   文字仍然是**动作**（"使能"/"失能"）而不是状态：免得用户看着
+                    //   "未使能"三个字再去点一个写着"未使能"的按钮（这条一直没变）。
+                    //   未连接时 ThemedButton 会把 success 回落到中性白 —— 状态未知
+                    //   不能画成绿色（见 ThemedButton 的 tone 说明）。
+                    tone: root.motorEnabled ? "dangerSoft" : "success"
                     onClicked: root.enableToggled()
 
                     // 短标签（原"失能（可手推平台）"太长，窄卡放不下）；
@@ -230,9 +280,12 @@ Item {
                     ToolTip.visible: hovered
                     ToolTip.delay: 600
                     ToolTip.text: root.motorEnabled
-                        ? qsTr("失能 = 电机完全不出力，可以用手推平台去靠块（丝杠自锁，平台不会掉）。"
-                               + "急停与它的分工：急停是刹车且保持使能，失能是松手可手推。")
-                        : qsTr("使能 = 闭环抱住平台，顶住外力（失能时被推动坐标系就废了）。")
+                        ? qsTr("当前【已使能】：闭环抱住平台、带电（按钮是淡红）。"
+                               + "点它 = 失能：电机完全不出力，可以用手推平台去靠块"
+                               + "（丝杠自锁，平台不会掉）。急停与它的分工：急停是刹车且保持使能。")
+                        : qsTr("当前【未使能】：电机不出力，可以手推平台（按钮是淡绿）。"
+                               + "点它 = 使能：闭环抱住平台，顶住外力"
+                               + "（失能时被推动坐标系就废了）。")
 
                     // ⚠ text 写在 Button 上（不只是 contentItem）：无障碍/测试要读得到
                     text: root.motorEnabled ? qsTr("失能") : qsTr("使能")
@@ -283,7 +336,11 @@ Item {
                 IconImage {
                     Layout.alignment: Qt.AlignVCenter
                     source: "../../images/靶心.svg"
-                    width: 13; height: 13
+                    objectName: "jogTargetIcon"
+                    implicitWidth: 13                // 同上：创建时定死 + preferred
+                    implicitHeight: 13
+                    Layout.preferredWidth: 13
+                    Layout.preferredHeight: 13
                 }
                 Text {
                     text: qsTr("绝对定位")
@@ -322,6 +379,22 @@ Item {
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
 
             // ── 自动回零（可选路径）────────────────────
+            // 回零方向：固件本来就支持 `zhome up|down`（桥里原来写死 down）。
+            // 只影响这个按钮 —— 板子里的方向归「上电自动回零」，两条路径分开。
+            RowLayout {
+                objectName: "zHomeDirRow"
+                Layout.fillWidth: true
+                spacing: 4
+                Text {
+                    text: qsTr("回零方向")
+                    font.pixelSize: 12
+                    color: Colors.textSecondary
+                }
+                DirChip { dir: "down" }
+                DirChip { dir: "up" }
+                Item { Layout.fillWidth: true }
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
@@ -340,6 +413,8 @@ Item {
                     ToolTip.text: qsTr("驱动器让两个电机同时朝下顶死点、按相电流判「顶住了」。"
                                        + "它要求两侧丝杠同时顶到各自的死点，否则会把平台拧歪 —— "
                                        + "主线做法是「推到靠块 → 设为原点」。")
+                                      + "\n" + qsTr("方向由上面那对按钮选（向下 = 往底座死点，"
+                                                   + "重力帮忙、撞不坏）。回零中随时能按「停止」打断。")
                 }
 
                 ThemedButton {
