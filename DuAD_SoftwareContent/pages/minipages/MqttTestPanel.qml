@@ -55,7 +55,7 @@ Item {
                 text: qsTr("发送测试消息")
                 Layout.alignment: Qt.AlignRight
                 implicitHeight: 38
-                tone: "soft"
+                tone: "primary"
                 onClicked: {
                     MqttBridge.publish(root.testTopic, root.testMessage, root.qos)
                 }

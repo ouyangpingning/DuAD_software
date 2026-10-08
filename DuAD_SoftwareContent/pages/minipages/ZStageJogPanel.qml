@@ -76,7 +76,7 @@ Item {
     // ============================================================
     // 卡内小组件：步长选项
     // ============================================================
-    component StepChip: Button {
+    component StepChip: ChoiceChip {
         id: chip
         property real value: 1.0
         // 稳定标识：测试按名字找控件（`findChild(QObject, "zStepChip_10")`）
@@ -90,22 +90,8 @@ Item {
 
         onClicked: root.stepPicked(chip.value)
 
-        background: Rectangle {
-            radius: 6
-            color: chip.checked ? Colors.interactivePressed
-                                : (chip.hovered ? Colors.interactiveHover : "transparent")
-            border { width: 1; color: chip.checked ? Colors.textSecondary : Colors.cardBorder }
-            Behavior on color { ColorAnimation { duration: 120 } }
-        }
-        contentItem: Text {
-            text: chip.value < 1 ? chip.value.toFixed(1) : chip.value.toFixed(0)
-            font.pixelSize: 12
-            // 当前步长是安全相关参数：加粗 + 描边加深（与 X/Y 那张卡同一条）
-            font.bold: chip.checked
-            color: chip.enabled ? Colors.textPrimary : Colors.textPlaceholder
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
+        // 外观（实色选中态）在 ChoiceChip 里统一画
+        text: chip.value < 1 ? chip.value.toFixed(1) : chip.value.toFixed(0)
     }
 
     // ============================================================
@@ -113,7 +99,7 @@ Item {
     // ============================================================
     // 与 StepChip 同一套约定（checkable:false + checked 只由绑定驱动，
     // 否则点击会打断 checked 的绑定、两个方向同时高亮）。
-    component DirChip: Button {
+    component DirChip: ChoiceChip {
         id: dchip
         property string dir: "down"
         objectName: "zHomeDirChip_" + dir
@@ -123,22 +109,8 @@ Item {
         implicitWidth: 40
         onClicked: root.homeDirPicked(dchip.dir)
 
-        background: Rectangle {
-            radius: 6
-            color: dchip.checked ? Colors.interactivePressed
-                                 : (dchip.hovered ? Colors.interactiveHover : "transparent")
-            border { width: 1; color: dchip.checked ? Colors.textSecondary : Colors.cardBorder }
-            Behavior on color { ColorAnimation { duration: 120 } }
-        }
-        contentItem: Text {
-            // "向上/向下"两个词与上面的大按钮共用（少两个 i18n 词条）
-            text: dchip.dir === "up" ? qsTr("向上") : qsTr("向下")
-            font.pixelSize: 12
-            font.bold: dchip.checked
-            color: dchip.enabled ? Colors.textPrimary : Colors.textPlaceholder
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
+        // 外观（实色选中态）在 ChoiceChip 里统一画
+        text: dchip.dir === "up" ? qsTr("向上") : qsTr("向下")
     }
 
     CardSurface {
@@ -366,7 +338,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 implicitHeight: 42
                 hPadding: 44
-                tone: "soft"
+                tone: "primary"
                 enabled: root.canMove
                 text: qsTr("移动到该位置")
                 onClicked: {

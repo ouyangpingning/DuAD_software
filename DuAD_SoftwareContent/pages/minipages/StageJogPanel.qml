@@ -48,7 +48,7 @@ Item {
     // ============================================================
     // 卡内小组件：步长选项
     // ============================================================
-    component StepChip: Button {
+    component StepChip: ChoiceChip {
         id: chip
         property real value: 1.0
         // 给冒烟测试用的稳定标识（按名字找控件，比按 className 猜可靠）
@@ -62,23 +62,8 @@ Item {
 
         onClicked: root.step = chip.value
 
-        background: Rectangle {
-            radius: 6
-            color: chip.checked ? Colors.interactivePressed
-                                : (chip.hovered ? Colors.interactiveHover : "transparent")
-            border { width: 1; color: chip.checked ? Colors.textSecondary : Colors.cardBorder }
-            Behavior on color { ColorAnimation { duration: 120 } }
-        }
-        contentItem: Text {
-            text: chip.value < 1 ? chip.value.toFixed(1) : chip.value.toFixed(0)
-            font.pixelSize: 12
-            // 当前步长是**安全相关参数**（按一下走多远），选中态必须一眼可辨：
-            // 加粗 + 描边加深，而不是只把底色从透明换成浅色。
-            font.bold: chip.checked
-            color: chip.enabled ? Colors.textPrimary : Colors.textPlaceholder
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-        }
+        // 外观（实色选中态）在 ChoiceChip 里统一画
+        text: chip.value < 1 ? chip.value.toFixed(1) : chip.value.toFixed(0)
     }
 
     // ============================================================
@@ -296,7 +281,7 @@ Item {
                 // soft：本卡"提交一个动作"的主按钮，淡强调底让它和周围的描边按钮分开。
                 // 原来它**没写 background** → 用的是 Fusion 默认灰渐变，换主题时纹丝不动，
                 // 正是用户截图点名"设置成可以随主题变化"的那个按钮。
-                tone: "soft"
+                tone: "primary"
                 enabled: root.canMove
                 text: qsTr("移动到该位置")
                 onClicked: {

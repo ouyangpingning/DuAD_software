@@ -128,7 +128,7 @@ RowLayout {
             width: Math.min(track.width, track.width * control.ratio)
             height: track.height
             radius: track.radius
-            color: control.enabled ? Colors.interactivePressed : "#d0d0d0"
+            color: control.enabled ? Colors.accent : Colors.cardBorderStrong
         }
 
         // 标准刻度线：snapTicks 里的每个值在轨道上画一条短竖线
@@ -159,7 +159,7 @@ RowLayout {
             x: control.ratio * (track.width - width)
 
             color: "#ffffff"
-            border { width: 2; color: Colors.interactivePressed }
+            border { width: 2; color: Colors.accent }
         }
 
         property bool _pressed: false
@@ -249,7 +249,7 @@ RowLayout {
                 color: valueField.activeFocus ? Colors.pageBg : "transparent"
                 border {
                     width: valueField.activeFocus ? 1 : 0
-                    color: valueField.activeFocus ? Colors.interactivePressed : "transparent"
+                    color: valueField.activeFocus ? Colors.accent : "transparent"
                 }
             }
 

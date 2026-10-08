@@ -97,18 +97,18 @@ Item {
                             required property var modelData
                             objectName: "protoSource_" + modelData.key
                             // 与「步长」那种 chip 完全同一套样式（radius 6 / 高 28 /
-                            // 选中 interactivePressed）—— 用户要求用组件里既有的按钮风格
+                            // 选中实色 accent，与 ChoiceChip 一致）—— 用户要求用组件里既有的按钮风格
                             implicitHeight: 28
                             implicitWidth: srcText.implicitWidth + 20
                             radius: 6
                             color: modelData.key === root.sourceKey
-                                   ? Colors.interactivePressed
+                                   ? Colors.accent
                                    : (srcMa.containsMouse ? Colors.interactiveHover
                                                           : "transparent")
                             border {
                                 width: 1
                                 color: modelData.key === root.sourceKey
-                                       ? Colors.interactivePressed : Colors.cardBorder
+                                       ? Colors.accentPressed : Colors.cardBorder
                             }
 
                             Text {
@@ -117,8 +117,10 @@ Item {
                                 // 未连接的来源文字变灰：一眼看出现在能看到谁的话
                                 text: modelData.label
                                 font.pixelSize: 11
-                                color: modelData.connected ? Colors.textPrimary
-                                                           : Colors.textPlaceholder
+                                font.bold: modelData.key === root.sourceKey
+                                color: modelData.key === root.sourceKey ? Colors.accentContent
+                                       : (modelData.connected ? Colors.textPrimary
+                                                              : Colors.textPlaceholder)
                             }
                             MouseArea {
                                 id: srcMa
@@ -249,7 +251,7 @@ Item {
                         color: cmdField.enabled ? Colors.pageBg : "transparent"
                         border {
                             width: 1
-                            color: cmdField.activeFocus ? Colors.interactivePressed : Colors.cardBorder
+                            color: cmdField.activeFocus ? Colors.accent : Colors.cardBorder
                         }
                     }
                 }

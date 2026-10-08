@@ -38,7 +38,7 @@ RowLayout {
             implicitHeight: 32
             radius: 4
             color: field.enabled ? Colors.pageBg : "transparent"
-            border { width: 1; color: field.activeFocus ? Colors.interactivePressed : Colors.cardBorder }
+            border { width: 1; color: field.activeFocus ? Colors.accent : Colors.cardBorder }
         }
     }
 }

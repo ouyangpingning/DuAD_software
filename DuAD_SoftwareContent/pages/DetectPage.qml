@@ -560,7 +560,9 @@ Item {
                 text: root._collecting ? qsTr("停止采集") : qsTr("开始采集")
                 fontBold: true
                 checked: root._collecting
-                tone: "soft"
+                // 空闲 = 主操作（实色）；采集中 = 淡红「停止」—— 否则"停止"也是一块
+                // 醒目的实色，读起来像在催你点它（2026-10-08 评审）
+                tone: root._collecting ? "dangerSoft" : "primary"
                 enabled: AppBridge.cameraConnected
 
                 onClicked: {
@@ -731,7 +733,7 @@ Item {
             ThemedButton {
                 Layout.fillWidth: true
                 implicitHeight: 42
-                tone: "soft"
+                tone: "primary"
                 fontBold: true
                 text: root._inferring ? qsTr("推理中...") : qsTr("执行推理")
                 enabled: !root._collecting

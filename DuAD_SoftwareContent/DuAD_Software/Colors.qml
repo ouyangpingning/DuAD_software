@@ -73,6 +73,19 @@ QtObject {
     property color buttonShadow:           "#2b0f1c24"
     property color textOnAccent:           "#ffffff"   // 强调底（急停红等）上的文字与图标
 
+    // ── 实色强调（2026-10-08 UI 评审引入）──────────────────
+    // 为什么要有：原来唯一的强调色 accent(#aee9e7) 只是"淡薄荷"，白底上对比度 ~1.4:1，
+    // 选中的步长、当前导航项、主操作按钮在一片白卡片里分不出主次。
+    // 现在分两档：**淡**（accentSoft / interactive*，大面积底色）+ **实**（下面这组，小面积点睛）。
+    // 对比度下限由 tests/test_design_tokens.py 按"每套配色 × 亮/暗"逐一钉住。
+    property color accent:                 "#0E7C86"   // 主按钮底、选中步长底、导航指示条
+    property color accentHover:            "#0B6C75"
+    property color accentPressed:          "#095A61"
+    // 实色强调上的文字。亮色主题是白字；暗色主题强调色变亮、文字改深 ——
+    // 所以**不能**复用 textOnAccent（那个是急停红上的白，任何主题都是白）
+    property color accentContent:          "#ffffff"   // ⚠ 别命名 onXxx：QML 会当成信号处理器
+    property color accentText:             "#0A6870"   // 强调色**文字**（比 accent 深一档，淡底上也读得清）
+
     // ⚠ 关于 cardShadow：**不要改用 QtQuick.Effects 的 RectangularShadow**。
     //   它在最小探针脚本里一个像素都不画（`color:"#ff000000" blur:20 offset:(0,10)` 也空白），
     //   但**探针证不了"平台不支持"**（docs/19 §32 记了我据此误判、又自我更正的经过）。
@@ -90,6 +103,7 @@ QtObject {
     // ============================================================
     property var _presets: ({
         "default": {
+            strong: "#0E7C86", ink: "#0A6870", strongDark: "#4FC3CC",
             accent: "#aee9e7", hover: "#D3E6ED",
             sidebar: "#eaf4f7", content: "#eaf4f7", page: "#ffffff",
             titleBar: "#2c3e50", titleBarHover: "#34495e",
@@ -97,6 +111,7 @@ QtObject {
             border: "#e0e0e0"
         },
         "ocean": {
+            strong: "#1F6FA8", ink: "#175A8A", strongDark: "#6AB0E0",
             accent: "#7ab8d4", hover: "#c8ddf0",
             sidebar: "#e8f0f8", content: "#e8f0f8", page: "#ffffff",
             titleBar: "#1a3a5c", titleBarHover: "#2a5078",
@@ -104,6 +119,7 @@ QtObject {
             border: "#d0dae6"
         },
         "forest": {
+            strong: "#2E7D4F", ink: "#226640", strongDark: "#6CC58E",
             accent: "#7cc48a", hover: "#c8e6d0",
             sidebar: "#eaf5ec", content: "#eaf5ec", page: "#ffffff",
             titleBar: "#1e3a2f", titleBarHover: "#2a5040",
@@ -111,6 +127,7 @@ QtObject {
             border: "#d0e0d4"
         },
         "sunset": {
+            strong: "#A85A22", ink: "#8A4A1A", strongDark: "#E0A070",
             accent: "#d4a87a", hover: "#f0dcc8",
             sidebar: "#faf0e6", content: "#faf0e6", page: "#ffffff",
             titleBar: "#5c3a1e", titleBarHover: "#785030",
@@ -138,7 +155,8 @@ QtObject {
         "cardBorder", "cardDangerBg", "cardDangerHover", "cardDangerBorder",
         "windowBg", "iconColor",
         "cardBg", "cardBorderStrong", "cardShadow", "accentSoft", "textOnAccent",
-        "buttonShadow"
+        "buttonShadow",
+        "accent", "accentHover", "accentPressed", "accentContent", "accentText"
     ]
 
     Component.onCompleted: {
@@ -225,9 +243,19 @@ QtObject {
         // 投影用中性深色（不跟配色走）：它是"阴影"不是"品牌色"
         _tween("cardShadow",       dark ? "#45000000" : "#1a0f1c24")
         _tween("buttonShadow",     dark ? "#66000000" : "#2b0f1c24")
-        _tween("accentSoft",       dark ? Qt.darker(p.accent, 2.2) : p.hover)
+        // 暗色用 ×3.2（与 interactiveChecked 同档）而不是 ×2.2：
+        // ×2.2 的底上放亮强调字只有 ~2.9:1，导航选中项读不清
+        _tween("accentSoft",       dark ? Qt.darker(p.accent, 3.2) : p.hover)
         // 强调底上的文字：急停红、深色强调块上永远要白字，暗色主题也不例外
         _tween("textOnAccent",     "#ffffff")
+
+        // ── 实色强调：亮色 = 深强调 + 白字；暗色 = 亮强调 + 深字 ──
+        var strong = dark ? p.strongDark : p.strong
+        _tween("accent",        strong)
+        _tween("accentHover",   dark ? Qt.lighter(strong, 1.08) : Qt.darker(strong, 1.12))
+        _tween("accentPressed", dark ? Qt.darker(strong, 1.12) : Qt.darker(strong, 1.3))
+        _tween("accentContent",      dark ? "#10181a" : "#ffffff")
+        _tween("accentText",    dark ? p.strongDark : p.ink)
     }
 
     // ============================================================

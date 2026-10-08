@@ -29,6 +29,7 @@ import DuAD_Software
         }
 
     tone（语气）—— 缺省 neutral：
+        primary     实色强调 accent + 白字      页面上**唯一**的主操作（开始检测/连接/应用设置…）
         neutral     白底 + 描边 + 阴影        普通动作（使能/设为原点/前往/发送…）
         soft        淡强调底 accentSoft        "提交一个动作"（移动到该位置/应用设置/记录）
         danger      实心红 statusDisconnected  急停
@@ -68,6 +69,11 @@ Button {
     readonly property bool _isDangerSoft: tone === "dangerSoft"
     readonly property bool _isSoft: tone === "soft"
     readonly property bool _isSuccess: tone === "success"
+    readonly property bool _isPrimary: tone === "primary"
+    // 实色强调画法：primary 永远是；checkable 按钮选中时也是（步长档位、开关按钮）。
+    // 2026-10-08 评审：选中态原来是淡薄荷底，和悬停只差一点，看不出"现在选的是哪个"
+    readonly property bool _solidAccent: _isPrimary || (root.checked && !_isDanger
+                                         && !_isDangerSoft && !_isSuccess)
 
     readonly property color _fill: {
         if (!root.enabled) {
@@ -75,6 +81,7 @@ Button {
             // 用户会以为急停按钮没了 —— 它必须一直看得见，只是按不动）
             if (_isDanger) return Colors.cardDangerHover
             if (_isSoft || _isDangerSoft) return Colors.cardDangerBg
+            if (_isPrimary) return Colors.accentSoft
             // success 禁用走中性白：它表达的是"此刻的电机状态"，而没连上时
             // 状态是**未知**——画成绿色等于撒谎（见文件头的用途说明）。
             return Colors.cardBg
@@ -87,10 +94,8 @@ Button {
         if (_isSuccess)    return root.pressed || root.hovered
                                   ? Qt.darker(Colors.successSoft, 1.08)
                                   : Colors.successSoft
-        // 选中态（checkable，如 DetectPage 的「开始/停止采集」开关按钮）：
-        // 与项目里别处的"选中"语言一致 —— 强调色实底
-        if (root.checked)  return root.pressed ? Qt.darker(Colors.interactivePressed, 1.12)
-                                               : Colors.interactivePressed
+        if (_solidAccent)  return root.pressed ? Colors.accentPressed
+                                               : (root.hovered ? Colors.accentHover : Colors.accent)
         if (root.pressed)  return Colors.interactivePressed
         if (root.hovered)  return Colors.interactiveHover
         if (_isSoft)       return Colors.accentSoft
@@ -103,9 +108,10 @@ Button {
         if (_isDanger)     return Qt.darker(Colors.statusDisconnected, 1.15)
         if (_isDangerSoft) return Colors.statusDisconnected
         if (_isSuccess)    return root.enabled ? Colors.statusConnected : Colors.cardBorderStrong
+        if (_solidAccent)  return root.enabled ? Colors.accentPressed : Colors.cardBorderStrong
         // 静止态给一档更清楚的描边，悬停/按下/选中时换成强调色 —— "可点"这件事要看得见
         if (root.enabled && (root.hovered || root.pressed || root.checked))
-            return Colors.interactivePressed
+            return Colors.accent
         return Colors.cardBorderStrong
     }
 
@@ -113,6 +119,7 @@ Button {
         if (_isDanger)     return root.enabled ? Colors.textOnAccent : Colors.textPlaceholder
         if (_isDangerSoft) return Colors.statusDisconnected
         if (_isSuccess)    return root.enabled ? Colors.statusConnected : Colors.textPlaceholder
+        if (_solidAccent)  return root.enabled ? Colors.accentContent : Colors.textPlaceholder
         return root.enabled ? Colors.textPrimary : Colors.textPlaceholder
     }
 

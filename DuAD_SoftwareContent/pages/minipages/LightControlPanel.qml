@@ -170,7 +170,7 @@ Item {
                 objectName: "lightSaveButton"
                 Layout.fillWidth: true
                 implicitHeight: 40
-                tone: "soft"
+                tone: "primary"
                 text: qsTr("保存到控制器（掉电保存）")
                 onClicked: LightBridge.saveToDevice()
             }

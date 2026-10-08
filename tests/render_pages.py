@@ -12,7 +12,7 @@
     python3 tests/render_pages.py camera  /tmp/camera.png  [宽 高]
     python3 tests/render_pages.py settings /tmp/settings.png 1280 900
 
-可选页面：camera / light / comm / collect / settings / detect / stage
+可选页面：camera / light / comm / collect / settings / detect / stage / main（整个主窗口）
 
 ⚠ 已知噪音（不是错误）：`image://camera/...` 没有注册 image provider，属预期。
 图标在本工具出的图里是**画得出来的**（要目检图标本身的长相用 `tests/render_icons.py`）。
@@ -50,6 +50,9 @@ PAGES = {
     "settings": "SettingsPage.qml",
     "detect":   "DetectPage.qml",
     "stage":    "StagePage.qml",
+    # 整个主窗口（侧边导航 + 当前页）：目检导航栏与页面放在一起的观感。
+    # 不含 App.qml 的自绘标题栏（那个依赖真窗口的拖动/缩放，离屏没意义）
+    "main":     "MainuiRoot.qml",
 }
 
 HARNESS = b"""

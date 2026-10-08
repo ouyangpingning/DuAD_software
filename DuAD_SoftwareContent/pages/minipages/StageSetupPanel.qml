@@ -221,7 +221,7 @@ Item {
             ThemedButton {
                 Layout.fillWidth: true
                 implicitHeight: 42
-                tone: "soft"
+                tone: "primary"
                 text: qsTr("应用设置")
                 onClicked: root.applyRequested()
             }

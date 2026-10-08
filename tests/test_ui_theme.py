@@ -49,6 +49,8 @@ ALLOW_CLASS = {
     # DetectPage 图卡标题栏那三个小方按钮（ROI / 刷新 / 全屏）：
     # 28×28、带 checked 态，是专门画的一类，不是漏了 background
     "HeaderIconButton": "DetectPage 图卡标题栏的小方按钮，底色来自 Colors",
+    "NavButton": "侧边导航项（render_pages 的 main 页），底色/指示条来自 Colors",
+    "ButtonGroup": "导航单选组，不是可视控件",
 }
 # ── 按祖先组件名放行：共享组件内部的 Button，均已用 Colors 画好 ──
 ALLOW_ANCESTOR = {
