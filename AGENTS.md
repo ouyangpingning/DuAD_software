@@ -89,7 +89,8 @@ python scripts/gen_translations.py      # 新字符串要同时进 EN 和 TW 两
 
 - ⚠ **跑 lupdate 必须连 stderr 一起看**：QML 语法错误只打一行 `error:` 到 stderr（stdout 照样报 Found N），**该文件全部字符串会从 .ts 里静默消失**。
 - ⚠ **Python 侧要逐个文件列出来**（`backend/Src/*.py`）：给 lupdate 一个**目录**时它不认 `.py`（只扫 .qml/.cpp/.ui），目录写法会**静默漏掉**桥接层那句文案 —— 于是英文界面里突然冒出一句中文，而 gen_translations 一声不吭。改完记得看 lupdate 的 "Found N source text(s)" 有没有涨。
-- 桥接层的界面文案写 `self.tr("…")`（**在方法里**，不要在模块级 dict 里 —— 模块级 dict 在 import 时就求值，那时翻译器还没装，字符串会永久停在中文；错误码/故障码这类查表文案改成"查表时翻译"的方法）。协议框逐行日志（`_proto_add` / `_enqueue` 的 `note=`）与开发者日志（`print`）**保持中文不翻** —— 那是给工程师对着板子原文排障用的。
+- 桥接层的界面文案写 `self.tr("…")`（**在方法里**，不要在模块级 dict 里 —— 模块级 dict 在 import 时就求值，那时翻译器还没装，字符串会永久停在中文；错误码/故障码这类查表文案改成"查表时翻译"的方法）。⚠ **别以为"日志就不用翻"**：`_log()` 不只 print —— StageBridge/ZStageBridge 的 `logMessage`/`logLines` 画在「诊断」面板的日志列表里、MqttBridge 的画在「消息日志」里，`_enqueue(note=…)` 画在协议框的"命令名"列，**都是用户可见文案**（2026-10-08 补翻 100 处）。真正不用翻的只有两种：**纯 `print()` 的终端日志**，以及协议框里**板子自己吐的原文帧**（`→ json` / `← {...}` / `@TX …`，排障要对照原文）。
+- 改写脚本类批量操作的两个坑（都踩过）：① 一条语句里**既有外层 f-string 又有内层中文字面量**时，一次性改写会因编辑区间重叠把内层 `tr()` 覆盖掉 —— 要**多轮"只改最内层"**，每轮重新解析；② `ast` 的 `col_offset/end_col_offset` 是 **UTF-8 字节**偏移，必须在 `bytes` 上拼接，按字符切会把含中文的行切歪。
 - `gen_translations.py` 两条守卫任一不满足 `exit 1`：① EN/TW dict 逐条对齐（改文案两边一起改，否则繁体显示英文）；② 生成结果不许有空翻译。
 - 语言持久化 `QSettings("DuAD","DuADSoftware")`，切换走 `AppBridge.setLanguage()`。
 - 改完 i18n 的自检办法（比肉眼看靠谱）：临时把 `AppBridge.setLanguage(0)` 跑一遍，遍历可视树里所有 Text/TextField 的 `text`/`placeholderText` 找中文（2026-10-08 用它查出 343 个文本控件里唯一漏的那句来自 `ZStageBridge.datumHint`）。
@@ -115,6 +116,8 @@ python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图�
 平台相关测试自带**进程内假板子**（严格按固件行为建模；替身的诚实度决定测试能发现什么，§11）。改版面/组件后先跑两个 page 测试再 render_page 目检。
 
 通用坑：**必须 `python -u`**；交互优先 `btn.clicked.emit()`（`MouseArea.clicked` 带 MouseEvent 参数 emit 不了，要 `QTest.mouseClick`，且是窗口坐标、点前先滚进视口，§28）；找控件用 **objectName**（className 是 `Button_QMLTYPE_*` 不稳定）；**Repeater delegate 不在 QObject 树**，走可视树 `childItems()`；FakeBridge 必须存变量防 GC；**`engine.rootObjects()[0]` 也必须存进变量再用**（不存的话 PySide 的 wrapper 会被回收，之后遍历子项报 `Internal C++ object already deleted`）；offscreen 屏幕 800×800 会裁窗口宽，而且**加载后还会把 QML 里写的 width/height 改掉** —— 断言/截图前一律 `win.setProperty("width", …)` 再设一次（§25）；进程末尾的 `TypeError ... of null` 多是退出噪音，看加载完成那一刻的 warnings；`image://camera/...` 无 provider 属预期噪音。
+
+**临时产物一律丢在仓库根、文件名以 `_` 开头**（`.gitignore` 里 `/_*` 兜住）：探针脚本 `_probe_*.py`、渲染图 `_render_*.png`、中间译文 `_keys*.txt` 都按这个来 —— 否则这些 PNG/脚本会留在 `git status` 里，一旦 `git add -A` 就被提交。要长期看的截图放 `.uicap/`（同样已忽略）。**跑完测试/探针记得删掉自己的 `_*`**：`git status --short` 干净才算收工。
 
 ## 「平台控制」页（v4.3，2026-09-28 美化：图标接线 + 卡片质感）
 

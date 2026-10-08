@@ -35,3 +35,27 @@ models/
 
 # 本地 UI 核查产物（截图/接触表，不进仓库）
 .uicap/
+
+# ── 2026-10-08 整理时补的 ────────────────────────────────────────
+# 探针/渲染的临时产物：本仓库的习惯是**丢在仓库根、以 _ 开头**
+# （_render_*.png / _p_*.png / _i18n_*.py / _keys*.txt / _iconcmp/ …）。
+# 只锚定根目录，images/_backup_*/、**/__init__.py 这类不受影响。
+/_*
+
+# Windows 侧的 venv：与 pyqml/ 同源，由 setup_env.sh 重建。
+# ⚠ 原来只忽略了 pyqml/ —— pyqml_win/ 之所以"看起来被忽略"，只是因为 venv 自带一个
+#   内容是 `*` 的 .gitignore；那份文件一旦没了（重建/清理），几百 MB 的 venv 就会被误提交。
+DuAD_SoftwareContent/pyqml_win/
+
+# Qt/QML 编译缓存
+*.qmlc
+qmlcache/
+
+# 其它工具缓存与覆盖率
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 本机 agent 会话配置（只忽略"本机那份"，团队共享的规则文件仍可提交）
+.claude/settings.local.json
