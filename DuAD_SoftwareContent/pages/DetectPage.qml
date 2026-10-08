@@ -142,6 +142,15 @@ Item {
 
     // 相机分辨率比例：跟随 CameraPage/ROI 写回的实际 GX_INT_WIDTH/HEIGHT。
     // 未读到相机几何时回退 MER2 全幅 2448×2048（老页面模拟值 1024/1224 已废弃）。
+    // 结论三态（2026-10-08）：没有结果来源时是「待机」，不是「正常」——
+    // 分数默认 0 < 阈值，原来没连相机也亮着绿色「正常」（状态未知画成绿色 = 撒谎）。
+    // 测试推理进行中也算待机：结果没回来，不能沿用上一张图的结论。
+    readonly property bool _hasVerdict: root._testActive
+        ? !root._inferring
+        : (root._imageActive && AppBridge.algorithmEnabled && AlgorithmBridge.modelPath.length > 0)
+    readonly property string _verdict: !root._hasVerdict ? "idle"
+        : (root._score > _threshold.value ? "anomaly" : "normal")
+
     readonly property real _camRatio: {
         var w = CameraBridge.imageWidth
         var h = CameraBridge.imageHeight
@@ -266,9 +275,13 @@ Item {
                 // 窗口宽 = min(图像区高度允许宽, 水平一半)，高 = 宽/比例。
                 // 注意用 Item 自身 width/height（不能用 parent —— 那是 ColumnLayout
                 // 总高，含标题与状态栏，会导致窗口溢出覆盖上下区域）
+                readonly property real _gap: 12
                 readonly property real _winW: Math.min(
-                    height * root._camRatio, (width - 12) / 2)
+                    (height - verdictCard.implicitHeight - _gap) * root._camRatio, (width - 12) / 2)
                 readonly property real _winH: _winW / root._camRatio
+                // 图 + 结论卡**作为一组**垂直居中：结论紧贴图下方，视线不用跳到页底
+                readonly property real _top: Math.max(0,
+                    (height - _winH - _gap - verdictCard.implicitHeight) / 2)
 
                 // 原图窗口
                 // 两张大图（原图 / 异常热力图）——同样走 CardSurface
@@ -276,7 +289,7 @@ Item {
                     cornerRadius: 10
                     width: parent._winW
                     height: parent._winH
-                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    anchors { left: parent.left; top: parent.top; topMargin: parent._top }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -391,7 +404,7 @@ Item {
                     cornerRadius: 10
                     width: parent._winW
                     height: parent._winH
-                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    anchors { right: parent.right; top: parent.top; topMargin: parent._top }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -464,54 +477,26 @@ Item {
                         }
                     }
                 }
+
+                VerdictCard {
+                    id: verdictCard
+                    objectName: "detectVerdict"
+                    width: parent.width
+                    y: parent._top + parent._winH + parent._gap
+                    verdict: root._verdict
+                    score: root._score
+                    threshold: _threshold.value
+                    captureFps: root._imageActive && root._captureFps > 0
+                                ? root._captureFps.toFixed(1) : "0"
+                    inferFps: AppBridge.algorithmEnabled ? DetectBridge.realtimeFps.toFixed(1) : "0"
+                    // 测试结果显示测试推理耗时，实时采集显示实时推理耗时
+                    latencyText: root._testActive
+                        ? AlgorithmBridge.lastInferenceMs.toFixed(0) + " ms"
+                        : (root._imageActive && AppBridge.algorithmEnabled
+                           ? DetectBridge.lastInferenceMs.toFixed(0) + " ms" : "—")
+                }
             }
 
-            // ── 状态栏 ──────────────────────────────
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 16
-
-                Text {
-                    text: qsTr("采集帧率 %1 fps").arg(
-                        root._imageActive && root._captureFps > 0
-                            ? root._captureFps.toFixed(1) : "0")
-                    font.pixelSize: 12
-                    color: Colors.textSecondary
-                }
-                Text {
-                    text: qsTr("推理频率 %1 fps").arg(
-                        AppBridge.algorithmEnabled ? DetectBridge.realtimeFps.toFixed(1) : "0")
-                    font.pixelSize: 12
-                    color: Colors.textSecondary
-                }
-                Text {
-                    text: qsTr("分数 %1").arg(root._score.toFixed(3))
-                    font.pixelSize: 12; font.bold: true
-                    color: root._score > _threshold.value
-                        ? Colors.statusDisconnected : Colors.textPrimary
-                }
-                // 推理耗时：测试结果显示测试推理耗时，实时采集显示实时推理耗时
-                Text {
-                    visible: root._testActive || (root._imageActive && AppBridge.algorithmEnabled)
-                    text: root._testActive
-                        ? qsTr("推理耗时 %1 ms").arg(AlgorithmBridge.lastInferenceMs.toFixed(0))
-                        : qsTr("实时推理 %1 ms").arg(DetectBridge.lastInferenceMs.toFixed(0))
-                    font.pixelSize: 12
-                    color: Colors.textSecondary
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Rectangle { width: 10; height: 10; radius: 5
-                    color: root._score > _threshold.value
-                        ? Colors.statusDisconnected : Colors.statusConnected }
-                Text {
-                    text: root._score > _threshold.value ? qsTr("异常") : qsTr("正常")
-                    font.pixelSize: 12; font.bold: true
-                    color: root._score > _threshold.value
-                        ? Colors.statusDisconnected : Colors.statusConnected
-                }
-            }
         }
     }
 
@@ -886,7 +871,8 @@ Item {
         height: 72
         anchors { right: sidePanel.left; verticalCenter: parent.verticalCenter }
         radius: 6
-        color: Colors.interactivePressed
+        // 实色强调：淡薄荷底上的白箭头几乎看不见，而控制栏（开始采集/选模型）全藏在它后面
+        color: handleMa.containsMouse ? Colors.accentHover : Colors.accent
 
         Behavior on anchors.rightMargin { NumberAnimation { duration: 200 } }
 
@@ -894,10 +880,11 @@ Item {
             anchors.centerIn: parent
             text: root._panelOpen ? "❯" : "❮"
             font.pixelSize: 13
-            color: "#ffffff"
+            color: Colors.accentContent
         }
 
         MouseArea {
+            id: handleMa
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor

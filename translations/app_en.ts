@@ -250,204 +250,169 @@
 <context>
     <name>DetectPage</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="256" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="265" />
         <source>异常检测</source>
         <translation>Anomaly Detection</translation>
     </message>
     <message>
         <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="49" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="409" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="422" />
         <source>异常定位</source>
         <translation>Anomaly Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="456" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="469" />
         <source>无异常定位信息</source>
         <translation>No Anomaly Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="580" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="567" />
         <source>算法推理</source>
         <translation>Algorithm Inference</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="488" />
-        <source>分数 %1</source>
-        <translation>Score %1</translation>
-    </message>
-    <message>
         <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="47" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="294" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="307" />
         <source>原图</source>
         <translation>Original Image</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="368" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="822" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="381" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="809" />
         <source>等待图像</source>
         <translation>Waiting for Image</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="367" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="380" />
         <source>未连接</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="560" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="545" />
         <source>停止采集</source>
         <translation>Stop Capture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="560" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="545" />
         <source>开始采集</source>
         <translation>Start Capture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="368" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="463" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="381" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="476" />
         <source>未采集</source>
         <translation>Not Capturing</translation>
     </message>
     <message>
         <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="49" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="409" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="422" />
         <source>异常热力图</source>
         <translation>Anomaly Heatmap</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="304" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="788" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="317" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="775" />
         <source>ROI 绘制</source>
         <translation>ROI Draw</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="321" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="334" />
         <source>恢复全幅</source>
         <translation>Restore Full Frame</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="338" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="419" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="351" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="432" />
         <source>全屏</source>
         <translation>Fullscreen</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="458" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="471" />
         <source>算法未开启</source>
         <translation>Algorithm Off</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="462" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="822" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="475" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="809" />
         <source>等待推理结果</source>
         <translation>Waiting for Inference Result</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="475" />
-        <source>采集帧率 %1 fps</source>
-        <translation>Capture %1 fps</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="482" />
-        <source>推理频率 %1 fps</source>
-        <translation>Inference %1 fps</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="497" />
-        <source>推理耗时 %1 ms</source>
-        <translation>Inference Time %1 ms</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="498" />
-        <source>实时推理 %1 ms</source>
-        <translation>Realtime Inference %1 ms</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="541" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="526" />
         <source>控制</source>
         <translation>Controls</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="597" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="584" />
         <source>异常阈值</source>
         <translation>Anomaly Threshold</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="613" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="600" />
         <source>像素阈值</source>
         <translation>Pixel Threshold</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="618" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="605" />
         <source>未标定</source>
         <translation>Not Calibrated</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="635" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="622" />
         <source>F1 阈值定位</source>
         <translation>F1 Threshold Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="646" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="633" />
         <source>精细定位</source>
         <translation>Refine Localization</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="664" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="651" />
         <source>测试推理</source>
         <translation>Test Inference</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="675" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="662" />
         <source>实时采集中，测试推理已暂停</source>
         <translation>Live capture in progress; test inference paused</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="686" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="673" />
         <source>选择模型</source>
         <translation>Select Model</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="804" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="791" />
         <source>退出全屏</source>
         <translation>Exit Fullscreen</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="461" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="696" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="474" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="683" />
         <source>未选择模型</source>
         <translation>No Model Selected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="707" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="694" />
         <source>卸载模型</source>
         <translation>Unload Model</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="716" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="703" />
         <source>打开图片</source>
         <translation>Open Image</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="454" />
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="736" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="467" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="723" />
         <source>推理中...</source>
         <translation>Inferring...</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="736" />
+        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="723" />
         <source>执行推理</source>
         <translation>Run Inference</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="509" />
-        <source>异常</source>
-        <translation>Anomaly</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/DetectPage.qml" line="509" />
-        <source>正常</source>
-        <translation>Normal</translation>
     </message>
 </context>
 <context>
@@ -897,52 +862,52 @@
         <translation>Protocol Monitor (shared by both boards)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="136" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="138" />
         <source>%1 行</source>
         <translation>%1 lines</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="153" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="155" />
         <source>驱动器帧镜像（@TX/@RX）</source>
         <translation>Driver frame mirror (@TX/@RX)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="163" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="165" />
         <source>暂停记录</source>
         <translation>Pause capture</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="172" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="174" />
         <source>清空</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="182" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="184" />
         <source>⚠ 当前这块板子的固件没有帧镜像（`trace`）—— 只有 Z 轴那块有。二轴的驱动器报文要在板子 USB 控制台上看。</source>
         <translation>⚠ This board's firmware has no frame mirror (`trace`) — only the Z-axis board has it. To see the X/Y drives' frames, use the board's USB console.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="224" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="226" />
         <source>暂无收发记录（连接后 json 轮询会立刻出现）</source>
         <translation>No traffic yet (json polling starts as soon as you connect)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="225" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="227" />
         <source>未连接</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="241" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="243" />
         <source>自定义命令（发给本行选中的板子），例如 ver all / json / zcfg</source>
         <translation>Custom command (sent to the selected board), e.g. ver all / json / zcfg</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="263" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="265" />
         <source>发送</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="273" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ProtoPanel.qml" line="275" />
         <source>⚠ 「%1」未连接 —— 命令发不出去。先点上面的平台卡片连接。</source>
         <translation>⚠ “%1” is not connected — the command cannot be sent. Connect it with the platform card above first.</translation>
     </message>
@@ -1087,12 +1052,12 @@
         <translation>Moving…</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageControllerCard.qml" line="304" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageControllerCard.qml" line="329" />
         <source>点击断开连接</source>
         <translation>Click to disconnect</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageControllerCard.qml" line="304" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageControllerCard.qml" line="329" />
         <source>点击连接平台</source>
         <translation>Click to connect</translation>
     </message>
@@ -1128,57 +1093,57 @@
 <context>
     <name>StageJogPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="107" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="97" />
         <source>二轴手动控制</source>
         <translation>2-Axis Manual Control</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="124" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="114" />
         <source>步长</source>
         <translation>Step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="195" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="185" />
         <source>当前【已使能】（按钮淡红）：闭环抱住台面、带电。点它 = 失能：松掉电机，可以用手推台面调机械；但台面被推动后基准就废了，要重新「设为原点」。</source>
         <translation>Currently ENABLED (button is light red): the closed loop holds the stage and it is powered. Click = Disable: let the motors go so you can push the stage by hand to adjust mechanics; but once pushed the datum is gone — set the origin again.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="198" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="188" />
         <source>当前【未使能】（按钮淡绿）：电机松着，可以手推台面。点它 = 使能：闭环抱住台面、顶住外力。注意「设为原点」和任何运动命令都会自动重新使能。</source>
         <translation>Currently DISABLED (button is light green): the motors are let go, you can push the stage by hand. Click = Enable: the closed loop holds the stage and resists external force. Note that “Set origin” and every motion command re-enable the motors.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="218" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="208" />
         <source>把当前位置当作 0 点（立基准）。先把滑座推到靠块/硬限位贴实再点它，每次上电都要重立一次。</source>
         <translation>Treat the current position as 0 (establish the datum). Push the carriage against its hard stop first; it must be redone after every power-up.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="187" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="177" />
         <source>失能</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="187" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="177" />
         <source>使能</source>
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="210" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="200" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="238" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="228" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="257" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="250" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="293" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="286" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
@@ -1487,101 +1452,154 @@
     </message>
 </context>
 <context>
+    <name>VerdictCard</name>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="76" />
+        <source>待机</source>
+        <translation>Standby</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="76" />
+        <source>异常</source>
+        <translation>Anomaly</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="76" />
+        <source>正常</source>
+        <translation>Normal</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="87" />
+        <source>异常分数</source>
+        <translation>Anomaly Score</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="100" />
+        <source>阈值 %1</source>
+        <translation>Threshold %1</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="103" />
+        <source>高出 %1</source>
+        <translation>Above by %1</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="104" />
+        <source>低于 %1</source>
+        <translation>Below by %1</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="115" />
+        <source>采集帧率</source>
+        <translation>Capture FPS</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="116" />
+        <source>推理频率</source>
+        <translation>Inference FPS</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/components/VerdictCard.qml" line="117" />
+        <source>推理耗时</source>
+        <translation>Latency</translation>
+    </message>
+</context>
+<context>
     <name>ZStageJogPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="165" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="142" />
         <source>Z 轴手动控制</source>
         <translation>Z-Axis Manual Control</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="185" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="162" />
         <source>步长</source>
         <translation>Step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="302" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="279" />
         <source>把当前位置当作 Z=0（立基准）。先把平台推到靠块/机械死点贴实再点它 —— 这是主线的立基准方式，每次上电都要重立一次。</source>
         <translation>Treat the current position as Z=0 (establish the datum). Push the stage against its hard stop first — this is the mainline way; it must be redone after every power-up.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="135" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="207" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="113" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="184" />
         <source>向上</source>
         <translation>Up</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="135" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="224" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="113" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="201" />
         <source>向下</source>
         <translation>Down</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="278" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="255" />
         <source>当前【已使能】：闭环抱住平台、带电（按钮是淡红）。点它 = 失能：电机完全不出力，可以用手推平台去靠块（丝杠自锁，平台不会掉）。急停与它的分工：急停是刹车且保持使能。</source>
         <translation>Currently ENABLED: the closed loop holds the platform and it is powered (button is light red). Click = Disable: the motors output no torque at all, so you can push the platform against its stop by hand (the lead screws are self-locking, the platform won't drop). Stop vs disable: stop brakes but keeps the loop enabled.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="281" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="258" />
         <source>当前【未使能】：电机不出力，可以手推平台（按钮是淡绿）。点它 = 使能：闭环抱住平台，顶住外力（失能时被推动坐标系就废了）。</source>
         <translation>Currently DISABLED: the motors output no torque, you can push the platform by hand (button is light green). Click = Enable: the closed loop holds the platform against external force (if pushed while disabled, the coordinate frame is ruined).</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="286" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="263" />
         <source>失能</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="286" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="263" />
         <source>使能</source>
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="294" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="271" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="318" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="295" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="337" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="318" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="349" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="330" />
         <source>目标 (mm)</source>
         <translation>Target (mm)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="362" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="343" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="380" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="361" />
         <source>回零方向</source>
         <translation>Homing direction</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="399" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="380" />
         <source>自动回零（可选）</source>
         <translation>Auto Home (optional)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="404" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="385" />
         <source>驱动器让两个电机同时朝下顶死点、按相电流判「顶住了」。它要求两侧丝杠同时顶到各自的死点，否则会把平台拧歪 —— 主线做法是「推到靠块 → 设为原点」。</source>
         <translation>The drivers push both motors down into their hard stops and detect “stalled” by phase current. Both screws must reach their stops together, otherwise the stage twists — the mainline way is “push against the stop → Set origin”.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="407" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="388" />
         <source>方向由上面那对按钮选（向下 = 往底座死点，重力帮忙、撞不坏）。回零中随时能按「停止」打断。</source>
         <translation>The direction is chosen by the pair of buttons above (Down = toward the base hard stop, where gravity helps and nothing gets damaged). You can interrupt homing at any time with “Stop”.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="418" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="399" />
         <source>中断回零</source>
         <translation>Abort homing</translation>
     </message>
