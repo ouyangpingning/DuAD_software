@@ -194,14 +194,23 @@ Item {
 
         implicitHeight: 36
 
-        // 折叠头 = **软强调底的内嵌块**（无描边、无阴影）。
-        // 这样层次是：页面（白）→ 卡片（白底描边浮起）→ 折叠头/内嵌块（淡色）。
-        // 改之前折叠头和卡片同为 contentBg、同 radius，堆在一起看不出谁是谁。
+        // 折叠头 = **分节标题**：静止无底色，悬停才出淡底，下方一条细分隔线。
+        // 2026-10-08 评审：原来是 accentSoft 整条色块，比它下面的卡片还抢眼
+        // （左右两列一眼看过去最显眼的是四条淡蓝条，而不是连接卡和数据）。
+        // 层次仍然成立：页面（白）→ 卡片（描边 + 浮起）→ 分节标题（只有文字和一条线）。
         Rectangle {
             anchors.fill: parent
             radius: 8
-            color: foldMa.containsMouse ? Colors.interactiveHover : Colors.accentSoft
+            color: foldMa.containsMouse ? Colors.interactiveHover : "transparent"
             Behavior on color { ColorAnimation { duration: 120 } }
+
+            Rectangle {
+                visible: !foldMa.containsMouse
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom
+                          leftMargin: 4; rightMargin: 4 }
+                height: 1
+                color: Colors.cardBorderStrong
+            }
 
             RowLayout {
                 anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
@@ -481,8 +490,11 @@ Item {
                                         Layout.alignment: Qt.AlignTop
                                         Layout.topMargin: 2
                                         source: "../images/triangle-notice.svg"
-                                        width: 14
-                                        height: 14
+                                        // 进了 RowLayout：写 width/height 会被静默覆盖成 24（§19-35）
+                                        implicitWidth: 14
+                                        implicitHeight: 14
+                                        Layout.preferredWidth: 14
+                                        Layout.preferredHeight: 14
                                         color: Colors.statusDisconnected
                                     }
                                     Text {
@@ -492,7 +504,9 @@ Item {
                                                    + "板子 USB 控制台敲 net 会打印这三个值")
                                         font.pixelSize: 11
                                         color: Colors.statusDisconnected
-                                        wrapMode: Text.WrapAnywhere
+                                        // Wrap 而不是 WrapAnywhere：后者任意字符处断行，把「」」甩到行首
+                                        // （2026-10-08 评审截图）；Wrap 遵守 CJK 禁则，放不下才退回任意断行
+                                        wrapMode: Text.Wrap
                                     }
                                 }
                                 MouseArea {
@@ -970,8 +984,11 @@ Item {
                                         Layout.alignment: Qt.AlignTop
                                         Layout.topMargin: 2
                                         source: "../images/triangle-notice.svg"
-                                        width: 14
-                                        height: 14
+                                        // 进了 RowLayout：写 width/height 会被静默覆盖成 24（§19-35）
+                                        implicitWidth: 14
+                                        implicitHeight: 14
+                                        Layout.preferredWidth: 14
+                                        Layout.preferredHeight: 14
                                         color: Colors.statusDisconnected
                                     }
                                     Text {
@@ -981,7 +998,9 @@ Item {
                                                    + "在 Z 轴板子的 USB 控制台上敲 net 就能看到这三个值")
                                         font.pixelSize: 11
                                         color: Colors.statusDisconnected
-                                        wrapMode: Text.WrapAnywhere
+                                        // Wrap 而不是 WrapAnywhere：后者任意字符处断行，把「」」甩到行首
+                                        // （2026-10-08 评审截图）；Wrap 遵守 CJK 禁则，放不下才退回任意断行
+                                        wrapMode: Text.Wrap
                                     }
                                 }
                                 MouseArea {

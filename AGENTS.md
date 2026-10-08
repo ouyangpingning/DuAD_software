@@ -52,7 +52,7 @@ Windows: `pyqml_win\Scripts\python.exe -u main.py`；Jetson: `bash run_jetson.sh
 
 - **main.py venv 自检 execv**：不要绕过；打包版 frozen 分支的 `Path("Scripts","python.exe")` 写法不要改回 str/str 相除。
 - **两处 Fusion 强制**：`QT_QUICK_CONTROLS_STYLE=Fusion`（main.py `__main__` 块，QGuiApplication 创建前）——KDE Breeze 与 Qt 6.11 QML 控件不兼容（ComboBox 下拉空白）；Windows 打包无它则控件空白。**不要移除**。
-- **颜色唯一来源** `DuAD_Software/Colors.qml`：`setTheme/setPreset` 运行时切换，全部颜色走 ColorAnimation（`animDuration`）。禁止硬编码 `#rrggbb`。卡片层级另有一组令牌：`cardBg / cardBorderStrong / cardShadow / accentSoft / textOnAccent / cardDangerBorder`。
+- **颜色唯一来源** `DuAD_Software/Colors.qml`：`setTheme/setPreset` 运行时切换，全部颜色走 ColorAnimation（`animDuration`）。禁止硬编码 `#rrggbb`。卡片层级另有一组令牌：`cardBg / cardBorderStrong / cardShadow / accentSoft / textOnAccent / cardDangerBorder`。**实色强调**（2026-10-08）：`accent / accentHover / accentPressed / accentContent / accentText` —— 淡色（`accentSoft`/`interactive*`）铺大面积，实色只点睛（主按钮、选中 chip、导航指示条、开关/滑块/焦点）；强调底上的字用 `accentContent`（暗色主题是深字），**不是** `textOnAccent`（急停红上的白）。⚠ 属性名别用 `onXxx`（QML 当信号处理器）。对比度下限由 `tests/test_design_tokens.py` 按每套配色×亮/暗钉住，新增/改配色必跑。
 - **卡片/按钮的底色与"浮起"一律用 `pages/components/CardSurface.qml` / `ThemedButton.qml`**（白底 + 1px 描边 + **普通矩形**硬阴影，不用 shader 特效 —— 更简单且已在页面里验证过）。按钮里"图标+文字"用 `pages/components/IconText.qml`（纯锚点居中），**不许拿 `⏻ ⌂ ■ ▲` 这类 Unicode 字形当图标**（依赖字体收录、大小不齐、不能单独染色）。
 - **别拿探针脚本的"不渲染"当结论**：探针能证明"能"、很难证明"不能"，要否定一件事得在**真实页面渲染**（`render_page.py`/`render_pages.py`）里否定。我曾据探针误判"offscreen 下图标从来是空的"，把规矩写错了 —— 详见 docs/19 §32（**已更正**）。
 - **图标路径的正确性靠断言兜底**（路径写错会**静默不画**）：`tests/test_ui_theme.py` 会逐个解析每个页面的 `IconImage.source` 查文件存在，`test_stage_page.py` 12e 同理。改图标或搬文件后必须回跑。
@@ -101,9 +101,11 @@ QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_bridge.py    # StageBridge
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_zstage_bridge.py   # ZStageBridge 23 组 + 子组
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_proto_hub.py       # 公用协议框
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_light_bridge.py    # 假光源控制器（只认 19200 + 长应答分片）
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_ui_theme.py      # **全站**守卫：七页的按钮主题化 + 图标路径存在
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_ui_theme.py      # **全站**守卫：七页 + 主窗口的按钮主题化 + 图标路径存在
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_design_tokens.py # 颜色令牌 WCAG 对比度（每套配色 × 亮/暗）
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_detect_page.py   # 检测结论卡三态（待机/正常/异常）
 QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1680 1700 both --dump   # 平台页渲染 + 量几何（改版面必看）
-python3 tests/render_pages.py camera /tmp/camera.png 1440 980     # 渲染任意页面目检（camera/light/comm/collect/settings/detect/stage）
+python3 tests/render_pages.py camera /tmp/camera.png 1440 980     # 渲染任意页面目检（camera/light/comm/collect/settings/detect/stage/main=整个主窗口）
 python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图标**本身**的形状/粗细，见 §32）
 ```
 
@@ -113,7 +115,7 @@ python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图�
 
 ## 「平台控制」页（v4.3，2026-09-28 美化：图标接线 + 卡片质感）
 
-**卡片一律用 `pages/components/CardSurface.qml`**（白底 `cardBg` + 1px `cardBorderStrong` + 2px 矩形硬阴影），内嵌块（折叠头/图标 chip）用 `accentSoft`，页面底保持白 —— 层次 = 页面 → 卡片 → 内嵌块。**已连接卡片的描边是 `cardDangerBorder`（淡红），不要用 `statusDisconnected` 正红**（1px 正红围一圈像故障告警，而"已连接"是好状态）。**按钮一律走 `pages/components/ThemedButton.qml`**（`tone: neutral|soft|danger|dangerSoft|success`）—— **使能按钮的颜色就是状态**（2026-09-29 用户要求）：**未使能 = `success` 淡绿**（电机松着可手推，安全侧）、**已使能 = `dangerSoft` 淡红**（抱死带电，危险侧）、未连接回中性白（状态未知不许画成绿色）；**别用实心红 `danger`**（会和「停止」撞脸）。文字仍是**动作**（使能/失能），X/Y 与 Z 两张卡用同一套—— 本页曾有一批 Button 没写 `background`，吃的是 **Fusion 默认灰**、完全不吃 `Colors`（§19-33）；它的 contentItem 内部用 `IconText`，不许回退到 `⏻ ⌂ ■ ▲` 字形。**禁用态换颜色（`Colors.textPlaceholder`），不许压透明度**（实心图标会淡成浅影）。折叠头 = `FoldHeader`（accentSoft 条 + `下单箭头.svg` 旋转 0/−90 表示展开/收起 + 红色 pill badge）；**折叠体里的面板 `showTitle: false`**（标题由折叠头负责，别一个名字说两遍）。连接卡状态行分层：`● 已连接`（加粗、状态色）→ 闸门红项 → 地址 11px 灰 → `闪电/信号格` 图标 + 数值；**未连接时 `gates` 传 `[]`**（"未连接"由状态词说，别再出红字）。遥测拆成 `voltage`/`rssi` 独立属性（窄列 `width<300` 时整组让位）。**预设位置在左列「二轴相机平台状态」折叠节里**（`showTitle: true`，2026-09-28 用户要求从「高级」搬来）；「高级」只剩协议显示。Z 轴「向上/向下」不 fillWidth（188 居中）；「移动到该位置」居中 + `tone: soft`。`StagePresetPanel` 要能在 164px 内容宽下活：边距 12、坐标文本 `width>=230` 才显示、「名称+记录」用 `GridLayout` 动态列数（宽了并排、窄了竖排）。
+**卡片一律用 `pages/components/CardSurface.qml`**（白底 `cardBg` + 1px `cardBorderStrong` + 2px 矩形硬阴影），内嵌块（折叠头/图标 chip）用 `accentSoft`，页面底保持白 —— 层次 = 页面 → 卡片 → 内嵌块。**已连接卡片的描边是 `cardDangerBorder`（淡红），不要用 `statusDisconnected` 正红**（1px 正红围一圈像故障告警，而"已连接"是好状态）。**按钮一律走 `pages/components/ThemedButton.qml`**（`tone: primary|neutral|soft|danger|dangerSoft|success`；`primary` = 每张卡**唯一**的主操作；checkable 选中态自动画实色）—— **使能按钮的颜色就是状态**（2026-09-29 用户要求）：**未使能 = `success` 淡绿**（电机松着可手推，安全侧）、**已使能 = `dangerSoft` 淡红**（抱死带电，危险侧）、未连接回中性白（状态未知不许画成绿色）；**别用实心红 `danger`**（会和「停止」撞脸）。文字仍是**动作**（使能/失能），X/Y 与 Z 两张卡用同一套—— 本页曾有一批 Button 没写 `background`，吃的是 **Fusion 默认灰**、完全不吃 `Colors`（§19-33）；它的 contentItem 内部用 `IconText`，不许回退到 `⏻ ⌂ ■ ▲` 字形。**禁用态换颜色（`Colors.textPlaceholder`），不许压透明度**（实心图标会淡成浅影）。折叠头 = `FoldHeader`（**分节标题**：静止无底色 + 底部细线、悬停出淡底 —— 2026-10-08 起不再是 accentSoft 整条，那比卡片还抢眼；+ `下单箭头.svg` 旋转 0/−90 表示展开/收起 + 红色 pill badge）；**折叠体里的面板 `showTitle: false`**（标题由折叠头负责，别一个名字说两遍）。连接卡状态行分层：`● 已连接`（加粗、状态色）→ 闸门红项 → 地址 11px 灰 → `闪电/信号格` 图标 + 数值；**未连接时 `gates` 传 `[]`**（"未连接"由状态词说，别再出红字）。遥测拆成 `voltage`/`rssi` 独立属性（窄列 `width<300` 时整组让位）。**预设位置在左列「二轴相机平台状态」折叠节里**（`showTitle: true`，2026-09-28 用户要求从「高级」搬来）；「高级」只剩协议显示。Z 轴「向上/向下」不 fillWidth（188 居中）；「移动到该位置」居中 + `tone: soft`。`StagePresetPanel` 要能在 164px 内容宽下活：边距 12、坐标文本 `width>=230` 才显示、「名称+记录」用 `GridLayout` 动态列数（宽了并排、窄了竖排）。
 
 ## 「平台控制」页（v4.2，2026-09-28 第二张手绘稿：三列）
 
