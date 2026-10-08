@@ -101,9 +101,7 @@ class MqttBridge(QObject):
 
             self._client = client
             client.loop_start()
-            self._log(f"正在连接 {address}:{port}"
-                      + (" (TLS)" if use_tls else "")
-                      + (f" 用户:{username}" if username else ""))
+            self._log(self.tr('正在连接 {}:{}{}{}').format(address, port, " (TLS)" if use_tls else "", self.tr(' 用户:{}').format(username) if username else ""))
         except Exception as e:
             self._connecting = False
             self.connectedChanged.emit()
@@ -124,7 +122,7 @@ class MqttBridge(QObject):
         self._manual_disconnect = False
         self.connectedChanged.emit()
         self.mqttDisconnected.emit()
-        self._log("已断开云服务器")
+        self._log(self.tr("已断开云服务器"))
 
     # ── 发布 / 订阅 ───────────────────────────────────────
     @Slot(str, str, int, result=bool)
@@ -135,7 +133,7 @@ class MqttBridge(QObject):
             return False
         try:
             info = client.publish(topic, payload, qos=int(qos))
-            self._log(f"发布 → [{topic}] {payload}")
+            self._log(self.tr('发布 → [{}] {}').format(topic, payload))
             return info.rc == mqtt.MQTT_ERR_SUCCESS if hasattr(info, 'rc') else True
         except Exception as e:
             self.mqttError.emit(self.tr('发布失败: {}').format(e))
@@ -159,11 +157,11 @@ class MqttBridge(QObject):
         self._connecting = False
         self.connectedChanged.emit()
         if rc == 0:
-            self._log("云服务器连接成功")
+            self._log(self.tr("云服务器连接成功"))
             self.mqttConnected.emit()
         else:
             self._client = None
-            self._log(f"云服务器拒绝连接，返回码: {rc}")
+            self._log(self.tr('云服务器拒绝连接，返回码: {}').format(rc))
             self.mqttError.emit(self.tr('MQTT 连接失败，返回码: {}').format(rc))
 
     def _on_disconnect(self, client, userdata, rc):
@@ -173,21 +171,21 @@ class MqttBridge(QObject):
             self._client = None
         self.connectedChanged.emit()
         self.mqttDisconnected.emit()
-        self._log(f"云服务器连接已断开 (rc={rc})")
+        self._log(self.tr('云服务器连接已断开 (rc={})').format(rc))
 
     def _on_message(self, client, userdata, msg):
         try:
             payload = msg.payload.decode("utf-8", errors="ignore")
         except Exception:
             payload = str(msg.payload)
-        self._log(f"收到 ← [{msg.topic}] {payload}")
+        self._log(self.tr('收到 ← [{}] {}').format(msg.topic, payload))
         self.messageReceived.emit(msg.topic, payload)
 
     def _on_publish(self, client, userdata, mid):
         self.publishFinished.emit(mid)
 
     def _on_subscribe(self, client, userdata, mid, granted_qos):
-        self._log(f"订阅成功 (mid={mid}, qos={granted_qos})")
+        self._log(self.tr('订阅成功 (mid={}, qos={})').format(mid, granted_qos))
 
     def _log(self, text: str):
         ts = time.strftime("%H:%M:%S")

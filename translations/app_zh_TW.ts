@@ -1078,34 +1078,79 @@
         <translation>MQTT connect 傳回錯誤碼：{}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/mqtt_bridge.py" line="110" />
+        <location filename="../backend/Src/mqtt_bridge.py" line="104" />
+        <source>正在连接 {}:{}{}{}</source>
+        <translation>正在連線 {}:{}{}{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="104" />
+        <source> 用户:{}</source>
+        <translation> 使用者:{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="108" />
         <source>连接云服务器失败: {}</source>
         <translation>連線雲端伺服器失敗：{}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/mqtt_bridge.py" line="134" />
+        <location filename="../backend/Src/mqtt_bridge.py" line="125" />
+        <source>已断开云服务器</source>
+        <translation>已中斷雲端伺服器</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="132" />
         <source>MQTT 未连接，无法发布消息</source>
         <translation>MQTT 未連線，無法發佈訊息</translation>
     </message>
     <message>
-        <location filename="../backend/Src/mqtt_bridge.py" line="141" />
+        <location filename="../backend/Src/mqtt_bridge.py" line="136" />
+        <source>发布 → [{}] {}</source>
+        <translation>發佈 → [{}] {}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="139" />
         <source>发布失败: {}</source>
         <translation>發佈失敗：{}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/mqtt_bridge.py" line="148" />
+        <location filename="../backend/Src/mqtt_bridge.py" line="146" />
         <source>MQTT 未连接，无法订阅</source>
         <translation>MQTT 未連線，無法訂閱</translation>
     </message>
     <message>
-        <location filename="../backend/Src/mqtt_bridge.py" line="154" />
+        <location filename="../backend/Src/mqtt_bridge.py" line="152" />
         <source>订阅失败: {}</source>
         <translation>訂閱失敗：{}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/mqtt_bridge.py" line="167" />
+        <location filename="../backend/Src/mqtt_bridge.py" line="160" />
+        <source>云服务器连接成功</source>
+        <translation>雲端伺服器連線成功</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="164" />
+        <source>云服务器拒绝连接，返回码: {}</source>
+        <translation>雲端伺服器拒絕連線，傳回碼：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="165" />
         <source>MQTT 连接失败，返回码: {}</source>
         <translation>MQTT 連線失敗，傳回碼：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="174" />
+        <source>云服务器连接已断开 (rc={})</source>
+        <translation>雲端伺服器連線已斷開 (rc={})</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="181" />
+        <source>收到 ← [{}] {}</source>
+        <translation>收到 ← [{}] {}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/mqtt_bridge.py" line="188" />
+        <source>订阅成功 (mid={}, qos={})</source>
+        <translation>訂閱成功 (mid={}, qos={})</translation>
     </message>
 </context>
 <context>
@@ -1409,183 +1454,438 @@
 <context>
     <name>StageBridge</name>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="469" />
-        <location filename="../backend/Src/stage_bridge.py" line="533" />
-        <location filename="../backend/Src/stage_bridge.py" line="1113" />
-        <location filename="../backend/Src/stage_bridge.py" line="1138" />
-        <location filename="../backend/Src/stage_bridge.py" line="1175" />
-        <location filename="../backend/Src/stage_bridge.py" line="1200" />
-        <location filename="../backend/Src/stage_bridge.py" line="1232" />
-        <location filename="../backend/Src/stage_bridge.py" line="1262" />
-        <location filename="../backend/Src/stage_bridge.py" line="1274" />
-        <location filename="../backend/Src/stage_bridge.py" line="1360" />
+        <location filename="../backend/Src/stage_bridge.py" line="293" />
+        <source>StageBridge 就绪（单位：界面 mm ↔ 固件度，1mm = 11.25°）</source>
+        <translation>StageBridge 就緒（單位：介面 mm ↔ 韌體度，1mm = 11.25°）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="309" />
+        <source>速度默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）</source>
+        <translation>速度預設值更新：{} {} → {}（沒改過的話就跟著新預設走，改過的值不受影響）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="349" />
+        <source>错误: {}</source>
+        <translation>錯誤：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="367" />
+        <source>前置条件已满足，清掉之前的闸提示</source>
+        <translation>前置條件已滿足，清掉之前的閘提示</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="468" />
+        <location filename="../backend/Src/stage_bridge.py" line="532" />
+        <location filename="../backend/Src/stage_bridge.py" line="1112" />
+        <location filename="../backend/Src/stage_bridge.py" line="1137" />
+        <location filename="../backend/Src/stage_bridge.py" line="1174" />
+        <location filename="../backend/Src/stage_bridge.py" line="1199" />
+        <location filename="../backend/Src/stage_bridge.py" line="1231" />
+        <location filename="../backend/Src/stage_bridge.py" line="1260" />
+        <location filename="../backend/Src/stage_bridge.py" line="1272" />
+        <location filename="../backend/Src/stage_bridge.py" line="1353" />
         <source>未连接平台</source>
         <translation>未連線平台</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="505" />
+        <location filename="../backend/Src/stage_bridge.py" line="471" />
+        <source>使能电机</source>
+        <translation>使能馬達</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="471" />
+        <source>失能电机</source>
+        <translation>失能馬達</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="472" />
+        <source>运动命令之后会自动使能，注意顺序</source>
+        <translation>運動命令之後會自動使能，注意順序</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="473" />
+        <source>台面会被顶住，手推不动</source>
+        <translation>台面會被頂住，手推不動</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="504" />
         <source>正在回零…（要停下直接按「停止」—— 回零期间它也进得去）</source>
         <translation>正在回零…（要停下直接按「停止」—— 回零期間它也進得去）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="506" />
+        <location filename="../backend/Src/stage_bridge.py" line="505" />
         <source>最近一次回零：完成（两轴已有基准）</source>
         <translation>最近一次回零：完成（兩軸已有基準）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="507" />
+        <location filename="../backend/Src/stage_bridge.py" line="506" />
         <source>最近一次回零：失败或被打断 —— 看下面的日志</source>
         <translation>最近一次回零：失敗或被打斷 —— 看下面的日誌</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="536" />
+        <location filename="../backend/Src/stage_bridge.py" line="535" />
         <source>缺少基准（每次上电都要重立）：推到位后点「设为原点」</source>
         <translation>缺少基準（每次上電都要重立）：推到位後點「設為原點」</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="538" />
+        <location filename="../backend/Src/stage_bridge.py" line="537" />
         <source>未设置工作区：绝对移动会被固件拒绝</source>
         <translation>未設定工作區：絕對移動會被韌體拒絕</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="751" />
+        <location filename="../backend/Src/stage_bridge.py" line="554" />
+        <source>退出时回到零点：{}</source>
+        <translation>退出時回到零點：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="554" />
+        <source>开</source>
+        <translation>開</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="554" />
+        <source>关</source>
+        <translation>關</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="566" />
+        <source>已清掉「上次停在哪儿」的记录（重新立基准后不需要它了）</source>
+        <translation>已清掉「上次停在哪兒」的記錄（重新立基準後不需要它了）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="592" />
+        <source>退出：这次不回零点（{}）</source>
+        <translation>退出：這次不回零點（{}）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="593" />
+        <source>设置里关掉了</source>
+        <translation>設定裡關掉了</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="594" />
+        <source>还没有基准</source>
+        <translation>還沒有基準</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="595" />
+        <source>还没设工作区</source>
+        <translation>還沒設工作區</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="595" />
+        <source>台面正在动</source>
+        <translation>台面正在動</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="600" />
+        <source>退出：正在回到零点 ({:.1f}, {:.1f}) mm …</source>
+        <translation>退出：正在回到零點 ({:.1f}, {:.1f}) mm …</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="603" />
+        <source>退出回零点</source>
+        <translation>退出回零點</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="629" />
+        <source>⚠ 退出回零点没等到位（超时 {}s / 或连接断了）—— 台面位置仍然准，只是没停在零点角上</source>
+        <translation>⚠ 退出回零點沒等到位（逾時 {}s／或連線斷了）—— 台面位置仍然準，只是沒停在零點角上</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="633" />
+        <source>✓ 已停在零点 ({:.2f}, {:.2f}) mm</source>
+        <translation>✓ 已停在零點 ({:.2f}, {:.2f}) mm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="655" />
+        <source>⚠ 基准闸是空的：**板子重启过，或者 24V 掉过电** → 驱动器丢了多圈位置，坐标作废，需要重新立一次基准：把滑座推到靠块/硬限位，再点「⌂ 设为原点」</source>
+        <translation>⚠ 基準閘是空的：**板子重啟過，或者 24V 掉過電** → 驅動器丟了多圈位置，座標作廢，需要重新立一次基準：把滑座推到靠塊／硬限位，再點「⌂ 設為原點」</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="664" />
+        <source>⚠ 台面位置和上次离开时不一样：现在 ({:.2f}, {:.2f})，上次停在 ({:.2f}, {:.2f}) mm —— 相差 {:.2f}mm。要么有人手动挪过，要么皮带打滑。坐标可能已经不准，建议重新立基准。</source>
+        <translation>⚠ 台面位置和上次離開時不一樣：現在 ({:.2f}, {:.2f})，上次停在 ({:.2f}, {:.2f}) mm —— 相差 {:.2f}mm。要嘛有人手動挪過，要嘛皮帶打滑。座標可能已經不準，建議重新立基準。</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="725" />
+        <source>下发工作区</source>
+        <translation>下發工作區</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="750" />
         <source>还没填板子的 IP —— 请在下面「平台设置」里填入，板子 USB 控制台敲 net 就会打印出来</source>
         <translation>還沒填板子的 IP —— 請在下面「平台設定」裡填入，板子 USB 控制台敲 net 就會列印出來</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="755" />
+        <location filename="../backend/Src/stage_bridge.py" line="754" />
         <source>还没填连接口令 —— 请在下面「平台设置」里填入，板子 USB 控制台敲 net 就会打印出来</source>
         <translation>還沒填連線口令 —— 請在下面「平台設定」裡填入，板子 USB 控制台敲 net 就會列印出來</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="800" />
+        <location filename="../backend/Src/stage_bridge.py" line="764" />
+        <source>已连接同一目标，只更新参数（不重连）</source>
+        <translation>已連線同一目標，只更新參數（不重連）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="787" />
+        <source>正在连接 {}:{} …</source>
+        <translation>正在連線 {}:{} …</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="799" />
         <source>连接 {}:{} 超时（{} 秒）。排查：① 电脑和板子连的是同一个热点吗 ② 板子 IP 有没有变（手机热点每次可能不同，板子上敲 net 再看一眼）③ 手机热点是不是开了「客户端隔离」</source>
         <translation>連線 {}:{} 逾時（{} 秒）。排查：① 電腦和板子連的是同一個熱點嗎 ② 板子 IP 有沒有變（手機熱點每次可能不同，板子上敲 net 再看一眼）③ 手機熱點是不是開了「客戶端隔離」</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="847" />
+        <location filename="../backend/Src/stage_bridge.py" line="820" />
+        <source>已断开</source>
+        <translation>已斷開</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="826" />
+        <source>TCP 已连接，正在交口令 …</source>
+        <translation>TCP 已連線，正在交口令 …</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="846" />
         <source>与板子的连接已断开</source>
         <translation>與板子的連線已斷開</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="857" />
+        <location filename="../backend/Src/stage_bridge.py" line="848" />
+        <source>连接已关闭</source>
+        <translation>連線已關閉</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="856" />
         <source>连接失败: {}</source>
         <translation>連線失敗：{}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="901" />
+        <location filename="../backend/Src/stage_bridge.py" line="883" />
+        <source>口令通过，通道可用</source>
+        <translation>口令通過，通道可用</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="900" />
         <source>口令被拒（{}）—— 在板子 USB 控制台敲 net 看正确口令</source>
         <translation>口令被拒（{}）—— 在板子 USB 控制台敲 net 看正確口令</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="924" />
+        <location filename="../backend/Src/stage_bridge.py" line="923" />
         <source>命令</source>
         <translation>命令</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="926" />
+        <location filename="../backend/Src/stage_bridge.py" line="925" />
         <source>{} 被拒绝：{}</source>
         <translation>{} 被拒絕：{}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="949" />
+        <location filename="../backend/Src/stage_bridge.py" line="927" />
+        <source>{} 完成</source>
+        <translation>{} 完成</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="948" />
         <source>{} 超时（板子没有应答）</source>
         <translation>{} 逾時（板子沒有應答）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="960" />
+        <location filename="../backend/Src/stage_bridge.py" line="959" />
         <source>未连接平台，命令未发送</source>
         <translation>未連線平台，命令未發送</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1014" />
+        <location filename="../backend/Src/stage_bridge.py" line="1013" />
         <source>板子读位置失败：{}</source>
         <translation>板子讀位置失敗：{}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1046" />
+        <location filename="../backend/Src/stage_bridge.py" line="1045" />
         <source>未连接</source>
         <translation>未連接</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1047" />
+        <location filename="../backend/Src/stage_bridge.py" line="1046" />
         <source>X {:.2f} mm / Y {:.2f} mm  |  关节 A {:.1f}° B {:.1f}°  |  {:.1f}V  {}  |  信号 {} dBm  板子 {}</source>
         <translation>X {:.2f} mm / Y {:.2f} mm  |  關節 A {:.1f}° B {:.1f}°  |  {:.1f}V  {}  |  訊號 {} dBm  板子 {}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1050" />
+        <location filename="../backend/Src/stage_bridge.py" line="1049" />
         <source>已使能</source>
         <translation>已使能</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1050" />
+        <location filename="../backend/Src/stage_bridge.py" line="1049" />
         <source>未使能</source>
         <translation>未使能</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1083" />
+        <location filename="../backend/Src/stage_bridge.py" line="1082" />
         <source>命令未发送：还没连接</source>
         <translation>命令未發送：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1086" />
+        <location filename="../backend/Src/stage_bridge.py" line="1085" />
         <source>命令不能包含换行</source>
         <translation>命令不能包含換行</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1116" />
-        <location filename="../backend/Src/stage_bridge.py" line="1141" />
+        <location filename="../backend/Src/stage_bridge.py" line="1088" />
+        <source>自定义命令 {}</source>
+        <translation>自訂命令 {}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1115" />
+        <location filename="../backend/Src/stage_bridge.py" line="1140" />
         <source>还没有基准：先「设为原点」或自动回零</source>
         <translation>還沒有基準：先「設為原點」或自動回零</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1119" />
+        <location filename="../backend/Src/stage_bridge.py" line="1118" />
         <source>还没设置工作区，绝对移动会被固件拒绝</source>
         <translation>還沒設定工作區，絕對移動會被韌體拒絕</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1144" />
+        <location filename="../backend/Src/stage_bridge.py" line="1123" />
+        <source>目标已按工作区夹取: ({:.2f},{:.2f}) → ({:.2f},{:.2f}) mm</source>
+        <translation>目標已按工作區夾取：({:.2f},{:.2f}) → ({:.2f},{:.2f}) mm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1125" />
+        <source>移动到 ({:.2f}, {:.2f}) mm</source>
+        <translation>移動到 ({:.2f}, {:.2f}) mm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1143" />
         <source>还没设置工作区，点动会被固件拒绝</source>
         <translation>還沒設定工作區，點動會被韌體拒絕</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1158" />
+        <location filename="../backend/Src/stage_bridge.py" line="1157" />
         <source>未连接平台，无法停止</source>
         <translation>未連線平台，無法停止</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1203" />
-        <location filename="../backend/Src/stage_bridge.py" line="1238" />
+        <location filename="../backend/Src/stage_bridge.py" line="1159" />
+        <source>急停</source>
+        <translation>急停</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1176" />
+        <source>设为原点</source>
+        <translation>設為原點</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1202" />
+        <location filename="../backend/Src/stage_bridge.py" line="1237" />
         <source>已经在回零中 —— 要停下按「停止」</source>
         <translation>已經在回零中 —— 要停下按「停止」</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1210" />
+        <location filename="../backend/Src/stage_bridge.py" line="1209" />
         <source>回零参数还没登记（固件 `home` 那道闸要求的）。界面已改为限位开关归零、暂时没有回零入口；需要时在板子控制台上敲 'hcfg &lt;方式&gt; &lt;rpm&gt; &lt;mA&gt;' 再敲 'home corner -1 -1'</source>
         <translation>回零參數還沒登記（韌體 `home` 那道閘要求的）。介面已改為極限開關歸零、暫時沒有回零入口；需要時在板子控制台上敲 'hcfg &lt;方式&gt; &lt;rpm&gt; &lt;mA&gt;' 再敲 'home corner -1 -1'</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1235" />
+        <location filename="../backend/Src/stage_bridge.py" line="1214" />
+        <source>回零点角（两趟：先 X 后 Y）</source>
+        <translation>回零點角（兩趟：先 X 後 Y）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1234" />
         <source>单趟回零参数不对（axis 只能 x/y，方向只能 ±1）</source>
         <translation>單趟回零參數不對（axis 只能 x/y，方向只能 ±1）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1241" />
+        <location filename="../backend/Src/stage_bridge.py" line="1240" />
         <source>还没给回零参数 —— 先点「应用回零参数」</source>
         <translation>還沒給回零參數 —— 先點「套用回零參數」</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1373" />
+        <location filename="../backend/Src/stage_bridge.py" line="1243" />
+        <source>单趟回零（{}，朝 {}{}）</source>
+        <translation>單趟回零（{}，朝 {}{}）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1243" />
+        <source>纯 X</source>
+        <translation>純 X</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1243" />
+        <source>纯 Y</source>
+        <translation>純 Y</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1262" />
+        <source>中断回零</source>
+        <translation>中斷回零</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1274" />
+        <source>单轴立基准</source>
+        <translation>單軸立基準</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1292" />
+        <source>回零参数数据损坏，已忽略</source>
+        <translation>回零參數資料損壞，已忽略</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1301" />
+        <source>⚠ 保存的回零限位电流只有 {}mA，太小了，已自动改成 {}mA（推荐 800mA）。它是**电流阈值**：相电流越过它就算到位；太小（接近空转电流 ~40mA）会**一动就假报「回零完成」**。</source>
+        <translation>⚠ 儲存的回零限位電流只有 {}mA，太小了，已自動改成 {}mA（建議 800mA）。它是**電流門檻**：相電流越過它就算到位；太小（接近空轉電流 ~40mA）會**一動就假報「回零完成」**。</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1308" />
+        <source>回零速度默认值更新：{} → {}rpm（60rpm 走满行程要 9.4 秒，几乎顶到驱动器 10 秒的回零超时）</source>
+        <translation>回零速度預設值更新：{} → {}rpm（60rpm 走滿行程要 9.4 秒，幾乎頂到驅動器 10 秒的回零逾時）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1366" />
         <source>限位电流 {}mA 太小（本项目推荐 800mA，下限 {}mA）—— 它是**电流阈值**：相电流越过它就算到位。太小（接近空转电流 ~40mA）会**一动就假报「回零完成」**（台面还没到边就算到了），比失败更危险。（确实要用小电流做实验，请在板子控制台上直接敲 hset）</source>
         <translation>限位電流 {}mA 太小（本專案建議 800mA，下限 {}mA）—— 它是**電流門檻**：相電流越過它就算到位。太小（接近空轉電流 ~40mA）會**一動就假報「回零完成」**（台面還沒到邊就算到了），比失敗更危險。（確實要用小電流做實驗，請在板子控制台上直接敲 hset）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1432" />
+        <location filename="../backend/Src/stage_bridge.py" line="1389" />
+        <source>回零参数（只登记，不动电机）</source>
+        <translation>回零參數（只登記，不動馬達）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1393" />
+        <source>回零参数已登记（未写驱动器、未触发回零）：方式={} {}rpm 限位电流={}mA</source>
+        <translation>回零參數已登記（未寫驅動器、未觸發回零）：方式={} {}rpm 限位電流={}mA</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1407" />
+        <source>预设位置数据损坏，已忽略</source>
+        <translation>預設位置資料損壞，已忽略</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1424" />
         <source>请给预设起个名字</source>
         <translation>請給預設起個名字</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1460" />
+        <location filename="../backend/Src/stage_bridge.py" line="1431" />
+        <source>预设「{}」已更新为 ({:.2f}, {:.2f}) mm</source>
+        <translation>預設「{}」已更新為 ({:.2f}, {:.2f}) mm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1435" />
+        <source>已记录预设「{}」= ({:.2f}, {:.2f}) mm</source>
+        <translation>已記錄預設「{}」= ({:.2f}, {:.2f}) mm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1445" />
+        <source>已删除预设「{}」</source>
+        <translation>已刪除預設「{}」</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/stage_bridge.py" line="1452" />
         <source>预设不存在</source>
         <translation>預設不存在</translation>
     </message>
@@ -2073,6 +2373,26 @@
 <context>
     <name>ZStageBridge</name>
     <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="284" />
+        <source>ZStageBridge 就绪（单位：mm，与固件一致，不做换算）</source>
+        <translation>ZStageBridge 就緒（單位：mm，與韌體一致，不做換算）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="331" />
+        <source>错误: {}</source>
+        <translation>錯誤：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="336" />
+        <source>同类操作已成功，清掉之前那条参数提示</source>
+        <translation>同類操作已成功，清掉之前那條參數提示</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="354" />
+        <source>前置条件已满足，清掉之前的闸提示</source>
+        <translation>前置條件已滿足，清掉之前的閘提示</translation>
+    </message>
+    <message>
         <location filename="../backend/Src/zstage_bridge.py" line="479" />
         <source>未连接 —— 点上面的 Z 轴平台卡片连接</source>
         <translation>未連線 —— 點上面的 Z 軸平台卡片連線</translation>
@@ -2123,9 +2443,29 @@
         <translation>還沒填口令 —— 在「Z 軸設定」裡填（板子 USB 控制台敲 net 能看到）</translation>
     </message>
     <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="548" />
+        <source>已连接同一目标，只更新参数（不重连）</source>
+        <translation>已連線同一目標，只更新參數（不重連）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="571" />
+        <source>正在连接 {}:{} …</source>
+        <translation>正在連線 {}:{} …</translation>
+    </message>
+    <message>
         <location filename="../backend/Src/zstage_bridge.py" line="583" />
         <source>连接 {}:{} 超时（{} 秒）。排查：① 电脑和板子连的是同一个热点吗 ② 板子 IP 有没有变（手机热点每次可能不同，板子上敲 net 再看一眼）③ 手机热点是不是开了「客户端隔离」</source>
         <translation>連線 {}:{} 逾時（{} 秒）。排查：① 電腦和板子連的是同一個熱點嗎 ② 板子 IP 有沒有變（手機熱點每次可能不同，板子上敲 net 再看一眼）③ 手機熱點是不是開了「客戶端隔離」</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="608" />
+        <source>已断开</source>
+        <translation>已斷開</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="614" />
+        <source>TCP 已连接，正在交口令 …</source>
+        <translation>TCP 已連線，正在交口令 …</translation>
     </message>
     <message>
         <location filename="../backend/Src/zstage_bridge.py" line="635" />
@@ -2133,9 +2473,24 @@
         <translation>與板子的連線已斷開</translation>
     </message>
     <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="646" />
+        <source>连接已关闭</source>
+        <translation>連線已關閉</translation>
+    </message>
+    <message>
         <location filename="../backend/Src/zstage_bridge.py" line="654" />
         <source>连接失败: {}</source>
         <translation>連線失敗：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="680" />
+        <source>口令通过，通道可用</source>
+        <translation>口令通過，通道可用</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="689" />
+        <source>读方向符号</source>
+        <translation>讀方向符號</translation>
     </message>
     <message>
         <location filename="../backend/Src/zstage_bridge.py" line="695" />
@@ -2162,6 +2517,11 @@
         <location filename="../backend/Src/zstage_bridge.py" line="743" />
         <source>{} 被拒绝：{}</source>
         <translation>{} 被拒絕：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="745" />
+        <source>{} 完成</source>
+        <translation>{} 完成</translation>
     </message>
     <message>
         <location filename="../backend/Src/zstage_bridge.py" line="764" />
@@ -2239,9 +2599,19 @@
         <translation>向上點動</translation>
     </message>
     <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="981" />
+        <source>向上 {:g}mm</source>
+        <translation>向上 {:g}mm</translation>
+    </message>
+    <message>
         <location filename="../backend/Src/zstage_bridge.py" line="989" />
         <source>向下点动</source>
         <translation>向下點動</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="992" />
+        <source>向下 {:g}mm</source>
+        <translation>向下 {:g}mm</translation>
     </message>
     <message>
         <location filename="../backend/Src/zstage_bridge.py" line="999" />
@@ -2249,109 +2619,231 @@
         <translation>絕對定位</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1027" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1003" />
+        <source>目标 {:.2f}mm 超出软限位 [{:.2f}, {:.2f}]，已夹到 {:.2f}mm</source>
+        <translation>目標 {:.2f}mm 超出軟限位 [{:.2f}, {:.2f}]，已夾到 {:.2f}mm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1006" />
+        <source>移动到 {:.2f}mm</source>
+        <translation>移動到 {:.2f}mm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1026" />
         <source>使能/失能未下发：还没连接</source>
         <translation>使能/失能未下發：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1038" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1030" />
+        <source>使能两轴（闭环抱住平台）</source>
+        <translation>使能兩軸（閉環抱住平台）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1030" />
+        <source>失能两轴（可手推平台）</source>
+        <translation>失能兩軸（可手推平台）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1037" />
         <source>校平</source>
         <translation>校平</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1041" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1040" />
         <source>校平单次限 ±10mm（差得多说明机械有问题，先查机械）</source>
         <translation>校平單次限 ±10mm（差得多說明機械有問題，先查機械）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1057" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1043" />
+        <source>校平左侧</source>
+        <translation>校平左側</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1056" />
         <source>未连接，急停命令没发出去（请直接断板子电源）</source>
         <translation>未連線，急停命令沒發出去（請直接斷板子電源）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1069" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1058" />
+        <source>急停</source>
+        <translation>急停</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1068" />
         <source>设为原点未发送：还没连接</source>
         <translation>設為原點未發送：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1072" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1071" />
         <source>设为原点被拒绝：还在运动 —— 先等它停或按急停</source>
         <translation>設為原點被拒絕：還在運動 —— 先等它停或按急停</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1089" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1074" />
+        <source>设为原点（立基准）</source>
+        <translation>設為原點（立基準）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1088" />
         <source>自动回零未发送：还没连接</source>
         <translation>自動回零未發送：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1092" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1091" />
         <source>自动回零被拒绝：还在运动 —— 先等它停或按急停</source>
         <translation>自動回零被拒絕：還在運動 —— 先等它停或按急停</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1110" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1095" />
+        <source>自动回零（{}）</source>
+        <translation>自動回零（{}）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1095" />
+        <source>向上</source>
+        <translation>向上</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1095" />
+        <source>向下</source>
+        <translation>向下</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1109" />
         <source>回零方向 {} 不认识（只认 {}）</source>
         <translation>回零方向 {} 不認識（只認 {}）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1133" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1115" />
+        <source>自动回零方向 = {}</source>
+        <translation>自動回零方向 = {}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1132" />
         <source>回零参数未下发：还没连接</source>
         <translation>回零參數未下發：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1138" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1137" />
         <source>回零转速 {} 超出范围（{}~{}rpm）</source>
         <translation>回零轉速 {} 超出範圍（{}~{}rpm）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1142" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1141" />
         <source>限位电流 {} 超出范围（{}~{}mA）</source>
         <translation>限位電流 {} 超出範圍（{}~{}mA）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1146" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1145" />
         <source>回零超时 {} 超出范围（{}~{}ms）</source>
         <translation>回零逾時 {} 超出範圍（{}~{}ms）</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1174" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1152" />
+        <source>⚠ 限位电流 {}mA 不在本机经验区 {}~{}mA（推荐 {}）：{}</source>
+        <translation>⚠ 限位電流 {}mA 不在本機經驗區 {}~{}mA（建議 {}）：{}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1152" />
+        <source>过低接近空转电流(≈40mA)，会「一动就报回零完成」（假成功）</source>
+        <translation>過低接近空轉電流(≈40mA)，會「一動就報回零完成」（假成功）</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1154" />
+        <source>过高会「永远不触发」——本机顶住时相电流只有一百多 mA</source>
+        <translation>過高會「永遠不觸發」——本機頂住時相電流只有一百多 mA</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1158" />
+        <source>回零参数与板子当前值相同，没有下发</source>
+        <translation>回零參數與板子目前值相同，沒有下發</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1163" />
+        <source>回零参数 {}rpm/{}mA/{}ms</source>
+        <translation>回零參數 {}rpm/{}mA/{}ms</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1171" />
         <source>软限位上限必须大于下限</source>
         <translation>軟限位上限必須大於下限</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1177" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1174" />
         <source>行程 {:.0f}mm 超过 {:.0f}mm —— 肯定填错了</source>
         <translation>行程 {:.0f}mm 超過 {:.0f}mm —— 肯定填錯了</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1181" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1178" />
         <source>软限位未下发：还没连接</source>
         <translation>軟限位未下發：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1199" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1184" />
+        <source>设置软限位</source>
+        <translation>設定軟限位</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1196" />
         <source>速度未下发：还没连接</source>
         <translation>速度未下發：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1224" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1203" />
+        <source>默认速度 {}rpm</source>
+        <translation>預設速度 {}rpm</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1207" />
+        <source>加减速档 {}</source>
+        <translation>加減速檔 {}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1221" />
         <source>自动回零开关未下发：还没连接</source>
         <translation>自動回零開關未下發：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1251" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1228" />
+        <source>上电自动回零 {}</source>
+        <translation>上電自動回零 {}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1228" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1252" />
+        <source>开</source>
+        <translation>開</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1228" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1252" />
+        <source>关</source>
+        <translation>關</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1248" />
         <source>协议帧开关未下发：还没连接</source>
         <translation>協議幀開關未下發：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1272" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1252" />
+        <source>驱动器帧镜像 {}</source>
+        <translation>驅動器幀鏡像 {}</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1269" />
         <source>命令未发送：还没连接</source>
         <translation>命令未發送：還沒連線</translation>
     </message>
     <message>
-        <location filename="../backend/Src/zstage_bridge.py" line="1275" />
+        <location filename="../backend/Src/zstage_bridge.py" line="1272" />
         <source>命令不能包含换行</source>
         <translation>命令不能包含換行</translation>
+    </message>
+    <message>
+        <location filename="../backend/Src/zstage_bridge.py" line="1275" />
+        <source>手动命令 {}</source>
+        <translation>手動命令 {}</translation>
     </message>
 </context>
 <context>

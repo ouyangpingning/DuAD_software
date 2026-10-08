@@ -281,7 +281,7 @@ class ZStageBridge(QObject):
         self._connect_timer.setSingleShot(True)
         self._connect_timer.timeout.connect(self._on_connect_timeout)
 
-        self._log("ZStageBridge 就绪（单位：mm，与固件一致，不做换算）")
+        self._log(self.tr("ZStageBridge 就绪（单位：mm，与固件一致，不做换算）"))
 
     # ============================================================
     # 内部工具
@@ -328,12 +328,12 @@ class ZStageBridge(QObject):
             self._error_gate = None
         self.lastErrorChanged.emit()
         if msg:
-            self._log(f"错误: {msg}")
+            self._log(self.tr('错误: {}').format(msg))
 
     def _clear_error_if(self, src: str):
         """同类操作成功了 → 把之前那条本地校验错误收掉（别让它一直挂着）。"""
         if self._last_error and self._error_src == src:
-            self._log("同类操作已成功，清掉之前那条参数提示")
+            self._log(self.tr("同类操作已成功，清掉之前那条参数提示"))
             self._set_error("")
 
     def _maybe_clear_error(self):
@@ -351,7 +351,7 @@ class ZStageBridge(QObject):
                 or (g is None and self._datum and self._lim_set)
             )
             if satisfied:
-                self._log("前置条件已满足，清掉之前的闸提示")
+                self._log(self.tr("前置条件已满足，清掉之前的闸提示"))
                 self._set_error("")
 
     # ============================================================
@@ -545,7 +545,7 @@ class ZStageBridge(QObject):
         # 已经连着同一个目标：只更新参数，**不要断开重连**。
         if (self._get_connected() and host == self._host
                 and new_port == self._port and token == self._token):
-            self._log("已连接同一目标，只更新参数（不重连）")
+            self._log(self.tr("已连接同一目标，只更新参数（不重连）"))
             self._settings.setValue("zstage/host", host)
             self._settings.setValue("zstage/port", new_port)
             self._settings.setValue("zstage/token", token)
@@ -568,7 +568,7 @@ class ZStageBridge(QObject):
         self.connectingChanged.emit()
         self.telemetryChanged.emit()
 
-        self._log(f"正在连接 {self._host}:{self._port} …")
+        self._log(self.tr('正在连接 {}:{} …').format(self._host, self._port))
         self._sock.connectToHost(self._host, self._port)
         self._connect_timer.start(CONNECT_TIMEOUT_MS)
         return True
@@ -605,13 +605,13 @@ class ZStageBridge(QObject):
             self.movingChanged.emit()
         self.connectingChanged.emit()
         self.connectedChanged.emit()
-        self._log("已断开")
+        self._log(self.tr("已断开"))
 
     def _on_connected(self):
         self._connect_timer.stop()
         self._connecting = False
         self.connectingChanged.emit()
-        self._log("TCP 已连接，正在交口令 …")
+        self._log(self.tr("TCP 已连接，正在交口令 …"))
         # 协议要求：第一行必须是口令
         self._sock.write(self._token.encode("utf-8") + b"\n")
 
@@ -643,7 +643,7 @@ class ZStageBridge(QObject):
         self._lim_set = False
         self.telemetryChanged.emit()
         self.connectedChanged.emit()
-        self._log("连接已关闭")
+        self._log(self.tr("连接已关闭"))
 
     def _on_socket_error(self, err):
         if err == QAbstractSocket.SocketError.RemoteHostClosedError:
@@ -677,7 +677,7 @@ class ZStageBridge(QObject):
         if not self._authenticated:
             if line == "#OK auth":
                 self._authenticated = True
-                self._log("口令通过，通道可用")
+                self._log(self.tr("口令通过，通道可用"))
                 self._set_error("")
                 self.connectedChanged.emit()
                 self._poll.start(POLL_IDLE_MS)
@@ -686,7 +686,7 @@ class ZStageBridge(QObject):
                 #   ⚠ 绝不在这里发 `zzero`/`zhome`/`zlim`/`zset` —— 它们会改状态，
                 #     其中 `zhome` 直接让电机去找零点（驱动器收到 0x91 就动）。
                 self._sign_pending = True
-                self._enqueue("zsign", note="读方向符号")
+                self._enqueue("zsign", note=self.tr("读方向符号"))
             elif line.startswith("#ERR"):
                 # ⚠ 认证期的 #ERR **不一定**是口令错：板子还会回 `#ERR busy`
                 #   （已有别的客户端连着）和 `#ERR auth timeout`。一律说"口令被拒"
@@ -742,7 +742,7 @@ class ZStageBridge(QObject):
             else:
                 self._set_error(self.tr('{} 被拒绝：{}').format(note, detail), src=flight.get("src", ""))
         elif flight is not None and flight.get("note"):
-            self._log(f"{flight['note']} 完成")
+            self._log(self.tr('{} 完成').format(flight['note']))
             # 成功的命令也常带警告（固件里以 ⚠ 开头的行）——以前只在失败时显示，
             # 等于把最有用的排查信息扔掉了（`mode`/`zsign`/`json` 都会带）。
             for ln in self._resp_lines:
@@ -978,7 +978,7 @@ class ZStageBridge(QObject):
         if not self._require_ready(self.tr("向上点动"), need_datum=False):
             return False
         self._clear_error_if("jog")
-        self._enqueue(self._jog_cmd("zup", step), note=f"向上 {step:g}mm", src="jog")
+        self._enqueue(self._jog_cmd("zup", step), note=self.tr('向上 {:g}mm').format(step), src="jog")
         self._note_motion_sent()
         return True
 
@@ -989,7 +989,7 @@ class ZStageBridge(QObject):
         if not self._require_ready(self.tr("向下点动"), need_datum=False):
             return False
         self._clear_error_if("jog")
-        self._enqueue(self._jog_cmd("zdown", step), note=f"向下 {step:g}mm", src="jog")
+        self._enqueue(self._jog_cmd("zdown", step), note=self.tr('向下 {:g}mm').format(step), src="jog")
         self._note_motion_sent()
         return True
 
@@ -1000,11 +1000,10 @@ class ZStageBridge(QObject):
             return False
         clamped, was_clamped = self._clamp_target(float(z_mm))
         if was_clamped:
-            self._log(f"目标 {z_mm:.2f}mm 超出软限位 "
-                      f"[{self._json_lo:.2f}, {self._json_hi:.2f}]，已夹到 {clamped:.2f}mm")
+            self._log(self.tr('目标 {:.2f}mm 超出软限位 [{:.2f}, {:.2f}]，已夹到 {:.2f}mm').format(z_mm, self._json_lo, self._json_hi, clamped))
         self._clear_error_if("move")
         self._enqueue(self._motion_cmd("zmove", clamped),
-                      note=f"移动到 {clamped:.2f}mm", src="move")
+                      note=self.tr('移动到 {:.2f}mm').format(clamped), src="move")
         self._note_motion_sent()
         return True
 
@@ -1028,7 +1027,7 @@ class ZStageBridge(QObject):
             return False
         self._clear_error_if("enable")
         self._enqueue("en all" if on else "dis all",
-                      note=("使能两轴（闭环抱住平台）" if on else "失能两轴（可手推平台）"),
+                      note=(self.tr("使能两轴（闭环抱住平台）") if on else self.tr("失能两轴（可手推平台）")),
                       src="enable")
         return True
 
@@ -1041,7 +1040,7 @@ class ZStageBridge(QObject):
             self._set_error(self.tr("校平单次限 ±10mm（差得多说明机械有问题，先查机械）"), src="tilt")
             return False
         self._clear_error_if("tilt")
-        self._enqueue(f"ztilt left {float(mm):.3f} {min(self._rpm, 120)}", note="校平左侧",
+        self._enqueue(f"ztilt left {float(mm):.3f} {min(self._rpm, 120)}", note=self.tr("校平左侧"),
                       src="tilt")
         self._note_motion_sent()
         return True
@@ -1056,7 +1055,7 @@ class ZStageBridge(QObject):
         if not self._authenticated:
             self._set_error(self.tr("未连接，急停命令没发出去（请直接断板子电源）"))
             return
-        self._enqueue("stop all", note="急停", front=True)
+        self._enqueue("stop all", note=self.tr("急停"), front=True)
 
     # ============================================================
     # 标定 / 参数
@@ -1072,7 +1071,7 @@ class ZStageBridge(QObject):
             self._set_error(self.tr("设为原点被拒绝：还在运动 —— 先等它停或按急停"), src="zero")
             return False
         self._clear_error_if("zero")
-        self._enqueue("zzero", note="设为原点（立基准）", timeout_ms=ZERO_TIMEOUT_MS, src="zero")
+        self._enqueue("zzero", note=self.tr("设为原点（立基准）"), timeout_ms=ZERO_TIMEOUT_MS, src="zero")
         return True
 
     @Slot(result=bool)
@@ -1093,7 +1092,7 @@ class ZStageBridge(QObject):
             return False
         self._clear_error_if("home")
         self._enqueue(f"zhome {self._home_dir} nowait",
-                      note=f"自动回零（{'向上' if self._home_dir == 'up' else '向下'}）",
+                      note=self.tr('自动回零（{}）').format(self.tr('向上') if self._home_dir == 'up' else self.tr('向下')),
                       src="home")
         self._note_motion_sent()
         return True
@@ -1113,7 +1112,7 @@ class ZStageBridge(QObject):
         self._home_dir = d
         self._settings.setValue("zstage/home_dir", d)
         self.telemetryChanged.emit()
-        self._log(f"自动回零方向 = {d}")
+        self._log(self.tr('自动回零方向 = {}').format(d))
         return True
 
     @Slot(int, int, int, result=bool)
@@ -1150,20 +1149,18 @@ class ZStageBridge(QObject):
         if ma < HOME_MA_SWEET_LO or ma > HOME_MA_SWEET_HI:
             # 警告而不是拒绝：现场确实需要改这个值（换电机/换丝杠），但后果要说清楚。
             # 文案与固件 `zset home` 打的那两行一致（本机经验区 60~300mA，推荐 100）。
-            self._log(f"⚠ 限位电流 {ma}mA 不在本机经验区 "
-                      f"{HOME_MA_SWEET_LO}~{HOME_MA_SWEET_HI}mA（推荐 {DEFAULT_HOME_MA}）："
-                      + ("过低接近空转电流(≈40mA)，会「一动就报回零完成」（假成功）"
+            self._log(self.tr('⚠ 限位电流 {}mA 不在本机经验区 {}~{}mA（推荐 {}）：{}').format(ma, HOME_MA_SWEET_LO, HOME_MA_SWEET_HI, DEFAULT_HOME_MA, self.tr("过低接近空转电流(≈40mA)，会「一动就报回零完成」（假成功）")
                          if ma < HOME_MA_SWEET_LO
-                         else "过高会「永远不触发」——本机顶住时相电流只有一百多 mA"))
+                         else self.tr("过高会「永远不触发」——本机顶住时相电流只有一百多 mA")))
 
         if (rpm, ma, tmo) == (self._home_rpm, self._home_ma, self._home_tmo):
             self._clear_error_if("homeparam")
-            self._log("回零参数与板子当前值相同，没有下发")
+            self._log(self.tr("回零参数与板子当前值相同，没有下发"))
             return True
 
         self._clear_error_if("homeparam")
         self._enqueue(f"zset home {rpm} {ma} {tmo}",
-                      note=f"回零参数 {rpm}rpm/{ma}mA/{tmo}ms", src="homeparam")
+                      note=self.tr('回零参数 {}rpm/{}mA/{}ms').format(rpm, ma, tmo), src="homeparam")
         return True
 
     @Slot(float, float, result=bool)
@@ -1184,7 +1181,7 @@ class ZStageBridge(QObject):
         self._lim_lo, self._lim_hi = lo, hi
         self._settings.setValue("zstage/lim_lo", lo)
         self._settings.setValue("zstage/lim_hi", hi)
-        self._enqueue(f"zlim {lo:.3f} {hi:.3f}", note="设置软限位", src="lim")
+        self._enqueue(f"zlim {lo:.3f} {hi:.3f}", note=self.tr("设置软限位"), src="lim")
         self.telemetryChanged.emit()
         return True
 
@@ -1203,11 +1200,11 @@ class ZStageBridge(QObject):
         if rpm != self._rpm:
             self._rpm = rpm
             self._settings.setValue("zstage/rpm", rpm)
-            self._enqueue(f"zset rpm {rpm}", note=f"默认速度 {rpm}rpm", src="speed")
+            self._enqueue(f"zset rpm {rpm}", note=self.tr('默认速度 {}rpm').format(rpm), src="speed")
         if acc != self._acc:
             self._acc = acc
             self._settings.setValue("zstage/acc", acc)
-            self._enqueue(f"zset acc {acc}", note=f"加减速档 {acc}", src="speed")
+            self._enqueue(f"zset acc {acc}", note=self.tr('加减速档 {}').format(acc), src="speed")
         self.telemetryChanged.emit()
         return True
 
@@ -1228,7 +1225,7 @@ class ZStageBridge(QObject):
         # 板子真的拒绝时，跟着来的那一次 json 会把这一位纠正回来（UI 有回同步）。
         self._autohome = bool(on)
         self._enqueue("zautohome " + ("on" if on else "off"),
-                      note="上电自动回零 " + ("开" if on else "关"))
+                      note=self.tr('上电自动回零 {}').format(self.tr("开") if on else self.tr("关")))
         self.telemetryChanged.emit()
         return True
 
@@ -1252,7 +1249,7 @@ class ZStageBridge(QObject):
             return False
         self._trace_on = bool(on)
         self._enqueue("trace " + ("on" if on else "off"),
-                      note="驱动器帧镜像 " + ("开" if on else "关"))
+                      note=self.tr('驱动器帧镜像 {}').format(self.tr("开") if on else self.tr("关")))
         self.telemetryChanged.emit()
         return True
 
@@ -1275,5 +1272,5 @@ class ZStageBridge(QObject):
             self._set_error(self.tr("命令不能包含换行"), src="cmd")
             return False
         self._clear_error_if("cmd")
-        self._enqueue(cmd, note=f"手动命令 {cmd}", src="cmd")
+        self._enqueue(cmd, note=self.tr('手动命令 {}').format(cmd), src="cmd")
         return True
