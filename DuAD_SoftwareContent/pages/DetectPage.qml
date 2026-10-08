@@ -854,7 +854,7 @@ Item {
                 return root._toFileUrl(mp.split("/").slice(0, -1).join("/"))
             return root._toFileUrl(AppBridge.homeDir)
         }
-        nameFilters: ["ONNX 模型 (*.onnx)"]
+        nameFilters: [qsTr("ONNX 模型 (*.onnx)")]
         onAccepted: {
             var p = root._fromFileUrl(modelPicker.selectedFile)
             if (p !== AlgorithmBridge.modelPath)

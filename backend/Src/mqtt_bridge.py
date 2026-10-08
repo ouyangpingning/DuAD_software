@@ -57,14 +57,14 @@ class MqttBridge(QObject):
     def connectServer(self, address: str, port: int, username: str,
                       password: str, keep_alive: int, use_tls: bool):
         if not _HAS_PAHO:
-            self.mqttError.emit("paho-mqtt 未安装，无法连接云服务器")
+            self.mqttError.emit(self.tr("paho-mqtt 未安装，无法连接云服务器"))
             return
         if self.connected or self._connecting:
-            self.mqttError.emit("云服务器已连接或正在连接")
+            self.mqttError.emit(self.tr("云服务器已连接或正在连接"))
             return
         address = str(address or "").strip()
         if not address:
-            self.mqttError.emit("服务器地址不能为空")
+            self.mqttError.emit(self.tr("服务器地址不能为空"))
             return
         self._connecting = True
         self.connectedChanged.emit()
@@ -96,7 +96,7 @@ class MqttBridge(QObject):
             if ret != mqtt.MQTT_ERR_SUCCESS:
                 self._connecting = False
                 self.connectedChanged.emit()
-                self.mqttError.emit(f"MQTT connect 返回错误码: {ret}")
+                self.mqttError.emit(self.tr('MQTT connect 返回错误码: {}').format(ret))
                 return
 
             self._client = client
@@ -107,7 +107,7 @@ class MqttBridge(QObject):
         except Exception as e:
             self._connecting = False
             self.connectedChanged.emit()
-            self.mqttError.emit(f"连接云服务器失败: {e}")
+            self.mqttError.emit(self.tr('连接云服务器失败: {}').format(e))
 
     @Slot()
     def disconnectServer(self):
@@ -131,27 +131,27 @@ class MqttBridge(QObject):
     def publish(self, topic: str, payload: str, qos: int) -> bool:
         client = self._client
         if client is None or not client.is_connected():
-            self.mqttError.emit("MQTT 未连接，无法发布消息")
+            self.mqttError.emit(self.tr("MQTT 未连接，无法发布消息"))
             return False
         try:
             info = client.publish(topic, payload, qos=int(qos))
             self._log(f"发布 → [{topic}] {payload}")
             return info.rc == mqtt.MQTT_ERR_SUCCESS if hasattr(info, 'rc') else True
         except Exception as e:
-            self.mqttError.emit(f"发布失败: {e}")
+            self.mqttError.emit(self.tr('发布失败: {}').format(e))
             return False
 
     @Slot(str, int, result=bool)
     def subscribe(self, topic: str, qos: int) -> bool:
         client = self._client
         if client is None or not client.is_connected():
-            self.mqttError.emit("MQTT 未连接，无法订阅")
+            self.mqttError.emit(self.tr("MQTT 未连接，无法订阅"))
             return False
         try:
             client.subscribe(topic, qos=int(qos))
             return True
         except Exception as e:
-            self.mqttError.emit(f"订阅失败: {e}")
+            self.mqttError.emit(self.tr('订阅失败: {}').format(e))
             return False
 
     # ── paho 回调（loop 线程）─────────────────────────────
@@ -164,7 +164,7 @@ class MqttBridge(QObject):
         else:
             self._client = None
             self._log(f"云服务器拒绝连接，返回码: {rc}")
-            self.mqttError.emit(f"MQTT 连接失败，返回码: {rc}")
+            self.mqttError.emit(self.tr('MQTT 连接失败，返回码: {}').format(rc))
 
     def _on_disconnect(self, client, userdata, rc):
         if self._manual_disconnect:

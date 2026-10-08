@@ -466,7 +466,7 @@ class StageBridge(QObject):
           3. 运动中的驱动器会自己保持使能，`0xFA` 的失能被它覆盖。
         """
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         cmd = "en all" if on else "dis all"
         self._enqueue(cmd, note="使能电机" if on else "失能电机")
@@ -502,9 +502,9 @@ class StageBridge(QObject):
     def _get_homing_text(self) -> str:
         return {
             0: "",
-            1: "正在回零…（要停下直接按「停止」—— 回零期间它也进得去）",
-            2: "最近一次回零：完成（两轴已有基准）",
-            3: "最近一次回零：失败或被打断 —— 看下面的日志",
+            1: self.tr("正在回零…（要停下直接按「停止」—— 回零期间它也进得去）"),
+            2: self.tr("最近一次回零：完成（两轴已有基准）"),
+            3: self.tr("最近一次回零：失败或被打断 —— 看下面的日志"),
         }.get(self._homing, "")
 
     homingText = Property(str, _get_homing_text, notify=telemetryChanged)
@@ -530,12 +530,12 @@ class StageBridge(QObject):
         对应固件那四道闸。把它们翻译成界面提示，比让用户对着灰按钮猜要好。
         """
         if not self.connected:
-            return "未连接平台"
+            return self.tr("未连接平台")
         if not self._datum:
             # 单圈编码器：掉电必丢，所以每次上电都得重立一次（口径见《使用说明》§6.3）
-            return "缺少基准（每次上电都要重立）：推到位后点「设为原点」"
+            return self.tr("缺少基准（每次上电都要重立）：推到位后点「设为原点」")
         if not self._travel_set:
-            return "未设置工作区：绝对移动会被固件拒绝"
+            return self.tr("未设置工作区：绝对移动会被固件拒绝")
         return ""
 
     datumHint = Property(str, _get_datum_hint, notify=telemetryChanged)
@@ -748,12 +748,12 @@ class StageBridge(QObject):
         # 这两条是"点了没反应"的头号原因：参数没填全就直接拒绝，卡片不会有任何变化。
         # 所以提示里必须说清**去哪填**、**怎么拿**，页面还会顺手把设置面板展开。
         if not host:
-            self._set_error("还没填板子的 IP —— 请在下面「平台设置」里填入，"
-                            "板子 USB 控制台敲 net 就会打印出来")
+            self._set_error(self.tr("还没填板子的 IP —— 请在下面「平台设置」里填入，"
+                            "板子 USB 控制台敲 net 就会打印出来"))
             return False
         if not token:
-            self._set_error("还没填连接口令 —— 请在下面「平台设置」里填入，"
-                            "板子 USB 控制台敲 net 就会打印出来")
+            self._set_error(self.tr("还没填连接口令 —— 请在下面「平台设置」里填入，"
+                            "板子 USB 控制台敲 net 就会打印出来"))
             return False
 
         new_port = int(port) if port else DEFAULT_PORT
@@ -797,10 +797,7 @@ class StageBridge(QObject):
         self._connecting = False
         self.connectingChanged.emit()
         self._set_error(
-            f"连接 {self._host}:{self._port} 超时（{CONNECT_TIMEOUT_MS // 1000} 秒）。"
-            "排查：① 电脑和板子连的是同一个热点吗 ② 板子 IP 有没有变"
-            "（手机热点每次可能不同，板子上敲 net 再看一眼）"
-            "③ 手机热点是不是开了「客户端隔离」", kind="transient")
+            self.tr('连接 {}:{} 超时（{} 秒）。排查：① 电脑和板子连的是同一个热点吗 ② 板子 IP 有没有变（手机热点每次可能不同，板子上敲 net 再看一眼）③ 手机热点是不是开了「客户端隔离」').format(self._host, self._port, CONNECT_TIMEOUT_MS // 1000), kind="transient")
 
     @Slot()
     def disconnectDevice(self):
@@ -847,7 +844,7 @@ class StageBridge(QObject):
             self.movingChanged.emit()
         self.connectingChanged.emit()
         if was:
-            self._set_error("与板子的连接已断开", kind="transient")
+            self._set_error(self.tr("与板子的连接已断开"), kind="transient")
         self.connectedChanged.emit()
         self._log("连接已关闭")
 
@@ -857,7 +854,7 @@ class StageBridge(QObject):
         self._connect_timer.stop()
         self._connecting = False
         self.connectingChanged.emit()
-        self._set_error(f"连接失败: {self._sock.errorString()}", kind="transient")
+        self._set_error(self.tr('连接失败: {}').format(self._sock.errorString()), kind="transient")
 
     # ============================================================
     # 收数据：按行分帧
@@ -901,7 +898,7 @@ class StageBridge(QObject):
                 # 等第一次遥测到手再做"台面有没有被动过"的核对（_check_park）
                 self._park_check_pending = True
             elif line.startswith("#ERR"):
-                self._set_error(f"口令被拒（{line}）—— 在板子 USB 控制台敲 net 看正确口令")
+                self._set_error(self.tr('口令被拒（{}）—— 在板子 USB 控制台敲 net 看正确口令').format(line))
                 self.disconnectDevice()
             return
 
@@ -924,9 +921,9 @@ class StageBridge(QObject):
         self._cmd_timer.stop()
 
         if flight is not None and not ok:
-            note = flight.get("note", flight.get("cmd", "命令"))
+            note = flight.get("note", flight.get("cmd", self.tr("命令")))
             detail = " / ".join(self._resp_lines[-3:]) if self._resp_lines else marker
-            self._set_error(f"{note} 被拒绝：{detail}")
+            self._set_error(self.tr('{} 被拒绝：{}').format(note, detail))
         elif flight is not None and flight.get("note"):
             self._log(f"{flight['note']} 完成")
             # 命令成功时固件也常常带警告（⚠ 开头）—— 比如 home 会报告驱动器里的
@@ -949,7 +946,7 @@ class StageBridge(QObject):
         flight = self._in_flight
         self._in_flight = None
         if flight is not None:
-            self._set_error(f"{flight.get('note', flight.get('cmd'))} 超时（板子没有应答）",
+            self._set_error(self.tr('{} 超时（板子没有应答）').format(flight.get('note', flight.get('cmd'))),
                             kind="transient")
         self._resp_lines = []
         self._pump_queue()
@@ -960,7 +957,7 @@ class StageBridge(QObject):
     def _enqueue(self, cmd: str, note: str = "", timeout_ms: int = CMD_TIMEOUT_MS,
                  json_reply: bool = False, front: bool = False, verbose: bool = False):
         if not self._authenticated:
-            self._set_error("未连接平台，命令未发送")
+            self._set_error(self.tr("未连接平台，命令未发送"))
             return
         # 把非轮询命令原样记进日志（诊断面板能看到）。
         # 这是"我调了速度到底生效没有"最直接的证据 —— 移动命令里就带着 rpm/acc。
@@ -1014,7 +1011,7 @@ class StageBridge(QObject):
         except json.JSONDecodeError:
             return
         if "err" in data:
-            self._set_error(f"板子读位置失败：{data['err']}")
+            self._set_error(self.tr('板子读位置失败：{}').format(data['err']))
             return
 
         self._pos_x = _fnum(data.get("xdeg")) * MM_PER_DEG
@@ -1046,11 +1043,11 @@ class StageBridge(QObject):
     def _get_diag_text(self) -> str:
         """诊断面板用的一行摘要（含原始角度，排查时才看）。"""
         if not self.connected:
-            return "未连接"
-        return ("X {:.2f} mm / Y {:.2f} mm  |  关节 A {:.1f}° B {:.1f}°  |  "
-                "{:.1f}V  {}  |  信号 {} dBm  板子 {}".format(
+            return self.tr("未连接")
+        return (self.tr("X {:.2f} mm / Y {:.2f} mm  |  关节 A {:.1f}° B {:.1f}°  |  "
+                "{:.1f}V  {}  |  信号 {} dBm  板子 {}").format(
                     self._pos_x, self._pos_y, self._jog_axis[0], self._jog_axis[1],
-                    self._voltage, "已使能" if self._enabled else "未使能",
+                    self._voltage, self.tr("已使能") if self._enabled else self.tr("未使能"),
                     self._rssi, self._board_ip or "?"))
 
     diagText = Property(str, _get_diag_text, notify=telemetryChanged)
@@ -1083,10 +1080,10 @@ class StageBridge(QObject):
         if not cmd:
             return False
         if not self._authenticated:
-            self._set_error("命令未发送：还没连接")
+            self._set_error(self.tr("命令未发送：还没连接"))
             return False
         if "\n" in cmd or "\r" in cmd:
-            self._set_error("命令不能包含换行")
+            self._set_error(self.tr("命令不能包含换行"))
             return False
         self._maybe_clear_error()
         self._enqueue(cmd, note=f"自定义命令 {cmd}")
@@ -1113,13 +1110,13 @@ class StageBridge(QObject):
     def moveTo(self, x_mm: float, y_mm: float) -> bool:
         """绝对定位（非阻塞）。"""
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         if not self._datum:
-            self._gate_error("datum", "还没有基准：先「设为原点」或自动回零")
+            self._gate_error("datum", self.tr("还没有基准：先「设为原点」或自动回零"))
             return False
         if not self._travel_set:
-            self._gate_error("travel", "还没设置工作区，绝对移动会被固件拒绝")
+            self._gate_error("travel", self.tr("还没设置工作区，绝对移动会被固件拒绝"))
             return False
 
         cx, cy = self._clamp(float(x_mm), float(y_mm))
@@ -1138,13 +1135,13 @@ class StageBridge(QObject):
     def jog(self, dx_mm: float, dy_mm: float) -> bool:
         """相对点动一格（mm）。步长由界面给，这里只做目标计算 + 夹取。"""
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         if not self._datum:
-            self._gate_error("datum", "还没有基准：先「设为原点」或自动回零")
+            self._gate_error("datum", self.tr("还没有基准：先「设为原点」或自动回零"))
             return False
         if not self._travel_set:
-            self._gate_error("travel", "还没设置工作区，点动会被固件拒绝")
+            self._gate_error("travel", self.tr("还没设置工作区，点动会被固件拒绝"))
             return False
         return self.moveTo(self._pos_x + float(dx_mm), self._pos_y + float(dy_mm))
 
@@ -1158,7 +1155,7 @@ class StageBridge(QObject):
         用阻塞的 g0 那样被几秒的长移动堵住。这是整个设计里最关键的一点。
         """
         if not self.connected:
-            self._set_error("未连接平台，无法停止")
+            self._set_error(self.tr("未连接平台，无法停止"))
             return False
         self._enqueue("stop all", note="急停", front=True, timeout_ms=CMD_TIMEOUT_MS)
         if self._moving:
@@ -1175,7 +1172,7 @@ class StageBridge(QObject):
     def zeroAll(self) -> bool:
         """把当前位置定为原点（立基准）。瞬时、无需硬件 —— 台架对基准就用它。"""
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         self._enqueue("zero all", note="设为原点")
         self._pos_x = 0.0
@@ -1200,19 +1197,19 @@ class StageBridge(QObject):
         固件的知识，上位机不复制一份。
         """
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         if self._homing == 1:
-            self._set_error("已经在回零中 —— 要停下按「停止」")
+            self._set_error(self.tr("已经在回零中 —— 要停下按「停止」"))
             return False
         if not self._home_cfg_sent:
             # ⚠ 措辞必须**不指向已删除的控件**。2026-09-13 大扫除把
             #   「应用回零参数」按钮去掉了，这里原来的提示"先点上面的「应用回零参数」"
             #   就变成了指路指到墙上 —— 本项目明令禁止那一类话。
             self._gate_error("homecfg",
-                             "回零参数还没登记（固件 `home` 那道闸要求的）。"
+                             self.tr("回零参数还没登记（固件 `home` 那道闸要求的）。"
                              "界面已改为限位开关归零、暂时没有回零入口；需要时在板子控制台上敲 "
-                             "'hcfg <方式> <rpm> <mA>' 再敲 'home corner -1 -1'")
+                             "'hcfg <方式> <rpm> <mA>' 再敲 'home corner -1 -1'"))
             return False
         xd, yd = DATUM_CORNER
         self._enqueue(f"home corner {xd} {yd} nowait", note="回零点角（两趟：先 X 后 Y）",
@@ -1232,16 +1229,16 @@ class StageBridge(QObject):
         哪一趟不对，一眼就能看出来。
         """
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         if axis not in ("x", "y") or direction not in (-1, 1):
-            self._set_error("单趟回零参数不对（axis 只能 x/y，方向只能 ±1）")
+            self._set_error(self.tr("单趟回零参数不对（axis 只能 x/y，方向只能 ±1）"))
             return False
         if self._homing == 1:
-            self._set_error("已经在回零中 —— 要停下按「停止」")
+            self._set_error(self.tr("已经在回零中 —— 要停下按「停止」"))
             return False
         if not self._home_cfg_sent:
-            self._gate_error("homecfg", "还没给回零参数 —— 先点「应用回零参数」")
+            self._gate_error("homecfg", self.tr("还没给回零参数 —— 先点「应用回零参数」"))
             return False
         self._enqueue(f"home {axis} {direction} nowait",
                       note=f"单趟回零（{'纯 X' if axis == 'x' else '纯 Y'}，"
@@ -1262,7 +1259,7 @@ class StageBridge(QObject):
     def homeAbort(self) -> bool:
         """中断回零（0x93）。与「停止」等效 —— 停止里也已经带了这一脚。"""
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         self._enqueue("habort all", note="中断回零", front=True,
                       timeout_ms=CMD_TIMEOUT_MS)
@@ -1274,7 +1271,7 @@ class StageBridge(QObject):
     def setDatumAxis(self, axis: int) -> bool:
         """单轴立基准（axis: 0=left/A, 1=right/B）—— 只给诊断区用。"""
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
         self._enqueue("zero " + ("left" if axis == 0 else "right"), note="单轴立基准")
         return True
@@ -1360,7 +1357,7 @@ class StageBridge(QObject):
         于是"点一下连接、点一下应用，台面自己就回零了"（真机原话）。
         """
         if not self.connected:
-            self._set_error("未连接平台")
+            self._set_error(self.tr("未连接平台"))
             return False
 
         kind = max(0, min(HOME_KIND_MAX, int(kind)))
@@ -1373,10 +1370,7 @@ class StageBridge(QObject):
             # 也判不出死点。手册示例值是 300mA，本项目建议 800~1200mA。
             # 拒绝而不是只警告：用错的限位电流去回零 = 台面顶着乱撞，代价远高于一次拒绝。
             self._set_error(
-                f"限位电流 {ma}mA 太小（本项目推荐 800mA，下限 {HOME_MA_MIN}mA）—— "
-                "它是**电流阈值**：相电流越过它就算到位。太小（接近空转电流 ~40mA）会"
-                "**一动就假报「回零完成」**（台面还没到边就算到了），比失败更危险。"
-                "（确实要用小电流做实验，请在板子控制台上直接敲 hset）")
+                self.tr('限位电流 {}mA 太小（本项目推荐 800mA，下限 {}mA）—— 它是**电流阈值**：相电流越过它就算到位。太小（接近空转电流 ~40mA）会**一动就假报「回零完成」**（台面还没到边就算到了），比失败更危险。（确实要用小电流做实验，请在板子控制台上直接敲 hset）').format(ma, HOME_MA_MIN))
             return False
 
         # 不再接收方向：方向由固件按 COREXY_DEFAULT 算（见 docstring）。
@@ -1435,7 +1429,7 @@ class StageBridge(QObject):
         """把当前位置记成一个预设。"""
         name = (name or "").strip()
         if not name:
-            self._set_error("请给预设起个名字")
+            self._set_error(self.tr("请给预设起个名字"))
             return False
         presets = self._load_presets()
         for p in presets:
@@ -1463,7 +1457,7 @@ class StageBridge(QObject):
     def gotoPreset(self, index: int) -> bool:
         presets = self._load_presets()
         if index < 0 or index >= len(presets):
-            self._set_error("预设不存在")
+            self._set_error(self.tr("预设不存在"))
             return False
         p = presets[index]
         return self.moveTo(_fnum(p.get("x")), _fnum(p.get("y")))

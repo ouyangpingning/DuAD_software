@@ -82,14 +82,17 @@ Windows: `pyqml_win\Scripts\python.exe -u main.py`；Jetson: `bash run_jetson.sh
 ```bash
 LUPDATE=DuAD_SoftwareContent/pyqml/lib/python3.14/site-packages/PySide6/lupdate
 LRELEASE=DuAD_SoftwareContent/pyqml/lib/python3.14/site-packages/PySide6/lrelease
-"$LUPDATE" -no-obsolete DuAD_SoftwareContent/App.qml DuAD_SoftwareContent/MainuiRoot.qml DuAD_SoftwareContent/MainWindow.ui.qml DuAD_SoftwareContent/pages -ts translations/app_en.ts
+"$LUPDATE" -no-obsolete DuAD_SoftwareContent/App.qml DuAD_SoftwareContent/MainuiRoot.qml DuAD_SoftwareContent/MainWindow.ui.qml DuAD_SoftwareContent/pages backend/Src/*.py DuAD_SoftwareContent/main.py -ts translations/app_en.ts
 python scripts/gen_translations.py      # 新字符串要同时进 EN 和 TW 两个 dict
 "$LRELEASE" translations/app_en.ts translations/app_zh_TW.ts
 ```
 
 - ⚠ **跑 lupdate 必须连 stderr 一起看**：QML 语法错误只打一行 `error:` 到 stderr（stdout 照样报 Found N），**该文件全部字符串会从 .ts 里静默消失**。
+- ⚠ **Python 侧要逐个文件列出来**（`backend/Src/*.py`）：给 lupdate 一个**目录**时它不认 `.py`（只扫 .qml/.cpp/.ui），目录写法会**静默漏掉**桥接层那句文案 —— 于是英文界面里突然冒出一句中文，而 gen_translations 一声不吭。改完记得看 lupdate 的 "Found N source text(s)" 有没有涨。
+- 桥接层的界面文案写 `self.tr("…")`（**在方法里**，不要在模块级 dict 里 —— 模块级 dict 在 import 时就求值，那时翻译器还没装，字符串会永久停在中文；错误码/故障码这类查表文案改成"查表时翻译"的方法）。协议框逐行日志（`_proto_add` / `_enqueue` 的 `note=`）与开发者日志（`print`）**保持中文不翻** —— 那是给工程师对着板子原文排障用的。
 - `gen_translations.py` 两条守卫任一不满足 `exit 1`：① EN/TW dict 逐条对齐（改文案两边一起改，否则繁体显示英文）；② 生成结果不许有空翻译。
 - 语言持久化 `QSettings("DuAD","DuADSoftware")`，切换走 `AppBridge.setLanguage()`。
+- 改完 i18n 的自检办法（比肉眼看靠谱）：临时把 `AppBridge.setLanguage(0)` 跑一遍，遍历可视树里所有 Text/TextField 的 `text`/`placeholderText` 找中文（2026-10-08 用它查出 343 个文本控件里唯一漏的那句来自 `ZStageBridge.datumHint`）。
 
 ## 冒烟测试（offscreen，不需要真硬件）
 

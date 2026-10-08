@@ -72,18 +72,6 @@ TRIG_NAMES = {
     3: "E3H 外部上升沿触发",
 }
 
-# 手册 四.2 表 13；★ = 真机实测确认过的
-_ERR_CODES = {
-    "E1": "命令格式有误",
-    "E2": "数据类型有误",     # ★ $L0=abc# → E2
-    "E3": "命令名称有误",
-    "E4": "通道名称有误",
-    "E5": "命令名称长度有误",
-    "E6": "数据超出范围",     # ★ $L0=999# → E6
-    "E7": "通道号超出范围",   # ★ $L9=100# → E7
-    "ER": "其它错误",
-}
-
 _BYTESIZES = {
     "5": None, "6": None, "7": None, "8": None,
 }
@@ -229,9 +217,9 @@ class LightBridge(QObject):
         if self._device_id is not None:
             parts.append(f"ID={self._device_id}")
         if self._channel_count:
-            parts.append(f"{self._channel_count} 通道")
-        parts.append("触发 " + TRIG_NAMES.get(self._trig_mode, str(self._trig_mode)).split(" ")[0])
-        parts.append("已锁定" if self._locked else "未锁定")
+            parts.append(self.tr('{} 通道').format(self._channel_count))
+        parts.append(self.tr('触发 {}').format(TRIG_NAMES.get(self._trig_mode, str(self._trig_mode)).split(" ")[0]))
+        parts.append(self.tr("已锁定") if self._locked else self.tr("未锁定"))
         if self._serial_number:
             parts.append(f"SN={self._serial_number}")
         return " · ".join(parts)
@@ -267,13 +255,13 @@ class LightBridge(QObject):
     def connectSerial(self, port: str, baud: int, data_bits: str,
                       stop_bits: str, parity: str) -> bool:
         if not _HAS_PYSERIAL:
-            self.serialError.emit("pyserial 未安装，无法使用光源控制器")
+            self.serialError.emit(self.tr("pyserial 未安装，无法使用光源控制器"))
             return False
         if self.connected:
-            self.serialError.emit("光源控制器已连接")
+            self.serialError.emit(self.tr("光源控制器已连接"))
             return False
         if not port:
-            self.serialError.emit("请选择有效的串口")
+            self.serialError.emit(self.tr("请选择有效的串口"))
             return False
         try:
             ser = serial.Serial(
@@ -288,7 +276,7 @@ class LightBridge(QObject):
         except Exception as e:
             print(f"[LightBridge] 串口打开失败: {e}")
             self._ser = None
-            self.serialError.emit(f"打开串口失败: {e}")
+            self.serialError.emit(self.tr('打开串口失败: {}').format(e))
             return False
 
         self._ser = ser
@@ -306,10 +294,7 @@ class LightBridge(QObject):
             self._ser = None
             self.connectedChanged.emit()
             self.serialError.emit(
-                f"{port} @ {baud} 收不到控制器应答。请依次检查："
-                "① 波特率必须是 19200（手册四.1；实测 9600/38400/115200 全部无应答）；"
-                "② RS-232 线序：控制器只用 2/3/5 脚（RXD/TXD/GND），别接成 TTL 电平；"
-                "③ 串口是否被其它程序占用。"
+                self.tr('{} @ {} 收不到控制器应答。请依次检查：① 波特率必须是 19200（手册四.1；实测 9600/38400/115200 全部无应答）；② RS-232 线序：控制器只用 2/3/5 脚（RXD/TXD/GND），别接成 TTL 电平；③ 串口是否被其它程序占用。').format(port, baud)
             )
             return False
 
@@ -389,6 +374,24 @@ class LightBridge(QObject):
                 break
         return bytes(buf).decode("ascii", "ignore").strip()
 
+    def _err_text(self, code: str) -> str:
+        """手册 四.2 表 13 的错误码 → 界面文字；★ = 真机实测确认过的。
+
+        ⚠ 必须**在方法里** tr()，不能写成模块级 dict：模块级 dict 在 import 时就求值，
+          那时翻译器还没装 —— 字符串会永久停在中文（Qt 的老坑）。
+        """
+        texts = {
+            "E1": self.tr("命令格式有误"),
+            "E2": self.tr("数据类型有误"),     # ★ $L0=abc# → E2
+            "E3": self.tr("命令名称有误"),
+            "E4": self.tr("通道名称有误"),
+            "E5": self.tr("命令名称长度有误"),
+            "E6": self.tr("数据超出范围"),     # ★ $L0=999# → E6
+            "E7": self.tr("通道号超出范围"),   # ★ $L9=100# → E7
+            "ER": self.tr("其它错误"),
+        }
+        return texts.get(code, self.tr("未知错误"))
+
     def _set_response(self, text: str):
         self._last_response = text
         self.responseReceived.emit(text)
@@ -402,7 +405,7 @@ class LightBridge(QObject):
         """
         if self._ser is None or not getattr(self._ser, "is_open", False):
             if not quiet:
-                self.serialError.emit("光源控制器未连接，无法发送指令")
+                self.serialError.emit(self.tr("光源控制器未连接，无法发送指令"))
             return False, ""
         with self._io_lock:
             try:
@@ -412,7 +415,7 @@ class LightBridge(QObject):
             except Exception as e:
                 print(f"[LightBridge] 发送光源指令失败: {e}")
                 if not quiet:
-                    self.serialError.emit(f"发送失败: {e}")
+                    self.serialError.emit(self.tr('发送失败: {}').format(e))
                 return False, ""
             self._last_command = cmd
             self.commandSent.emit(cmd)
@@ -429,15 +432,15 @@ class LightBridge(QObject):
             self._set_response(reply)
             return True, reply
         if len(reply) == 2 and reply[:1] == "E":
-            msg = _ERR_CODES.get(reply, "未知错误")
+            msg = self._err_text(reply)
             self._set_response(f"{reply} {msg}")
             if not quiet:
-                self.serialError.emit(f"控制器拒绝 {cmd}：{reply} {msg}")
+                self.serialError.emit(self.tr('控制器拒绝 {}：{} {}').format(cmd, reply, msg))
             return False, reply
-        self._set_response("(无应答)")
+        self._set_response(self.tr("(无应答)"))
         if not quiet:
             self.serialError.emit(
-                f"控制器对 {cmd} 没有应答（检查波特率是否为 19200、串口线是否松脱）"
+                self.tr('控制器对 {} 没有应答（检查波特率是否为 19200、串口线是否松脱）').format(cmd)
             )
         return False, reply
 

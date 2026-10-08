@@ -469,7 +469,7 @@ class CameraDevice(QObject):
             ret, code, msg = gx_get_last_error(512)
             return int(code), (msg or "").strip()
         except Exception as e:
-            return 0, f"(get_last_error 不可用: {e})"
+            return 0, self.tr('(get_last_error 不可用: {})').format(e)
 
     def _disable_throughput_limit(self):
         """关闭相机 USB 链路吞吐量限制。

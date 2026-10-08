@@ -248,7 +248,7 @@ class AlgorithmBridge(QObject):
             self.modelReady.emit(os.path.basename(path))
             self.warmup()
         else:
-            self.inferenceError.emit(f"模型文件不存在: {path}")
+            self.inferenceError.emit(self.tr('模型文件不存在: {}').format(path))
 
     @Slot()
     def unloadModel(self):
@@ -312,10 +312,10 @@ class AlgorithmBridge(QObject):
     def inferImage(self, img_path: str):
         """提交单图推理任务（异步，结果经信号返回）。"""
         if not img_path or not os.path.exists(img_path):
-            self.inferenceError.emit("图片文件不存在")
+            self.inferenceError.emit(self.tr("图片文件不存在"))
             return
         if not self._model_path or not os.path.exists(self._model_path):
-            self.inferenceError.emit("模型未加载，请先指定 ONNX 模型文件")
+            self.inferenceError.emit(self.tr("模型未加载，请先指定 ONNX 模型文件"))
             return
         threading.Thread(
             target=self._infer_worker, args=(img_path,), daemon=True
@@ -375,7 +375,7 @@ class AlgorithmBridge(QObject):
             t0 = time.time()
             result = self.predict_frame(img)
             if result is None:
-                self.inferenceError.emit("模型未加载，请先指定 ONNX 模型文件")
+                self.inferenceError.emit(self.tr("模型未加载，请先指定 ONNX 模型文件"))
                 return
             heatmap_rgb, score, mask_overlay = result
             elapsed_ms = (time.time() - t0) * 1000.0
@@ -397,7 +397,7 @@ class AlgorithmBridge(QObject):
             self.inferenceReady.emit(score, out_path)
         except Exception as e:
             print(f"[AlgorithmBridge] 推理异常: {e}")
-            self.inferenceError.emit(f"推理失败: {e}")
+            self.inferenceError.emit(self.tr('推理失败: {}').format(e))
 
     def _build_mask_overlay(self, img: np.ndarray, detector) -> np.ndarray:
         """生成二值掩模叠加图：原图缩放到模型尺寸，异常像素红色高亮。

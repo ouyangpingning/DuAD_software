@@ -229,7 +229,7 @@ class RealtimeDetectBridge(QObject):
                     self._last_error_msg = msg
                     self._last_error_at = now
                     print(f"[RealtimeDetectBridge] 实时推理异常: {e}")
-                    self.inferenceFailed.emit(f"实时推理失败: {e}")
+                    self.inferenceFailed.emit(self.tr('实时推理失败: {}').format(e))
                 time.sleep(0.5)
                 continue
 
@@ -237,7 +237,7 @@ class RealtimeDetectBridge(QObject):
                 if not self._model_missing_logged:
                     print("[RealtimeDetectBridge] 模型加载失败或未就绪")
                     self._model_missing_logged = True
-                    self.inferenceFailed.emit("实时推理未就绪，请检查模型文件")
+                    self.inferenceFailed.emit(self.tr("实时推理未就绪，请检查模型文件"))
                 time.sleep(0.2)
                 continue
 

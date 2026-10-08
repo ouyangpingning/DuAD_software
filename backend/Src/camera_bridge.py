@@ -114,19 +114,19 @@ class CameraBridge(QObject):
             self.camerasFound.emit(devices)
         except Exception as e:
             print(f"[CameraBridge] 搜索异常: {e}")
-            self.cameraError.emit(f"搜索相机失败: {e}")
+            self.cameraError.emit(self.tr('搜索相机失败: {}').format(e))
 
     # ── 连接 / 断开 ───────────────────────────────────────
     @Slot(str)
     def connectCamera(self, sn: str):
         """按序列号打开相机。"""
         if self._device is not None:
-            self.cameraError.emit("相机已连接，请先断开")
+            self.cameraError.emit(self.tr("相机已连接，请先断开"))
             return
         try:
             device = CameraDevice(sn)
             if device.cam is None:
-                self.cameraError.emit(f"打开相机失败（SN: {sn}）")
+                self.cameraError.emit(self.tr('打开相机失败（SN: {}）').format(sn))
                 return
             self._device = device
             self._device.image_captured.connect(self._onFrame)
@@ -137,7 +137,7 @@ class CameraBridge(QObject):
             self.cameraOpened.emit()
         except Exception as e:
             print(f"[CameraBridge] 连接异常: {e}")
-            self.cameraError.emit(f"打开相机失败: {e}")
+            self.cameraError.emit(self.tr('打开相机失败: {}').format(e))
 
     @Slot()
     def disconnectCamera(self):
@@ -264,7 +264,7 @@ class CameraBridge(QObject):
             self.setFeature("GX_INT_WIDTH", prev_w)
             self.setFeature("GX_INT_HEIGHT", prev_h)
             self._refreshGeometry()
-            self.cameraError.emit(f"{label}失败，已恢复原几何参数")
+            self.cameraError.emit(self.tr('{}失败，已恢复原几何参数').format(label))
         return ok
 
     def _waitGatherStopped(self, timeout: float = 0.8) -> bool:
@@ -288,12 +288,12 @@ class CameraBridge(QObject):
         倍数；写参数顺序先 OFFSET 再 WIDTH/HEIGHT（大恒越界校验顺序）。
         """
         if self._device is None:
-            self.cameraError.emit("相机未连接")
+            self.cameraError.emit(self.tr("相机未连接"))
             return
         max_w = self._featureInt("GX_INT_WIDTH_MAX")
         max_h = self._featureInt("GX_INT_HEIGHT_MAX")
         if max_w <= 0 or max_h <= 0:
-            self.cameraError.emit("无法读取相机最大分辨率，ROI 不可用")
+            self.cameraError.emit(self.tr("无法读取相机最大分辨率，ROI 不可用"))
             return
 
         nx = min(1.0, max(0.0, float(nx)))
@@ -324,7 +324,7 @@ class CameraBridge(QObject):
         if y + h > max_h:
             h = adjust_to_step(max_h - y, 2, 2, max_h)
         if w < 8 or h < 2:
-            self.cameraError.emit(f"ROI 尺寸过小（{w}×{h}），请重新框选")
+            self.cameraError.emit(self.tr('ROI 尺寸过小（{}×{}），请重新框选').format(w, h))
             return
         print(f"[CameraBridge] applyRoi 注入: in(n={nx:.3f},{ny:.3f},{nw:.3f},{nh:.3f}) "
               f"cur={cur_w}x{cur_h}+({base_x},{base_y}) -> pixel({x},{y},{w}x{h})")
@@ -347,12 +347,12 @@ class CameraBridge(QObject):
                 stop_ok = self._waitGatherStopped()
             self._restartAfterGeometry = True
             if not stop_ok:
-                self.cameraError.emit("停止采集失败，ROI 未应用")
+                self.cameraError.emit(self.tr("停止采集失败，ROI 未应用"))
                 self._scheduleGatherRestart()
                 return
 
         try:
-            self._writeGeometry(x, y, w, h, "ROI 应用")
+            self._writeGeometry(x, y, w, h, self.tr("ROI 应用"))
         finally:
             if was_gathering and self._device is not None:
                 self._scheduleGatherRestart()
@@ -404,7 +404,7 @@ class CameraBridge(QObject):
                 out_w = max(8, min(w, bin_max_w if bin_max_w > 0 else w))
                 out_h = max(2, min(h, bin_max_h if bin_max_h > 0 else h))
                 # offset 恒为 0（binning 覆盖全幅），WIDTH/HEIGHT 写到 binning 后最大
-                ok = self._writeGeometry(0, 0, out_w, out_h, "分辨率应用")
+                ok = self._writeGeometry(0, 0, out_w, out_h, self.tr("分辨率应用"))
         finally:
             if was_gathering and self._device is not None:
                 self._scheduleGatherRestart()
@@ -430,7 +430,7 @@ class CameraBridge(QObject):
             max_w = self._featureInt("GX_INT_SENSOR_WIDTH")
             max_h = self._featureInt("GX_INT_SENSOR_HEIGHT")
         if max_w <= 0 or max_h <= 0:
-            self.cameraError.emit("无法读取传感器尺寸，ROI 重置失败")
+            self.cameraError.emit(self.tr("无法读取传感器尺寸，ROI 重置失败"))
             return
         max_w = adjust_to_step(max_w, 8, 8, max_w)
         max_h = adjust_to_step(max_h, 2, 2, max_h)
@@ -451,13 +451,13 @@ class CameraBridge(QObject):
                 stop_ok = self._waitGatherStopped()
             self._restartAfterGeometry = True
             if not stop_ok:
-                self.cameraError.emit("停止采集失败，未能恢复全幅")
+                self.cameraError.emit(self.tr("停止采集失败，未能恢复全幅"))
                 self._scheduleGatherRestart()
                 return
 
         try:
             ok = self._writeGeometry(
-                target_x, target_y, target_w, target_h, "ROI 恢复全幅")
+                target_x, target_y, target_w, target_h, self.tr("ROI 恢复全幅"))
             if ok:
                 self._roiBaseline = None
         finally:
@@ -483,7 +483,7 @@ class CameraBridge(QObject):
                 400, lambda: self._scheduleGatherRestart(attempt + 1))
         else:
             self._restartAfterGeometry = False
-            self.cameraError.emit("ROI 写入后自动重启采集失败，请点击开始采集重试")
+            self.cameraError.emit(self.tr("ROI 写入后自动重启采集失败，请点击开始采集重试"))
 
     # ── 采集（原语，由 main.py 的 AppBridge 采集仲裁方驱动）──────
     @Slot(result=bool)
@@ -511,9 +511,9 @@ class CameraBridge(QObject):
                 # 可执行解法（等价的官方 SetUSBStack.sh），不做无意义重试。
                 if err_code == -1010 and payload > 1700 * 1024:
                     self.cameraError.emit(
-                        "大分辨率启动失败：内核 USB 缓冲内存上限（usbfs_memory_mb=16MB）"
+                        self.tr("大分辨率启动失败：内核 USB 缓冲内存上限（usbfs_memory_mb=16MB）"
                         "不足。请执行 sudo bash scripts/set_usbfs.sh 提升后重试"
-                        "（大恒官方 FAQ 解法，等价 SetUSBStack.sh）。")
+                        "（大恒官方 FAQ 解法，等价 SetUSBStack.sh）。"))
                     return False
                 # ── 自愈：重注册回调重建流缓冲后重试一次 ──
                 print("[CameraBridge] 采集启动失败，重注册采集回调重建流缓冲后重试...")
@@ -528,8 +528,8 @@ class CameraBridge(QObject):
                 ok = self._device.gather_start()
                 if not ok:
                     self.cameraError.emit(
-                        "相机采集启动失败（传输层拒绝，已自动重试1次；"
-                        "若持续出现请查看日志中的 ACQUISITION_START 错误码）")
+                        self.tr("相机采集启动失败（传输层拒绝，已自动重试1次；"
+                        "若持续出现请查看日志中的 ACQUISITION_START 错误码）"))
                     return False
                 print("[CameraBridge] 重注册后采集启动成功")
             self._gathering = True
@@ -539,7 +539,7 @@ class CameraBridge(QObject):
             return True
         except Exception as e:
             print(f"[CameraBridge] startGather 异常: {e}")
-            self.cameraError.emit(f"启动采集失败: {e}")
+            self.cameraError.emit(self.tr('启动采集失败: {}').format(e))
             return False
 
     @Slot(result=bool)

@@ -77,7 +77,7 @@ class CollectBridge(QObject):
     def configure(self, save_path: str, prefix: str, fmt: str, interval: float) -> bool:
         """配置保存目录/前缀/格式/间隔。成功返回 True，失败发 saveError。"""
         if self._saving:
-            self.saveError.emit("采集中不能修改保存设置")
+            self.saveError.emit(self.tr("采集中不能修改保存设置"))
             return False
         try:
             p = Path(str(save_path or "")).expanduser()
@@ -88,7 +88,7 @@ class CollectBridge(QObject):
                 prefix = "capture"
             fmt = str(fmt or "jpg").lower().lstrip(".")
             if fmt not in _ALLOWED_FORMATS:
-                self.saveError.emit(f"不支持的图片格式: {fmt}")
+                self.saveError.emit(self.tr('不支持的图片格式: {}').format(fmt))
                 return False
             if fmt == "jpeg":
                 fmt = "jpg"
@@ -106,14 +106,14 @@ class CollectBridge(QObject):
             return True
         except Exception as e:
             print(f"[CollectBridge] 配置失败: {e}")
-            self.saveError.emit(f"保存配置失败: {e}")
+            self.saveError.emit(self.tr('保存配置失败: {}').format(e))
             return False
 
     # ── 会话控制（main.py 根据 collectingOwner 驱动）────────
     def start(self):
         """开始保存会话（相机帧已由 CameraBridge.startGather 驱动）。"""
         if self._config.get("path") is None:
-            self.saveError.emit("请先设置保存目录")
+            self.saveError.emit(self.tr("请先设置保存目录"))
             return
         self._saved_count = 0
         self.savedCountChanged.emit()
@@ -173,7 +173,7 @@ class CollectBridge(QObject):
                 path = self._save_frame(img)
             except Exception as e:
                 print(f"[CollectBridge] 保存失败: {e}")
-                self.saveError.emit(f"保存图像失败: {e}")
+                self.saveError.emit(self.tr('保存图像失败: {}').format(e))
                 continue
             last_save = now
             self._saved_count += 1

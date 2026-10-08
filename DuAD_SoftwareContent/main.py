@@ -130,7 +130,8 @@ else:
 
 from PySide6.QtGui import QGuiApplication, QFontDatabase, QFont
 from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtCore import Qt, QUrl, QObject, Slot, Property, Signal, QTranslator, QSettings, QTimer
+from PySide6.QtCore import (Qt, QUrl, QObject, Slot, Property, Signal, QTranslator, QSettings,
+                            QTimer, QCoreApplication)
 # 语言代码 → .qm 文件名（"zh_CN" 用源文本，不加载翻译）
 LANG_FILES = {
     0: "app_en",       # English
@@ -484,7 +485,8 @@ if __name__ == "__main__":
                 detect_bridge.stop()
                 if not collect_bridge.configured:
                     print("[INFO] CollectPage 尚未配置保存目录，拒绝开始采集")
-                    collect_bridge.saveError.emit("请先设置保存目录和文件前缀")
+                    collect_bridge.saveError.emit(
+                        QCoreApplication.translate("AppBridge", "请先设置保存目录和文件前缀"))
                     bridge.collectingOwner = ""
                     return
                 if _start_gather_for("collect"):
