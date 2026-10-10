@@ -16,7 +16,6 @@
   · 没有基准 / 没设软限位 → 运动命令**一条都不发**，直接 `#ERR`（fail-closed）
   · `zup` / `zdown` / `zmove` / `zhome … nowait` 都是**非阻塞**的
   · `zsign`（不带参数）是只读的，会打印 `sa=… sb=…`
-  · `trace on` 之后每一帧收发都会多打一行 `@T/@R <axis> <hex…>`
 """
 
 import json
@@ -83,13 +82,10 @@ class FakeBoard:
         self.sign = (-1, -1)          # 现场实测：同向 + 整体极性为负
         self.commands = []
         self.motion_commands = []
-        self.trace = False
         self.lock = threading.Lock()
         # 某条命令故意变慢（测"急停插队"用）
         self.slow_head = None
         self.slow_sec = 0.0
-        # 让 json 一次多回几行（测协议框封顶用；0 = 正常一行）
-        self.flood_proto = 0
         # 收到这个命令头就**不回话**（制造真超时，用来覆盖 _on_cmd_timeout）
         self.silent_head = None
 
@@ -137,8 +133,6 @@ class FakeBoard:
                 time.sleep(self.slow_sec)
 
             if h == "json":
-                if self.flood_proto:
-                    return [self.json_line() for _ in range(self.flood_proto)], True
                 if self.moving:
                     self.moving = 0
                     self.last = "ok"
@@ -237,10 +231,6 @@ class FakeBoard:
                 return ["  上电自动回零 = %s，方向 = %s"
                         % ("开" if self.auto else "关", self.home_dir)], True
 
-            if h == "trace":
-                self.trace = (len(a) > 1 and a[1] == "on")
-                return ["  驱动器通信帧镜像：%s" % ("**开**" if self.trace else "关")], True
-
             if h == "zcfg":
                 return ["  丝杠导程 8.000 mm/圈 → 6400 counts/mm",
                         "  方向符号 sa=-1 sb=-1（两轴同向转）"], True
@@ -249,15 +239,6 @@ class FakeBoard:
                 return ["  left : %+9d counts" % self.a, "  right: %+9d counts" % self.b], True
 
             return ["  (未知命令 %s)" % h], True
-
-    def trace_lines(self, cmd):
-        """`trace on` 时固件多打的驱动器帧镜像行（@T 发 / @R 收）。"""
-        if not self.trace:
-            return []
-        # 一帧真实报文的样子：C5 <addr> <code> <data…> <chk> 5C
-        return ["@TX left  C5 01 2A 00 00 00 00 D0 5C",
-                "@RX left  C5 01 2A 00 00 0C 80 51 5C"]
-
 
 class FakeBoardServer:
     def __init__(self):
@@ -304,10 +285,6 @@ class FakeBoardServer:
                             and cmd.split()[0] == self.board.silent_head:
                         continue          # 读掉但不回话 → 客户端必然超时
                     lines, ok = self.board.handle(cmd)
-                    # 固件里 trace 的镜像行是**事务中间**插进去的：
-                    # 它们出现在命令输出之前/之间，而且不在 #OK 之内。
-                    for ln in self.board.trace_lines(cmd):
-                        self._w(f, ln)
                     for ln in lines:
                         self._w(f, ln)
                     self._w(f, "#OK" if ok else "#ERR 1")
@@ -521,9 +498,9 @@ def main():
     #   front=True 与不加**完全等价**，于是这条断言是假的：
     #   故意把 front=True 删掉，测试照样全绿（break-test 抓到的）。
     board.slow_head, board.slow_sec = "zcfg", 0.8
-    b.sendCommand("zcfg")                              # ① 占住在途（慢）
+    b._enqueue("zcfg", note="占住在途（慢）")             # ① 占住在途（慢）
     r.pump(0.05)
-    b.sendCommand("pos")                               # ② 先进队
+    b._enqueue("pos", note="队列顺序测试")               # ② 先进队
     b.stopNow()                                        # ③ 必须插到 ② 前面
     r.pump(1.8)
     idx = len(board.commands) - 1 - board.commands[::-1].index("zcfg")
@@ -531,65 +508,6 @@ def main():
     r.check("急停插到了先排队的那条前面", nxt == ["stop all", "pos"], str(nxt))
     r.check("急停的原文是 'stop all'", "stop all" in board.commands)
     board.slow_head, board.slow_sec = None, 0.0
-
-    print("=== 16) 协议显示框：每一行收发都留痕 ===")
-    b.clearProto()
-    b.pollNow()
-    r.check("记下了发出去的 json", r.wait_for(lambda: any(
-        ln.startswith("→ json") for ln in b.protoLines)), str(b.protoLines[:3]))
-    r.check("记下了收回来的 json 行", r.wait_for(lambda: any(
-        ln.startswith("← {") for ln in b.protoLines)), str(b.protoLines[:3]))
-    r.check("记下了 #OK 结束标记", any(ln.strip() == "← #OK" for ln in b.protoLines),
-            str(b.protoLines[-3:]))
-    # ⚠ 第一版写 `len(...) < 5000`，而当时只有 3 行 —— **恒真**，等于没测。
-    #   这里真的灌到超过 PROTO_CAP，再断言"封顶了且正好是 CAP"。
-    from Src.zstage_bridge import PROTO_CAP as _CAP
-    board.flood_proto = _CAP + 50            # 假板子会把 json 回成多行（见 FakeBoard）
-    b.pollNow()
-    r.pump(0.6)
-    board.flood_proto = 0
-    r.check("协议行封顶在 PROTO_CAP（真的灌爆过）",
-            len(b.protoLines) <= _CAP, f"{len(b.protoLines)} vs {_CAP}")
-    r.check("封顶后仍保留最后几行（不是整段清空）", len(b.protoLines) >= _CAP - 5,
-            str(len(b.protoLines)))
-
-    print("=== 17) 驱动器帧镜像（@TX/@RX）：只进协议框，不干扰命令判定 ===")
-    r.check("setTrace(True) 接受", b.setTrace(True) is True)
-    r.check("命令是 trace on", r.wait_for(lambda: "trace on" in board.commands))
-    r.check("traceOn 变 True", r.wait_for(lambda: b.traceOn))
-    b.clearProto()
-    b.sendCommand("pos")
-    r.check("协议框里出现 @T/@R 帧行", r.wait_for(lambda: any(
-        ln.strip().startswith("@TX left") for ln in b.protoLines)), str(b.protoLines[:4]))
-    r.check("帧行带 C5 帧头和 5C 帧尾", any(
-        "C5" in ln and "5C" in ln for ln in b.protoLines), str(b.protoLines[:4]))
-    # ⚠ 关键：帧行走的是 `@` 那条**独立分支**，不能被算成"命令的应答行" ——
-    #   它是异步插进来的，混进应答里会让命令输出对不上号（协议框里以 `←` 开头的
-    #   只应该是真正的应答行，帧行是 `   @T …` 这种缩进形式）。
-    r.check("帧行没有被当成命令应答行（走的是 @ 分支）",
-            not any(ln.startswith("← @") for ln in b.protoLines), str(b.protoLines[:4]))
-    r.check("pos 的应答正常收到", r.wait_for(
-        lambda: any("left :" in ln for ln in b.protoLines)), str(b.protoLines[-3:]))
-    r.check("pos 命令正常完成、无错误", b.lastError == "" or "参数" in b.lastError,
-            repr(b.lastError))
-    r.check("setTrace(False) 接受", b.setTrace(False) is True)
-    r.check("命令是 trace off", r.wait_for(lambda: b.traceOn is False))
-
-    print("=== 18) 暂停 / 清空协议框 ===")
-    b.setProtoPaused(True)
-    n = len(b.protoLines)
-    b.sendCommand("pos")
-    r.pump(0.4)
-    r.check("暂停期间不再追加", len(b.protoLines) == n, f"{n} → {len(b.protoLines)}")
-    b.setProtoPaused(False)
-    b.clearProto()
-    r.check("清空后为空", len(b.protoLines) == 0)
-
-    print("=== 19) 自定义命令框（原样下发；空/换行拒绝）===")
-    r.check("空命令被拒", b.sendCommand("   ") is False)
-    r.check("含换行被拒", b.sendCommand("pos\nstop all") is False and "换行" in b.lastError)
-    r.check("正常命令原样发出", b.sendCommand("zcfg") is True)
-    r.check("板子确实收到了 zcfg", r.wait_for(lambda: "zcfg" in board.commands))
 
     print("=== 20) 校平（ztilt）的单次限幅 ===")
     r.check("±10mm 以内接受", b.tilt(0.3) is True)
@@ -601,10 +519,14 @@ def main():
     board.silent_head = "zcfg"
     r.check("在途命令不会被立刻判超时", b.lastError == "" or "超时" not in b.lastError,
             repr(b.lastError))
-    b.sendCommand("zcfg")                       # 有去无回
+    b._enqueue("zcfg", note="有去无回")            # 有去无回
     r.check("超时后给出可读错误（transient）", r.wait_for(lambda: "超时" in b.lastError, 6),
             repr(b.lastError))
-    r.check("超时后队列没卡死（下一条能发出去）", b.sendCommand("pos") is True)
+    # ⚠ 自定义命令框已随协议框一起删除，这里直接入队 —— 这条测的是**队列**
+    #   有没有卡死，不是命令框本身。断言"确实发到了板子"而不是"函数返回 True"。
+    b._enqueue("pos", note="超时后队列测试")
+    r.check("超时后队列没卡死（下一条能发出去）",
+            r.wait_for(lambda: "pos" in board.commands, 4), str(board.commands[-3:]))
     board.silent_head = None
     r.check("链路恢复后超时提示自动消失（transient 该自己走）",
             r.wait_for(lambda: b.lastError == ""), repr(b.lastError))
@@ -730,7 +652,6 @@ def main():
     r.check("datum 清掉", not b.datum)
     r.check("limitsSet 清掉", not b.limitsSet)
     r.check("canMove 为 False", not b.canMove)
-    r.check("traceOn 复位", not b.traceOn)
 
     print("=== 22) 未连接时的拒绝路径（不能静默失败）===")
     n_all = len(board.commands)

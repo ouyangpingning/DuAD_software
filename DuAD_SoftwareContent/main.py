@@ -450,15 +450,6 @@ if __name__ == "__main__":
         #   被 GC 后 QML 侧 ZStageBridge 变 null → 界面上所有 Z 轴按钮"点了没反应"。
         _BRIDGES.append(zstage_bridge)
 
-        # 公用协议显示框（2026-09-28 用户要求）：两块板子的协议流汇成一条，
-        # 界面上只画一个框，哪块在说话就带 [XY] / [Z] 前缀出现（见 Src/proto_hub.py）。
-        # ⚠ 同样必须进 keepalive：context property 不留引用，被 GC 后 QML 侧变 null。
-        from Src.proto_hub import ProtoHub
-
-        proto_hub = ProtoHub({"xy": stage_bridge, "z": zstage_bridge})
-        engine.rootContext().setContextProperty("ProtoHub", proto_hub)
-        _BRIDGES.append(proto_hub)
-
         # ── 采集会话仲裁（跨页互斥）────────────────────────
         # DetectPage 只负责写 AppBridge.collectingOwner；真正的
         # CameraBridge.startGather/stopGather 与实时推理启停在这里集中执行，

@@ -190,20 +190,10 @@ class FakeZStageBridge(QObject):
         super().__init__()
         self.calls = []          # 记录槽调用，方便断言"点了没反应"那类问题
         self._connected = False
-        self._proto = []
-        # ⚠ 公用协议框（ProtoHub）在构造时要读每个桥的 `proto_log` —— 替身也得有，
-        #   否则 `ProtoHub({...})` 直接 AttributeError（看着像工具/页面的问题，
-        #   其实是替身不全：AGENTS.md 通用坑最后一条）。
-        from Src.proto_log import ProtoLog
-
-        self.proto_log = ProtoLog("Z", parent=self)
 
     # ── 连接 ──
     connected = Property(bool, lambda self: self._connected, notify=changed)
     connecting = Property(bool, lambda self: False, notify=changed)
-    # 页面/公用协议框会读它（决定"驱动器帧镜像"开关能不能点）——
-    # 真桥是 True（Z 固件有 trace），替身照抄，否则 QML 报 Unable to assign [undefined] to bool
-    supportsTrace = Property(bool, lambda self: True, notify=changed)
     lastError = Property(str, lambda self: "", notify=changed)
     canMove = Property(bool, lambda self: False, notify=changed)
     # ⚠ 页面引用的每个属性都得在替身里出现：漏一个 → QML 报
@@ -263,12 +253,6 @@ class FakeZStageBridge(QObject):
     faultText = Property(str, lambda self: "", notify=changed)
     signText = Property(str, lambda self: "", notify=changed)
     rssi = Property(int, lambda self: 0, notify=changed)
-
-    # ── 协议框 ──
-    # ⚠ 协议框是**唯一**要求"塞几行进去"的替身属性：页面把它当 model 用
-    protoLines = Property("QVariantList", lambda self: list(self._proto), notify=changed)
-    protoPaused = Property(bool, lambda self: False, notify=changed)
-    traceOn = Property(bool, lambda self: False, notify=changed)
 
     def _rec(self, name, *args):
         self.calls.append((name,) + args)
@@ -343,23 +327,6 @@ class FakeZStageBridge(QObject):
         self._rec("setAutohome", on)
         return True
 
-    @Slot(bool, result=bool)
-    def setTrace(self, on):
-        self._rec("setTrace", on)
-        return True
-
-    @Slot(bool)
-    def setProtoPaused(self, paused):
-        self._rec("setProtoPaused", paused)
-
-    @Slot()
-    def clearProto(self):
-        self._rec("clearProto")
-
-    @Slot(str, result=bool)
-    def sendCommand(self, text):
-        self._rec("sendCommand", text)
-        return True
 
 
 # ============================================================
@@ -539,12 +506,6 @@ def main():
     #   替身必须保持 Python 侧引用（GC 掉 → QML 侧 null → 那一区静默失效）。
     z_fake = FakeZStageBridge()
     ctx.setContextProperty("ZStageBridge", z_fake)
-    # 公用协议框（2026-09-28）：页面引用 ProtoHub，不注册页面直接加载失败。
-    # 用**真的** ProtoHub + 真的 StageBridge + 假 Z 桥：跨桥汇总这段逻辑值得走真代码。
-    from Src.proto_hub import ProtoHub
-
-    proto_hub = ProtoHub({"xy": stage, "z": z_fake})   # ⚠ 保持引用，见上
-    ctx.setContextProperty("ProtoHub", proto_hub)
 
     warnings = []
     engine.warnings.connect(lambda ws: warnings.extend(w.toString() for w in ws))
@@ -799,9 +760,10 @@ def main():
                  "homePassXm", "homePassXp", "homePassYm", "homePassYp",
                  "applyHomeCfgButton", "homeRpm", "homeMa"):
         r.check("已删除的控件不在界面上：" + gone, find(gone) is None)
-    # 但"能看协议"这件事必须还在 —— 只是换了地方（公用协议框）
-    r.check("排障能力没跟着一起删：公用协议框还在（高级里）",
-            find("protoPanel") is not None)
+    # 2026-10-10：协议显示框也整块删了（用户："我觉得不太需要这个"）。
+    # 这里反过来钉住"它真的没了"，同时钉住折叠头没留孤儿。
+    for gone2 in ("protoPanel", "advHeader", "advBody"):
+        r.check("已删除的控件不在界面上：" + gone2, find(gone2) is None)
 
     print("=== 11c4) 手动控制留在首屏、设置收进折叠节（+ 齿轮必须把人带过去）===")
     # 用户 2026-09-13 的要求是"平台设置必须在手动控制上面"，
@@ -960,32 +922,28 @@ def main():
     print("=== 12) 版面形态：整页一条滚动链 + 左右列折叠节（2026-09-28 三列手绘稿）===")
     # 上一版是"左右滑出抽屉"，第二张手绘稿改成**三列**：
     # 左右两条窄列（各：连接卡→状态折叠→读数→设置折叠→设置面板）+ 中央主列
-    # （预览→两张手动控制卡并排→「高级」）。整页仍然只有一条滚动链。
+    # （预览→两张手动控制卡并排→轨迹与网格）。整页仍然只有一条滚动链。
     page.setProperty("_xyStatusOpen", False)
     page.setProperty("_zStatusOpen", False)
     page.setProperty("_xySetupOpen", False)
     page.setProperty("_zSetupOpen", False)
-    page.setProperty("_advExpanded", False)
     win.setProperty("width", 1680)
     win.setProperty("height", 1040)
     r.pump(0.5)
     pscroll = find("pageScroll")
     xy_fold, z_fold = find("xyStatusFold"), find("zStatusFold")
     xy_body, z_body = find("xyStatusBody"), find("zStatusBody")
-    adv = find("advHeader")
-    r.check("找到整页滚动容器、两个状态折叠节与「高级」",
-            pscroll is not None and xy_fold is not None and z_fold is not None
-            and adv is not None)
+    r.check("找到整页滚动容器与两个状态折叠节",
+            pscroll is not None and xy_fold is not None and z_fold is not None)
     if pscroll is not None and xy_fold is not None and z_fold is not None:
-        r.check("五个折叠节默认全部收起（手绘稿：「默认不打开」）",
+        # 2026-10-10：「高级」那第五个折叠节已整块删除，现在是**四个**。
+        r.check("四个折叠节默认全部收起（手绘稿：「默认不打开」）",
                 page.property("_xyStatusOpen") is False
                 and page.property("_zStatusOpen") is False
                 and page.property("_xySetupOpen") is False
-                and page.property("_zSetupOpen") is False
-                and page.property("_advExpanded") is False,
+                and page.property("_zSetupOpen") is False,
                 f"xy={page.property('_xyStatusOpen')} z={page.property('_zStatusOpen')} "
-                f"xySet={page.property('_xySetupOpen')} zSet={page.property('_zSetupOpen')} "
-                f"adv={page.property('_advExpanded')}")
+                f"xySet={page.property('_xySetupOpen')} zSet={page.property('_zSetupOpen')}")
         # 收起 = 内容不参与布局（防止"收起了页面还长高"那种隐性回归）
         r.check("收起时状态内容不参与布局（visible=false）",
                 (xy_body is None or bool(xy_body.property("visible")) is False)
@@ -1025,12 +983,16 @@ def main():
                 f"content={_ch:.0f} view={_vh:.0f}")
         # 顺带钉住"新卡确实在里面"，否则上面那条放宽之后，卡没渲染也照样过
         r.check("「轨迹与网格」卡在页面里", find("trajGridCard") is not None)
-        page.setProperty("_advExpanded", True)
+        # 2026-10-10：原来这里靠"展开「高级」"来测整页可滚；「高级」已整块删除，
+        # 改成用左右列那两个**仍然存在**的折叠节来验同一条性质。
+        page.setProperty("_xySetupOpen", True)
+        page.setProperty("_zSetupOpen", True)
         r.pump(0.4)
-        r.check("展开「高级」后整页可以滚（里面是预设位置与协议框）",
+        r.check("展开两列的设置节后整页可以滚",
                 bool(pscroll.property("interactive")) is True,
                 f"content={pscroll.property('contentHeight')} view={pscroll.property('height')}")
-        page.setProperty("_advExpanded", False)
+        page.setProperty("_xySetupOpen", False)
+        page.setProperty("_zSetupOpen", False)
         r.pump(0.3)
 
     print("=== 12a2) 首屏够得着：点动 / 急停 / 设原点必须在第一屏内 ===")
@@ -1104,78 +1066,6 @@ def main():
         cam.imageWidthChanged.emit()
         cam.imageHeightChanged.emit()
         r.pump(0.2)
-
-    print("=== 12d) 公用协议显示框：两块板子一个框（2026-09-28 用户要求）===")
-    # 用户原话："板子的协议显示修改为公用的，因为我只要将 usb 线接到不同的板子上，
-    # 这个就会有对应的指令。" 所以它现在在「高级」里、两路合并（ProtoHub）。
-    proto = find("protoPanel")
-    r.check("有公用协议框", proto is not None)
-    r.check("它默认收在「高级」里", page.property("_advExpanded") is False)
-    if proto is not None:
-        r.check("收起时协议框不参与布局（visible=false）",
-                bool(proto.property("visible")) is False,
-                f"visible={proto.property('visible')}")
-        page.setProperty("_advExpanded", True)
-        r.pump(0.4)
-        r.check("展开后协议框出来且高度正常",
-                bool(proto.property("visible")) is True
-                and float(proto.property("height")) >= 80,
-                f"visible={proto.property('visible')} h={proto.property('height')}")
-        def _delegate(host, name):
-            """在**可视树**里按 objectName 找控件。
-
-            ⚠ Repeater 造出来的 delegate **不在 QObject 树里**（实测 `parent()` 是 None，
-              所以 `findChild`/`findChildren` 一个都找不到）—— 只能走 childItems() 递归。
-              这是 AGENTS.md"通用坑"里那条的另一种表现（那边说的是 ListView 的 delegate）。
-            """
-            def walk(it):
-                yield it
-                for c in it.childItems():
-                    yield from walk(c)
-            for it in walk(host):
-                if it.objectName() == name:
-                    return it
-            return None
-
-        btn_xy = _delegate(proto, "protoSource_xy")
-        r.check("两个来源的切换按钮都在（二轴 / Z）",
-                btn_xy is not None and _delegate(proto, "protoSource_z") is not None)
-        # 切来源要真的改状态（发送目标跟着它走）
-        page.setProperty("_protoSource", "z")
-        r.pump(0.2)
-        # 真点一次（坐标取自控件自身，别再 emit MouseArea.clicked —— Qt6 那个信号带参数）
-        # ⚠ QTest 发的是**窗口坐标**：协议框在展开的「高级」深处（页面 y≈2000+），
-        #   不先滚进视口的话点击落在窗口外面，等于没点（第一版就是这么假红的）。
-        if btn_xy is not None:
-            pc = find("pageScroll")
-            y_in = btn_xy.mapToItem(pc.property("contentItem"), QPointF(0, 0)).y()
-            pc.setProperty("contentY", max(0.0, y_in - 150))
-            r.pump(0.4)
-            pt2 = btn_xy.mapToScene(QPointF(float(btn_xy.width()) / 2,
-                                            float(btn_xy.height()) / 2))
-            QTest.mouseClick(win, Qt.LeftButton, Qt.NoModifier,
-                             QPoint(int(pt2.x()), int(pt2.y())))
-        r.pump(0.4)
-        r.check("点「二轴相机平台」→ 协议框来源切到 xy",
-                str(page.property("_protoSource")) == "xy",
-                repr(page.property("_protoSource")))
-        # 合并流的接线：协议框读的是 ProtoHub，不是某一块桥
-        def _as_list(v):
-            """QML 的 JS 数组读回 Python 是 QJSValue，要过一道 toVariant()。"""
-            return v.toVariant() if hasattr(v, "toVariant") else v
-
-        # ⚠ 先等节流冲干净再比：`ProtoHub.changed` 是**节流 80ms** 才发的（AGENTS §27），
-        #   所以"面板当前值"和"hub 实时值"本来就会短暂差一条 —— 不等就比大小是个
-        #   偶发假失败（2026-09-28 实测：改版面后命中过一次 panel=65 hub=66，
-        #   紧接着连跑三次又都是 65/65）。节流本身是设计，不是 bug。
-        r.pump(0.3)
-        r.check("协议框绑的是公用流（ProtoHub.lines）",
-                len(_as_list(proto.property("lines"))) == len(_as_list(proto_hub.lines)),
-                f"panel={len(_as_list(proto.property('lines')))} "
-                f"hub={len(_as_list(proto_hub.lines))}")
-        page.setProperty("_protoSource", "z")
-        page.setProperty("_advExpanded", False)
-        r.pump(0.3)
 
     print("=== 12e) 页面上的每个图标都必须真的存在（静默失效守卫）===")
     # 为什么值得单开一条：`IconImage` 内部是 `Image` + `ColorOverlay`，源文件找不到时

@@ -17,7 +17,6 @@
   · `zup/zdown` 是**相对**点动：没有基准也允许（固件对无基准的相对运动限 ±50mm）
   · `zmove`（绝对定位）**没有基准 / 没有软限位就拒绝**（固件是 fail-closed 的）
   · `json` 在轮询时顺手判定"非阻塞移动是否到位"（对应固件的 pend_poll）
-  · `trace on` 之后每条命令都多回两行 `@TX` / `@RX` 驱动器原始帧
   · `stop all` 打断运动与回零、并清掉故障锁存
 
 运行（不需要真板子、不需要相机）：
@@ -80,7 +79,6 @@ class FakeZBoard:
         self.homing = 0
         self.auto = 0
         self.fault = "none"
-        self.trace = False
         self.rpm = 300
         self.acc = 100
         # 使能状态（json 的 en）：假板子照固件从 0 开始，但**本文件的历史断言**
@@ -224,24 +222,12 @@ class FakeZBoard:
                 self.fault = "none"
                 return ["  两个电机已刹车", "  故障锁存已清"], True
 
-            if h == "trace":
-                self.trace = (len(a) > 1 and a[1] == "on")
-                return ["  驱动器帧镜像 = %s" % ("开" if self.trace else "关")], True
-
             if h == "error":
                 # 让命令被拒绝，用来测"#ERR → 界面报错"
                 return ["  这条命令是测试用的，故意失败"], False
 
             # 未知命令照固件回 #ERR
             return ["  %s: 未知命令" % h], False
-
-    def trace_lines(self, cmd):
-        """trace on 时固件镜像回来的驱动器原始帧（每帧两行）。"""
-        if not self.trace:
-            return []
-        n = sum(len(c) for c in cmd) % 256
-        return ["@TX left C5 01 F3 00 00 01 2C %02X 5C" % n,
-                "@RX left C5 01 F3 01 00 5C"]
 
 
 class FakeZBoardServer:
@@ -289,8 +275,6 @@ class FakeZBoardServer:
                         break
                     lines, ok = self.board.handle(cmd)
                     for ln in lines:
-                        self._w(f, ln)
-                    for ln in self.board.trace_lines(cmd):
                         self._w(f, ln)
                     self._w(f, "#OK" if ok else "#ERR 1")
                     f.flush()
@@ -384,10 +368,6 @@ def main():
     ctx.setContextProperty("AppBridge", app_bridge)
     ctx.setContextProperty("CameraBridge", camera_bridge)
     ctx.setContextProperty("ZStageBridge", zstage)
-    from Src.proto_hub import ProtoHub
-
-    proto_hub = ProtoHub({"xy": stage, "z": zstage})   # ⚠ 保持引用，见上
-    ctx.setContextProperty("ProtoHub", proto_hub)
 
     warnings = []
     engine.warnings.connect(lambda ws: warnings.extend(w.toString() for w in ws))
@@ -433,13 +413,6 @@ def main():
         ("zZeroButton", "设为原点按钮"),
         ("zTargetInput", "绝对定位输入框"),
         ("zMoveToButton", "移动到按钮"),
-        ("protoPanel", "协议显示框"),
-        ("protoList", "协议报文列表"),
-        ("protoCommandInput", "自定义命令输入框"),
-        ("protoSendButton", "自定义命令发送按钮"),
-        ("protoTraceSwitch", "驱动器帧镜像开关"),
-        ("protoPauseSwitch", "暂停记录开关"),
-        ("protoClearButton", "清空按钮"),
         ("zHostField", "Z 板子 IP 输入框"),
         ("zTokenField", "Z 板子口令输入框"),
         ("zApplyButton", "Z 设置应用按钮"),
@@ -859,87 +832,6 @@ def main():
     r.check("急停后不再显示运动中", r.wait_for(lambda: not zstage.moving))
     zserver.board.move_polls_needed = 1
 
-    print("=== 12) 公用协议显示框（用户特别要求的那块）===")
-    # 2026-09-28：协议框改成**两块板子公用**（ProtoHub 汇总两路，带 [XY]/[Z] 前缀）。
-    # 所以这里比对的是**合并流**，不是某一块桥自己的 protoLines。
-    lst = find("protoList")
-    r.check("协议列表可访问", lst is not None)
-    r.check("协议框已经攒下收发记录", len(proto_hub.lines) >= 3,
-            f"{len(proto_hub.lines)} 行")
-    # ⚠ 协议框是**节流发射**的（PROTO_EMIT_MS=80ms；ProtoHub 也一样）——
-    #   要比对就得先让界面追上。
-    r.wait_for(lambda: len(as_list(lst.property("model"))) == len(proto_hub.lines), 2)
-    model = as_list(lst.property("model"))
-    r.check("ListView 的 model 长度 == 合并流的行数（等节流追上）",
-            len(model) == len(proto_hub.lines),
-            f"model={len(model)} hub={len(proto_hub.lines)}")
-    r.check("ListView 真的建出了 delegate（count 一致）",
-            int(lst.property("count")) == len(proto_hub.lines),
-            f"count={lst.property('count')}")
-    r.check("合并行带来源前缀（[Z]）",
-            all(str(l).startswith("[") for l in model),
-            str(model[:2]))
-    r.check("协议行里有发出去的「→」和收回来的「←」",
-            any("→" in str(l) for l in model) and any("←" in str(l) for l in model),
-            str(model[:2]))
-
-    print("=== 12b) 驱动器帧镜像开关（@TX/@RX）===")
-    tr = find("protoTraceSwitch")
-    r.check("协议框里有帧镜像开关", tr is not None)
-    n_before = len(zstage.protoLines)
-    tr.setProperty("on", True)
-    tr.toggled.emit()
-    r.check("板子收到 trace on",
-            r.wait_for(lambda: any(c == "trace on" for c in zserver.board.commands), 3),
-            str([c for c in zserver.board.commands if c.startswith("trace")][:1]))
-    r.check("桥也认为帧镜像开着", r.wait_for(lambda: zstage.traceOn is True))
-    r.wait_for(lambda: len(zstage.protoLines) > n_before, 4)
-    zstage.sendCommand("pos")
-    r.check("开了镜像后协议框里出现 @TX/@RX 驱动器原始帧",
-            r.wait_for(lambda: any("@TX" in str(l) for l in zstage.protoLines), 4),
-            str([l for l in zstage.protoLines if "@" in str(l)][:1]))
-
-    print("=== 12c) 帧镜像的代价：暂停记录 / 清空 ===")
-    ps = find("protoPauseSwitch")
-    ps.setProperty("on", True)
-    ps.toggled.emit()
-    r.pump(0.3)
-    r.check("桥进入暂停记录", bool(zstage.protoPaused) is True)
-    n_paused = len(zstage.protoLines)
-    zstage.sendCommand("pos")
-    r.pump(1.0)
-    r.check("暂停后不再追加新行（收发照常）", len(zstage.protoLines) == n_paused,
-            f"{n_paused} → {len(zstage.protoLines)}")
-    # ⚠ 清空要在**暂停着**的时候断言：否则下一次 json 轮询（1Hz）立刻又塞进一行，
-    #   "清空后必须是 0 行"就成了随机失败的假断言。
-    clr = find("protoClearButton")
-    clr.clicked.emit()
-    r.pump(0.3)
-    r.check("清空后协议框为空（暂停状态下）", len(zstage.protoLines) == 0,
-            f"{len(zstage.protoLines)} 行")
-    ps.setProperty("on", False)
-    ps.toggled.emit()
-    r.pump(0.2)
-
-    print("=== 12d) 自定义命令框 ===")
-    cmdf = find("protoCommandInput")
-    sendb = find("protoSendButton")
-    r.check("命令框与发送按钮可访问", cmdf is not None and sendb is not None)
-    zserver.board.commands.clear()
-    cmdf.setProperty("text", "zcfg")
-    sendb.clicked.emit()
-    r.check("板子收到了自定义命令 zcfg",
-            r.wait_for(lambda: "zcfg" in zserver.board.commands, 3),
-            str(zserver.board.commands[-2:]))
-    r.check("发送后输入框被清空", str(cmdf.property("text")) == "",
-            repr(cmdf.property("text")))
-    zserver.board.commands.clear()
-    cmdf.setProperty("text", "ver all")
-    cmdf.accepted.emit()
-    r.check("回车也能发出去",
-            r.wait_for(lambda: "ver all" in zserver.board.commands, 3),
-            str(zserver.board.commands[-2:]))
-
     print("=== 13) 故障显示（固件报出来的才显示）===")
     fault_box = find("zFaultText")
     r.check("找到故障文本框", fault_box is not None)
@@ -974,7 +866,6 @@ def main():
     for card_name, body_name, label in (
             ("zTelemetryPanel", "zTelemetryBody", "Z 状态读数（抽屉里）"),
             ("zJogPanel", "zJogBody", "手动控制卡"),
-            ("protoPanel", "protoBody", "协议框"),
             ("zSetupPanel", "zSetupBody", "设置面板")):
         card = find(card_name)
         body = find(body_name)
@@ -1112,9 +1003,9 @@ def main():
     r.check("已断开", r.wait_for(lambda: not zstage.connected))
     r.pump(0.3)
     r.check("断开后向上按钮禁用", bool(up.property("enabled")) is False)
-    r.check("断开后协议框提示未连接",
-            "未连接" in str(find("protoHint").property("text")),
-            repr(find("protoHint").property("text")))
+    # 2026-10-10：协议框整块删除，原来那条"断开后协议框提示未连接"随之删掉；
+    # 这里改成钉住"协议框真的不在页面上了"。
+    r.check("协议框已从页面删除", find("protoPanel") is None)
     # X/Y 全程没被 Z 影响过
     r.check("全程 X/Y 保持未连接（互不影响）", not stage.connected)
 

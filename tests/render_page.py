@@ -208,14 +208,6 @@ def main():
     # ⚠ StagePage 引用了 ZStageBridge —— 不注册它页面直接加载失败
     #   （`ZStageBridge is not defined`），而不是"Z 区空白"。
     ctx.setContextProperty("ZStageBridge", zstage)
-    # ⚠ 公用协议框：页面引用 ProtoHub，不注册就是 "ProtoHub is not defined"（页面直接加载失败）
-    from Src.proto_hub import ProtoHub
-
-    # ⚠ 必须留一个 Python 引用：context property **不增加引用计数**，
-    #   临时对象被 GC 掉 → QML 侧 ProtoHub 变 null → 协议框整块失效
-    #   （AGENTS.md 的"FakeBridge 必须保持引用"同一条）。
-    proto_hub = ProtoHub({"xy": stage, "z": zstage})
-    ctx.setContextProperty("ProtoHub", proto_hub)
 
     harness = HARNESS.replace(b"%WIDTH%", str(args.width).encode()) \
                      .replace(b"%HEIGHT%", str(args.height).encode())

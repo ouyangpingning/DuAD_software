@@ -19,7 +19,7 @@ import "minipages"
       │ +预设位置 │ │二轴手动控制│Z轴手动控制│ │[高度/偏斜]│
       ├─────────┤ └─────────┴─────────┘ ├─────────┤
       │▸二轴…设置 │ ┌───────────────────┐ │▸Z轴…设置  │  ← 折叠节（默认收起）
-      │[网络/工作区│ │ ▸高级（协议显示）   │ │[网络/限位/ │
+      │[网络/工作区│ │    轨迹与网格       │ │[网络/限位/ │
       │/速度/应用] │ └───────────────────┘ │ 速度/应用] │
       └─────────┘                        └─────────┘
 
@@ -31,18 +31,19 @@ import "minipages"
 
     1. **"左右滑出抽屉"取消**，改成左右列里各自的**垂直折叠节**
        （状态一节 + 设置一节）。手绘稿里它们就是上下堆在窄列里的。
-    2. **平台设置从中央「高级」搬回各自的窄列**
-       （网络/工作区/速度就在那台板子的连接卡下面）；
-       中央的「高级」只剩**公用协议显示框**。
-       ⚠ 2026-09-28 起时：**预设位置也搬去了左列「二轴相机平台状态」**
-       （用户要求）—— 它就是 X/Y 两个坐标，跟二轴的读数是同一件事，
-       顺带把左列下方那片空白填掉了；「高级」现在只剩协议显示。
+    2. **平台设置从中央搬回各自的窄列**
+       （网络/工作区/速度就在那台板子的连接卡下面）。
+       ⚠ 2026-09-28：**预设位置也搬去了左列「二轴相机平台状态」**（用户要求）
+       —— 它就是 X/Y 两个坐标，跟二轴的读数是同一件事，顺带把左列下方那片空白填掉了。
+       ⚠ 2026-10-08：中列底部换成**「轨迹与网格」卡**（网格点选 + 圆/矩形/多段线 + 录制重放）。
+       ⚠ 2026-10-10：原来中列底部的**「高级（协议显示）」整节删除**（用户："我觉得不太
+         需要这个"）—— 连同 `ProtoPanel`/`ProtoHub`/`ProtoLog`、Z 轴驱动器帧镜像(`trace`)
+         与自定义命令框一起删干净，所以本页不再引用 `ProtoHub`。
     3. **两张手动控制卡收窄并排**（各 ~224px），
        步长 chips、急停、设原点按手绘稿的行序重排。
 
     数据流（与上一版一致）：
-      StageBridge / ZStageBridge（各一条 WiFi/TCP）→ 遥测、闸门、协议行
-      ProtoHub ← 两块桥的协议行（公用协议显示框）
+      StageBridge / ZStageBridge（各一条 WiFi/TCP）→ 遥测、闸门
       CameraBridge.frameIndex → image://camera/original?t=<index>（预览用）
       预览要拿帧就得走 startGather，而采集由 AppBridge.collectingOwner 仲裁 ——
       所以本页申请的是第三个 owner "stage"（另外两个是 detect / collect）。
@@ -103,15 +104,13 @@ Item {
     readonly property bool _previewOn: AppBridge.collectingOwner === "stage"
     readonly property bool _previewLive: _previewOn && CameraBridge.frameIndex > 0
 
-    // 五个折叠节：左右列各两个（状态/设置）+ 中央「高级」。
+    // 四个折叠节：左右列各两个（状态/设置）。
     // **默认全部收起**（手绘稿；首屏只留操作，细节展开才占地方）。
+    // ⚠ 原来还有第五个「高级（协议显示）」—— 2026-10-10 用户要求整节删除。
     property bool _xyStatusOpen: false
     property bool _zStatusOpen: false
     property bool _xySetupOpen: false
     property bool _zSetupOpen: false
-    property bool _advExpanded: false
-    // 协议框的当前来源（自定义命令发给谁、帧镜像开关跟着谁走）
-    property string _protoSource: "z"
 
     // 缩略图上的目标叉：只在"确实发过一条移动"之后显示
     property real _targetX: NaN
@@ -326,14 +325,6 @@ Item {
         root[prop] = true
         revealRetry.target = marker
         revealRetry.restart()
-    }
-
-    function _openAdvanced() {
-        root._advExpanded = !root._advExpanded
-        if (root._advExpanded) {
-            revealRetry.target = advHeader
-            revealRetry.restart()
-        }
     }
 
     // ============================================================
@@ -919,63 +910,6 @@ Item {
                                     StageBridge.stopRecording(name)
                                 }
                                 onRecordCancelRequested: StageBridge.cancelRecording()
-                            }
-
-                            // ── 高级：公用协议显示框（预设位置已搬去左列）──────
-                            FoldHeader {
-                                id: advHeader
-                                objectName: "advHeader"
-                                Layout.fillWidth: true
-                                Layout.topMargin: 4
-                                // 2026-09-28：预设位置搬去左列「二轴相机平台状态」了，
-                                // 这里只剩协议显示框
-                                title: qsTr("高级（协议显示）")
-                                badge: (root._connected && !StageBridge.travelSet)
-                                       || (root._zConnected && !ZStageBridge.limitsSet)
-                                       || !root._connected || !root._zConnected
-                                          ? qsTr("待设置") : ""
-                                expanded: root._advExpanded
-                                onToggled: root._openAdvanced()
-                            }
-
-                            FoldBody {
-                                id: advBody
-                                objectName: "advBody"
-                                Layout.fillWidth: true
-                                visible: root._advExpanded
-
-                                inner: [
-                                    // ── 公用协议显示框（两块板子的流汇成一条）──
-                                    ProtoPanel {
-                                        Layout.fillWidth: true
-                                        showTitle: false       // 标题由「高级」折叠头负责
-                                        lines: ProtoHub.lines
-                                        paused: ProtoHub.paused
-                                        sources: [
-                                            { key: "xy", label: qsTr("二轴相机平台"), connected: root._connected },
-                                            { key: "z", label: qsTr("Z 轴升降平台"), connected: root._zConnected }
-                                        ]
-                                        sourceKey: root._protoSource
-                                        sourceLabel: root._protoSource === "xy" ? qsTr("二轴相机平台")
-                                                                               : qsTr("Z 轴升降平台")
-                                        connected: root._protoSource === "xy" ? root._connected : root._zConnected
-                                        // 帧镜像（`trace`）只有 Z 轴那块板子的固件有 —— 能力从桥上报，
-                                        // 不在界面里写死（见 StageBridge.supportsTrace 的注释）
-                                        traceSupported: root._protoSource === "xy" ? StageBridge.supportsTrace
-                                                                                   : ZStageBridge.supportsTrace
-                                        traceOn: root._protoSource === "z" && ZStageBridge.traceOn
-
-                                        onSourcePicked: function (key) { root._protoSource = key }
-                                        onTraceToggled: function (on) {
-                                            if (root._protoSource === "z") ZStageBridge.setTrace(on)
-                                        }
-                                        onPauseToggled: function (p) { ProtoHub.setPaused(p) }
-                                        onClearRequested: ProtoHub.clear()
-                                        onCommandEntered: function (text) {
-                                            ProtoHub.sendCommand(root._protoSource, text)
-                                        }
-                                    }
-                                ]
                             }
                         }
                     }

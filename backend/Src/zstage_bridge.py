@@ -21,9 +21,9 @@
   4. 方向符号（`zsign`）错的时候两轴会**对着拧**平台。固件侧的运动中偏斜看门狗
      会刹住，但界面必须把符号显示出来（`signText`）让人一眼能核对。
 
-**协议显示框**：`protoLines` 记录**每一条**发出去和收回来的行（含 `json` 轮询），
-以及固件开了 `trace` 之后镜像回来的 PD42S1 原始帧（`@TX` / `@RX`）——
-从"界面命令"到"驱动器帧"两层都能看到。
+**诊断日志**：`logLines` 记录每一条诊断（2026-10-10 起，界面上的"协议显示框"
+与「帧镜像」开关整套删掉了 —— 驱动器原始帧 `@TX/@RX` 现在只在 `_handle_line`
+里被丢掉，不再有第二层可看）。
 """
 
 from __future__ import annotations
@@ -121,10 +121,7 @@ Z_LIMIT_SPAN_MAX = 1000.0
 STEP_CHOICES = (0.1, 1.0, 10.0, 20.0)
 DEFAULT_STEP = 1.0
 
-# 协议框的封顶与节流语义 2026-09-28 抽到了 `Src/proto_log.py`（两块板子共用一套，
-# 因为协议框改成公用的了）。这里仍然把常量转出来：既有测试与调用点按名字引用它们。
-from Src.proto_log import PROTO_CAP, PROTO_EMIT_MS, ProtoLog   # noqa: E402
-# 诊断日志同样封顶（阶段一只有几百行，但连接一挂就是几小时）
+# 诊断日志封顶（阶段一只有几百行，但连接一挂就是几小时）
 LOG_CAP = 300
 
 # `zsign` 的读回格式（固件：`  当前方向符号 sa=-1 sb=-1 —— ...`）
@@ -176,8 +173,7 @@ class ZStageBridge(QObject):
     telemetryChanged = Signal()
     movingChanged = Signal()
 
-    # ── 协议显示框（每一条收发原文）───────────────────────
-    protoChanged = Signal()
+    # ── 诊断日志（每一条诊断文案）────────────────────────
     logChanged = Signal()
 
     def __init__(self, parent=None, settings=None):
@@ -260,13 +256,8 @@ class ZStageBridge(QObject):
         self._in_flight: Optional[Dict[str, Any]] = None
         self._resp_lines: List[str] = []
 
-        # ── 协议显示框 / 日志 ──────────────────────────────
-        # 协议行交给共用的 ProtoLog（封顶/节流/暂停都在那边，见 proto_log.py）；
-        # 公用协议框通过 ProtoHub 直接读它，本桥只把 lines/paused 转发给 QML。
-        self.proto_log = ProtoLog("Z", parent=self)
-        self.proto_log.changed.connect(self.protoChanged.emit)
+        # ── 诊断日志 ──────────────────────────────────────
         self._log_lines: List[str] = []
-        self._trace_on = False
 
         # 轮询定时器：认证通过后才跑
         self._poll = QTimer(self)
@@ -293,10 +284,6 @@ class ZStageBridge(QObject):
             del self._log_lines[: len(self._log_lines) - LOG_CAP]
         self.logChanged.emit()
         self.logMessage.emit(msg)
-
-    def _proto_add(self, text: str):
-        """往协议显示框追加一行（节流/封顶/暂停都在 ProtoLog 里）。"""
-        self.proto_log.add(text)
 
     def _gate_error(self, gate: str, msg: str):
         """记录"某道闸没满足"的错误。`gate` ∈ {"datum","lim","setup"}。
@@ -501,25 +488,9 @@ class ZStageBridge(QObject):
     diagText = Property(str, _get_diag_text, notify=telemetryChanged)
 
     # ============================================================
-    # 协议显示框 / 日志属性
+    # 诊断日志属性
     # ============================================================
-    protoLines = Property("QVariantList", lambda self: self.proto_log.lines,
-                          notify=protoChanged)
     logLines = Property("QVariantList", lambda self: list(self._log_lines), notify=logChanged)
-    protoPaused = Property(bool, lambda self: self.proto_log.paused, notify=protoChanged)
-    traceOn = Property(bool, lambda self: self._trace_on, notify=telemetryChanged)
-    # 这块板子的固件有没有 `trace`（驱动器帧镜像）。X/Y 那块**没有** —— 公用协议框
-    # 据此把帧镜像开关置灰并说明原因（见 StageBridge.supportsTrace 的注释）。
-    supportsTrace = Property(bool, lambda self: True)
-
-    @Slot(bool)
-    def setProtoPaused(self, paused: bool):
-        """暂停/继续记录协议行 —— 用户要盯着某一帧看时用（不停止收发）。"""
-        self.proto_log.set_paused(paused)
-
-    @Slot()
-    def clearProto(self):
-        self.proto_log.clear()
 
     # ============================================================
     # 连接
@@ -597,7 +568,6 @@ class ZStageBridge(QObject):
             self._sock.disconnectFromHost()
         self._authenticated = False
         self._connecting = False
-        self._trace_on = False      # 固件那边可能还开着，但链路断了就当它关了
         self._sign_pending = False
         self._sign_text = ""        # 换一块板子重连时，旧符号不能留在界面上
         if self._moving:
@@ -622,7 +592,6 @@ class ZStageBridge(QObject):
         self._cmd_timer.stop()
         self._authenticated = False
         self._connecting = False
-        self._trace_on = False
         self._sign_pending = False
         self._sign_text = ""
         self._in_flight = None
@@ -664,16 +633,14 @@ class ZStageBridge(QObject):
             self._handle_line(line)
 
     def _handle_line(self, line: str):
-        # ⓪ 驱动器原始帧（固件 `trace on` 时镜像回来的）—— 只进协议框，
-        #    不进 _resp_lines：它是**异步插进来**的，不能当成命令输出参与判定。
+        # ⓪ 驱动器原始帧（固件 `trace on` 时镜像回来的 `@TX …` / `@RX …`）。
+        # 2026-10-10 把界面上的协议显示框与「帧镜像」开关整套删了，所以这里
+        # **直接丢掉**。仍然必须拦：它是**异步插进来**的，一旦落进 `_resp_lines`
+        # 就会被当成命令输出参与 `#OK`/`#ERR` 判定 —— 排障时会指向完全错的方向。
         if line.startswith("@"):
-            self._proto_add(f"   {line}")
             return
 
-        # ① 协议框：把**每一条**收到的行都记下来（含 json 轮询）。
-        self._proto_add(f"← {line}")
-
-        # ② 认证应答（还没进入正常命令流程）
+        # ① 认证应答（还没进入正常命令流程）
         if not self._authenticated:
             if line == "#OK auth":
                 self._authenticated = True
@@ -799,7 +766,6 @@ class ZStageBridge(QObject):
         item = self._queue.pop(0)
         self._in_flight = item
         self._resp_lines = []
-        self._proto_add(f"→ {item['cmd']}")
         self._sock.write(item["cmd"].encode("utf-8") + b"\n")
         self._cmd_timer.start(item["timeout_ms"])
 
@@ -1236,41 +1202,3 @@ class ZStageBridge(QObject):
         self._settings.setValue("zstage/step", self._step)
         self.telemetryChanged.emit()
 
-    @Slot(bool, result=bool)
-    def setTrace(self, on: bool) -> bool:
-        """开关**驱动器原始帧**镜像（固件 `trace`）。
-
-        这是"自定义协议显示框"的第二层：开了之后固件会把每一帧 PD42S1 报文
-        （`C5 <addr> <code> ... <chk> 5C`）以 `@TX` / `@RX` 前缀镜像回来。
-        ⚠ 打开期间每帧两行，运动中会刷得很快 —— 排障时开、看完就关。
-        """
-        if not self._get_connected():
-            self._set_error(self.tr("协议帧开关未下发：还没连接"))
-            return False
-        self._trace_on = bool(on)
-        self._enqueue("trace " + ("on" if on else "off"),
-                      note=self.tr('驱动器帧镜像 {}').format(self.tr("开") if on else self.tr("关")))
-        self.telemetryChanged.emit()
-        return True
-
-    @Slot(str, result=bool)
-    def sendCommand(self, text: str) -> bool:
-        """把用户敲的一行**原样**发给板子（自定义命令框）。
-
-        故意的：这是给"想自己摸协议"的人用的 —— 固件那边就是同一张命令表，
-        USB 控制台能敲的这里都能敲。回显与应答都在协议框里。
-        ⚠ 不做任何白名单：能敲就能发。但运动命令仍然受固件的四道闸约束
-        （基准/软限位/超程看门狗/偏斜看门狗），所以乱敲不会绕过安全保护。
-        """
-        cmd = (text or "").strip()
-        if not cmd:
-            return False
-        if not self._get_connected():
-            self._set_error(self.tr("命令未发送：还没连接"))
-            return False
-        if "\n" in cmd or "\r" in cmd:
-            self._set_error(self.tr("命令不能包含换行"), src="cmd")
-            return False
-        self._clear_error_if("cmd")
-        self._enqueue(cmd, note=self.tr('手动命令 {}').format(cmd), src="cmd")
-        return True

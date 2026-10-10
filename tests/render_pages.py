@@ -83,7 +83,6 @@ def build_context(engine, app):
     from Src.algorithm_bridge import AlgorithmBridge
     from Src.stage_bridge import StageBridge
     from Src.zstage_bridge import ZStageBridge
-    from Src.proto_hub import ProtoHub
     from Src.realtime_detect_bridge import RealtimeDetectBridge
 
     # ⚠ 必须留 Python 引用：context property **不增加引用计数**，临时对象会被 GC
@@ -103,7 +102,6 @@ def build_context(engine, app):
                                                          QSettings.Format.IniFormat))
     keep["ZStageBridge"] = ZStageBridge(settings=QSettings(str(sdir / "z.ini"),
                                                            QSettings.Format.IniFormat))
-    keep["ProtoHub"] = ProtoHub({"xy": keep["StageBridge"], "z": keep["ZStageBridge"]})
     # DetectPage 还要 DetectBridge（帧 → 推理 → 热力图 provider）
     keep["DetectBridge"] = RealtimeDetectBridge(
         keep["CameraBridge"], keep["AlgorithmBridge"], keep["CameraBridge"].frameProvider)
