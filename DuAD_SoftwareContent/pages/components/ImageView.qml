@@ -94,6 +94,13 @@ Item {
                 anchors.fill: content
                 fillMode: Image.PreserveAspectFit
                 smooth: true
+                // ⚠⚠ **必须关掉图片缓存**（2026-10-10 补）。
+                // 实时画面用的是 `image://camera/original?t=<每帧自增>`，**URL 每帧都变**，
+                // 而 `Image.cache` 默认是 true → 每帧都往 QML 的 pixmap 缓存里塞一份。
+                // 这里一帧是 2448×2048 ≈ **20MB**、30fps —— Qt 文档对 `cache` 的原话就是
+                // "处理大图时把它设成 false，免得它们挤占缓存"。静态图片（测试图/文件）
+                // 的 source 不变，仍然只加载一次，关缓存对它们没有影响。
+                cache: false
                 source: ""
             }
 

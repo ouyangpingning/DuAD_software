@@ -534,6 +534,21 @@ if __name__ == "__main__":
 
     # 退出时停止采集与后台推理线程，避免 USB 相机仍处于采集状态
     def _shutdown():
+        # ⚠⚠ **相机必须第一个停**（2026-10-10 修正顺序）。
+        #   原来它排在最后，而它前面是 `stage_bridge.parkAndDisconnect()` ——
+        #   那个函数会 `processEvents()` **泵事件最长 8 秒**等台面走回零点。
+        #   于是整个退出过程里相机还在采集：每帧 `QImage(...).copy()` 是
+        #   2448×2048 ≈ 20MB，30fps ≈ 600MB/s 的分配/释放。用户 2026-10-10 报的
+        #   "关闭的时候内存被占满"就发生在这个窗口期（真实原因另有其 bug，
+        #   但退出时绝不该继续产帧）。
+        if camera_bridge is not None:
+            try:
+                if camera_bridge.cameraConnected:
+                    camera_bridge.stopGather()
+                    camera_bridge.disconnectCamera()
+            except Exception as e:
+                print(f"[WARN] 退出清理相机失败: {e}")
+        # 推理/保存线程依赖相机帧，跟着一起停
         if detect_bridge is not None:
             detect_bridge.stop()
         if collect_bridge is not None:
