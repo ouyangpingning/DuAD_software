@@ -178,7 +178,7 @@ def main():
     ap.add_argument("width", nargs="?", type=int, default=1400)
     ap.add_argument("height", nargs="?", type=int, default=1700)
     ap.add_argument("expand", nargs="?", default="none",
-                    choices=["none", "adv", "drawers", "setup", "both"])
+                    choices=["none", "drawers", "setup", "both", "card"])
     ap.add_argument("--dump", action="store_true",
                     help="额外打印关键行的宽度与子控件坐标（判断'被撑爆'还是'没创建'）")
     args = ap.parse_args()
@@ -263,15 +263,31 @@ def main():
     zstage.moveTo(120.0)
     pump(0.8)
 
-    # 2026-09-28 三列版面：左右列各有「状态」「设置」两个折叠节，中列有「高级」。
-    # `adv` = 只展开高级；`drawers` = 只展开两侧状态；`setup` = 只展开两侧设置；
-    # `both` = 全展开。
-    page.setProperty("_advExpanded", args.expand in ("adv", "both"))
+    # 2026-09-28 三列版面：左右列各有「状态」「设置」两个折叠节。
+    # `drawers` = 只展开两侧状态；`setup` = 只展开两侧设置；`both` = 全展开。
+    # ⚠ 2026-10-10：中列那个「高级（协议显示）」整节已删除，所以原来的 `adv`
+    #   模式跟着删了；新增 `card` —— 滚到「轨迹与网格」卡，改那张卡时用它目检。
     page.setProperty("_xyStatusOpen", args.expand in ("drawers", "both"))
     page.setProperty("_zStatusOpen", args.expand in ("drawers", "both"))
     page.setProperty("_xySetupOpen", args.expand in ("setup", "both"))
     page.setProperty("_zSetupOpen", args.expand in ("setup", "both"))
     pump(0.9)
+
+    if args.expand == "card":
+        from PySide6.QtQuick import QQuickItem
+        flick = page.findChild(QObject, "pageScroll")
+        card = page.findChild(QObject, "trajGridCard")
+        if flick is not None and card is not None \
+                and isinstance(flick, QQuickItem) and isinstance(card, QQuickItem):
+            # 卡的 y 是相对父项的，换算到滚动内容坐标 = 视口内 y + 当前 contentY
+            off = card.mapToItem(flick, QPointF(0, 0)).y() + float(flick.property("contentY"))
+            flick.setProperty("contentY", max(0.0, off - 40.0))
+            # 切到「网格」模式：一次把**参数区 + 名称行 + 存为轨迹**都带出来
+            # （点选模式下半数控件是 hidden 的，目检不了版面）
+            card.setProperty("mode", "grid")
+        else:
+            print("[render_page] 找不到 pageScroll / trajGridCard，无法滚到轨迹卡")
+        pump(0.6)
 
     if args.dump:
         def show(name):

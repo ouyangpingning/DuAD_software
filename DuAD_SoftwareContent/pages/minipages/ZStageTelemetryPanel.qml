@@ -45,15 +45,28 @@ Item {
         implicitWidth: 168
         implicitHeight: 108
 
-        // 两根丝杠
+        // 两根丝杠（2026-10-10 立体化）：横向三段渐变（左亮-中-右暗）读成**圆柱面**，
+        // 比一根纯色 3px 柱子像样得多。
+        // ⚠ 渐变端一律从 Colors 令牌推导（Qt.lighter/darker），不写死色值 ——
+        //   换主题/换配色时它跟着一起过渡（`test_design_tokens.py` 也不受影响）。
         Repeater {
             model: 2
             delegate: Rectangle {
-                x: index === 0 ? 20 : sch.width - 23
-                width: 3
+                id: screw
+                readonly property color _metal: sch.live ? Colors.panelBorder : Colors.pageBg
+                x: index === 0 ? 20 : sch.width - 24
+                width: 4
                 height: sch.height - 12
-                radius: 1.5
-                color: sch.live ? Colors.panelBorder : Colors.pageBg
+                radius: 2
+                // ⚠ `GradientStop` **看不到外层项的属性**（它属于 grouped property，
+                //   作用域在文件层而不是外层对象），所以这里必须写 `screw._metal`。
+                //   不限定就报 `ReferenceError: _metal is not defined`（踩过）。
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.lighter(screw._metal, 1.28) }
+                    GradientStop { position: 0.45; color: screw._metal }
+                    GradientStop { position: 1.0; color: Qt.darker(screw._metal, 1.30) }
+                }
             }
         }
         // 螺纹装饰（隔 9px 一道短横）：让人一眼看出"这是丝杠"而不是两根柱子。
@@ -84,7 +97,20 @@ Item {
             width: sch.width - 16
             height: 6
             radius: 3
-            color: sch.live ? Colors.interactivePressed : Colors.panelBorder
+            // 2026-10-10 立体化：上亮下暗的极轻渐变 + 下缘压深那一笔。
+            // 颜色从 _face 推导（不写死），换主题跟着变。
+            readonly property color _face: sch.live ? Colors.interactivePressed : Colors.panelBorder
+            // ⚠ GradientStop 里必须写 `plate._face`（它看不到外层项的属性，见丝杠那段）
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.lighter(plate._face, 1.14) }
+                GradientStop { position: 1.0; color: Qt.darker(plate._face, 1.16) }
+            }
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: 1
+                radius: 0.5
+                color: Qt.darker(plate._face, 1.38)
+            }
             readonly property real _t: Math.max(0, Math.min(1,
                 sch.posZ / Math.max(1, sch.stroke)))
             y: (sch.height - 12) - _t * (sch.height - 40)

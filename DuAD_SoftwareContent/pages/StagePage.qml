@@ -860,8 +860,19 @@ Item {
                                 wsYMin: StageBridge.wsYMin
                                 wsXMax: StageBridge.wsXMax
                                 wsYMax: StageBridge.wsYMax
-                                gridRows: StageBridge.gridRows
-                                gridCols: StageBridge.gridCols
+                                // Z 高度条：软限位设过就用软限位当标尺范围，
+                                // 没设过退回固件限位 —— 纯属性读，不在绑定里调函数。
+                                // ⚠ 能不能动直接用桥的 `canMove`（已连接+已立基准+
+                                //   设过软限位+当前不动），QML 里**不要**自己拼一遍条件。
+                                // ⚠ 点不动的原因用桥的 `datumHint`（铁律：提前说为什么）。
+                                zConnected: root._zConnected
+                                posZ: ZStageBridge.z
+                                zLo: ZStageBridge.limitsSet ? ZStageBridge.limitLo
+                                                            : ZStageBridge.firmwareLo
+                                zHi: ZStageBridge.limitsSet ? ZStageBridge.limitHi
+                                                            : ZStageBridge.firmwareHi
+                                zCanMove: ZStageBridge.canMove
+                                zHint: ZStageBridge.datumHint
                                 paths: StageBridge.paths
                                 previewPoints: StageBridge.previewPoints
                                 selectedPath: StageBridge.selectedPath
@@ -873,17 +884,22 @@ Item {
                                 recording: StageBridge.recording
                                 recordCount: StageBridge.recordCount
 
-                                // 点选：只把**比例**交给桥，mm 由 snapToGrid 算
-                                // （换算只在 stage_traj.snap_to_cell 里做一次）
-                                onGridClicked: function (fx, fy) {
-                                    var mm = StageBridge.snapToGrid(fx, fy)
-                                    if (StageBridge.moveTo(mm[0], mm[1])) {
-                                        root._targetX = mm[0]
-                                        root._targetY = mm[1]
+                                // 点选：卡片已经把比例换算成**台面 mm**（换算只在本卡
+                                // 的 `_mmOf` 里做一次），页面直接下发。
+                                // ⚠ 2026-10-10 起不再吸附格心（背景没有格子了），
+                                //   精度约 ±1mm，比吸到 18mm 格心更准。
+                                onMapPicked: function (xmm, ymm) {
+                                    if (StageBridge.moveTo(xmm, ymm)) {
+                                        root._targetX = xmm
+                                        root._targetY = ymm
                                     }
                                 }
-                                onGridChanged: function (rows, cols) {
-                                    StageBridge.setGrid(rows, cols)
+                                // Z 条被点/拖到某个高度 → 走到那里。
+                                // ⚠ 走 `moveTo` 的绝对移动（一条命令），桥自己会把
+                                //   高度夹到软限位里；不可动时卡片的 MouseArea 本来就是
+                                //   灰的（`zCanMove`），不会走到这里。
+                                onZPicked: function (zmm) {
+                                    ZStageBridge.moveTo(zmm)
                                 }
                                 onSaveRequested: function (name, kind, paramsJson, rpm, acc) {
                                     StageBridge.savePath(name, kind, paramsJson, rpm, acc)

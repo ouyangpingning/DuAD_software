@@ -722,17 +722,11 @@ def main():
     server.board.xdeg = server.board.ydeg = 0.0
     r.pump(0.3)
 
-    # ── 18b) 网格吸附：屏幕比例 → mm 的唯一换算 ──
-    b6.setGrid(20, 20)
-    sx, sy = b6.snapToGrid(0.0, 0.0)
-    r.check("18b) 左下角 = 第 1 格格心",
-            abs(sx - 2.5) < 1e-6 and abs(sy - 2.5) < 1e-6, f"({sx},{sy})")
-    sx, sy = b6.snapToGrid(1.0, 1.0)
-    r.check("18b) 右上角 = 最后一格格心",
-            abs(sx - 97.5) < 1e-6 and abs(sy - 97.5) < 1e-6, f"({sx},{sy})")
-    r.check("18b) 越界比例被夹住",
-            b6.snapToGrid(-3.0, 9.0) == [2.5, 97.5], str(b6.snapToGrid(-3.0, 9.0)))
-    r.check("18b) 网格分辨率存下来了", b6.gridRows == 20 and b6.gridCols == 20)
+    # ⚠ 2026-10-10 删除了原 18b「网格吸附」一组（gridRows/gridCols/setGrid/snapToGrid）：
+    #   用户要求台面背景"只留刻度标尺、不要网格"，点选也不再吸附格心
+    #   （背景没格子，吸附就没依据；而且不吸附精度更高：±1mm vs 18mm 格心）。
+    #   现在"点击 → mm"的换算在 `TrajectoryGridCard.qml` 的 `_mmOf()` 里，
+    #   端到端由 `tests/test_stage_page.py` 12g 的"真点一下台面正中"那条守卫钉住。
 
     # ── 18c) 保存参数化轨迹 ──
     ok = b6.savePath("圆R20", "circle",

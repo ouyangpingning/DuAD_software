@@ -190,17 +190,39 @@ class FakeZStageBridge(QObject):
         super().__init__()
         self.calls = []          # 记录槽调用，方便断言"点了没反应"那类问题
         self._connected = False
+        # ⚠ 2026-10-10：`z` / `canMove` / `datumHint` 从"写死"改成**可变**。
+        #   原因：页面里新加的 Z 高度条要验两件事 ——「读数跟着 z 走」和
+        #   「能动的时候点一下真的下发 moveTo」。写死的替身永远验不了这两条
+        #   （替身的诚实度决定测试能发现什么，见 AGENTS.md 第 11 条）。
+        self._z = 0.0
+        self._can_move = False
+        self._datum_hint = "未连接 —— 点上面的 Z 轴平台卡片连接"
+
+    def set_z(self, value):
+        """测试用：改 Z 读数并通知（模拟遥测上来）。"""
+        self._z = float(value)
+        self.changed.emit()
+
+    def set_can_move(self, value):
+        """测试用：改"现在能不能动 Z"（模拟连上 / 立基准 / 设软限位）。"""
+        self._can_move = bool(value)
+        self.changed.emit()
+
+    def set_connected(self, value):
+        """测试用：改连接态（页面的 `_zConnected` 直接绑它）。"""
+        self._connected = bool(value)
+        self.changed.emit()
 
     # ── 连接 ──
     connected = Property(bool, lambda self: self._connected, notify=changed)
     connecting = Property(bool, lambda self: False, notify=changed)
     lastError = Property(str, lambda self: "", notify=changed)
-    canMove = Property(bool, lambda self: False, notify=changed)
+    canMove = Property(bool, lambda self: self._can_move, notify=changed)
     # ⚠ 页面引用的每个属性都得在替身里出现：漏一个 → QML 报
     #   `Unable to assign [undefined] to bool`，看着像页面写错了，其实是替身没补全
     #   （AGENTS.md「冒烟测试/通用坑」里那条）。`canJog` 是"点动不受基准闸限制"那位。
     canJog = Property(bool, lambda self: False, notify=changed)
-    datumHint = Property(str, lambda self: "未连接 —— 点上面的 Z 轴平台卡片连接",
+    datumHint = Property(str, lambda self: self._datum_hint,
                          notify=changed)
 
     # ── 设置类 ──
@@ -236,7 +258,7 @@ class FakeZStageBridge(QObject):
     uiHomeTmoMax = Property(int, lambda self: 120000, notify=changed)
 
     # ── 遥测 ──
-    z = Property(float, lambda self: 0.0, notify=changed)
+    z = Property(float, lambda self: self._z, notify=changed)
     skew = Property(float, lambda self: 0.0, notify=changed)
     jointA = Property(int, lambda self: 0, notify=changed)
     jointB = Property(int, lambda self: 0, notify=changed)
@@ -976,10 +998,12 @@ def main():
         # ⚠ 2026-10-08 重设基线：中列新增了「轨迹与网格」卡（用户要求，**默认展开**，
         #   且明确接受"允许多滚一段"）。它是画在两张手动控制卡**下面**的，所以
         #   12a2（点动/急停/设原点在首屏）不受影响 —— 这里只把总高的上限跟着放宽。
-        #   实测 1782/1000 ≈ 1.78 倍；留到 1.85 是给字体/DPI 差异的余量。
+        # ⚠ 2026-10-10 再放宽到 2.0：那张卡改成了「台面+参数+列表」上下堆叠
+        #   （用户要求两个平面居中、参数整行宽），实测 1844/1000 ≈ 1.84 倍 ——
+        #   离原基线 1.85 只差 0.3%，字体/DPI 一变就会误报。硬保证仍是 12a2。
         _ch = float(pscroll.property("contentHeight"))
         _vh = float(pscroll.property("height"))
-        r.check("默认形态下首屏超出量在预期内（≤ 85% 视口高）", _ch <= _vh * 1.85,
+        r.check("默认形态下首屏超出量在预期内（≤ 100% 视口高）", _ch <= _vh * 2.0,
                 f"content={_ch:.0f} view={_vh:.0f}")
         # 顺带钉住"新卡确实在里面"，否则上面那条放宽之后，卡没渲染也照样过
         r.check("「轨迹与网格」卡在页面里", find("trajGridCard") is not None)
@@ -1152,18 +1176,34 @@ def main():
     tcard = find("trajGridCard")
     r.check("12g) 卡在页面里", tcard is not None)
     if tcard is not None:
-        # ── 结构 ──
-        grep_rep = page.findChild(QObject, "trajGridLines")
-        r.check("12g) 网格线数量 = 列数-1（说明真的按 gridCols 画了）",
-                grep_rep is not None
-                and int(grep_rep.property("count")) == int(stage.gridCols) - 1,
-                f"{grep_rep.property('count') if grep_rep else None} "
-                f"vs {int(stage.gridCols) - 1}")
+        # ── 结构：**只有标尺、没有格线**（2026-10-10 用户要求"背景不要网格，
+        #    只留刻度标尺，标尺和初始化的工作区大小有关系"）──
+        r.check("12g) 台面已经不再画格线（trajGridLines 不存在）",
+                page.findChild(QObject, "trajGridLines") is None)
+        _xr = page.findChild(QObject, "trajXRuler")
+        _yr = page.findChild(QObject, "trajYRuler")
+        _xt = tcard.property("xTicks").toVariant()
+        _yt = tcard.property("yTicks").toVariant()
+        r.check("12g) X/Y 标尺都在，且刻度条数与模型一致",
+                _xr is not None and _yr is not None
+                and int(_xr.property("count")) == len(_xt)
+                and int(_yr.property("count")) == len(_yt),
+                f"X {int(_xr.property('count')) if _xr else None}/{len(_xt)} "
+                f"Y {int(_yr.property('count')) if _yr else None}/{len(_yt)}")
+        # ★ 这条就是"标尺和工作区大小有关系"：首末刻度必定是工作区边界
+        r.check("12g) ★标尺首末刻度 = 工作区边界",
+                len(_xt) >= 2 and len(_yt) >= 2
+                and abs(float(_xt[0]["v"]) - float(stage.wsXMin)) < 1e-6
+                and abs(float(_xt[-1]["v"]) - float(stage.wsXMax)) < 1e-6
+                and abs(float(_yt[0]["v"]) - float(stage.wsYMin)) < 1e-6
+                and abs(float(_yt[-1]["v"]) - float(stage.wsYMax)) < 1e-6,
+                f"X {_xt[0]['v']}..{_xt[-1]['v']} Y {_yt[0]['v']}..{_yt[-1]['v']} "
+                f"（工作区 {stage.wsXMin}..{stage.wsXMax} / {stage.wsYMin}..{stage.wsYMax}）")
         r.check("12g) 默认是点选模式", str(tcard.property("mode")) == "select",
                 str(tcard.property("mode")))
 
         # ── 位置：必须在两张手动控制卡**下面** ──
-        # 这条是 12a 基线放宽（首屏超出量 ≤1.85 倍）的正当理由：
+        # 这条是 12a 基线放宽（首屏超出量 ≤2.0 倍）的正当理由：
         # 卡往下长，顶出去的只是它自己，不会把「点动/急停/设原点」挤出首屏。
         _jog = find("jogPanel")
         if _jog is not None:
@@ -1204,24 +1244,73 @@ def main():
                 len(_chips) == 5 and _worst <= _card_w - 10,
                 f"最右 {_worst:.0f} / 卡宽 {_card_w:.0f}，找到 {len(_chips)} 个")
 
-        # ── 点选：卡发 gridClicked(比例) → 页面用 snapToGrid 换算 → 真的下发 move ──
-        # ⚠ 这里**emit 信号**而不是 QTest.mouseClick：坐标换算（比例→mm）在
-        #   stage_traj.snap_to_cell 里已经单测过（test_stage_bridge 18b），
-        #   这一节要钉的是"信号接上了没有、换算完有没有真的发出去"。
+        # ── 点选：卡把点击位置换算成**台面 mm** 后交给页面（不再经过 snapToGrid）──
         r.check("12g) 台面已停稳（后面几项要求静止）",
                 r.wait_for(lambda: not stage.moving, 8))
         server.board.commands.clear()
-        _want = stage.snapToGrid(0.5, 0.5)
-        tcard.gridClicked.emit(0.5, 0.5)
+        _wm = (float(stage.wsXMin) + float(stage.wsXMax)) / 2
+        _hm = (float(stage.wsYMin) + float(stage.wsYMax)) / 2
+        tcard.mapPicked.emit(_wm, _hm)
         r.pump(0.3)
         _mv = [c for c in server.board.commands if c.startswith("move ")]
-        _exp = "move %.3f %.3f" % (_want[0] * DEG_PER_MM, _want[1] * DEG_PER_MM)
-        r.check("12g) 点选换算出的目标真的发到了板子",
+        _exp = "move %.3f %.3f" % (_wm * DEG_PER_MM, _hm * DEG_PER_MM)
+        r.check("12g) 点选的目标真的发到了板子",
                 len(_mv) == 1 and _mv[0].startswith(_exp), f"{_mv} 期望 {_exp}")
-        r.check("12g) 目标叉落在换算出来的格心上",
-                abs(float(tcard.property("targetX")) - _want[0]) < 1e-6
-                and abs(float(tcard.property("targetY")) - _want[1]) < 1e-6,
-                f"{tcard.property('targetX')},{tcard.property('targetY')} vs {_want}")
+        r.check("12g) 目标叉落在点选的那一点上",
+                abs(float(tcard.property("targetX")) - _wm) < 1e-6
+                and abs(float(tcard.property("targetY")) - _hm) < 1e-6,
+                f"{tcard.property('targetX')},{tcard.property('targetY')} vs {_wm},{_hm}")
+
+        # ── ★ 在台面正中间**真点一下**：验卡里的 px→mm 换算（唯一那处变换）没算错 ──
+        # ⚠ 必须先滚进视口再点（Flickable 会裁剪掉视口外的命中区），见 AGENTS「通用坑」。
+        # ⚠ 也不能用 `mapArea.clicked.emit()`：Qt 6 的 clicked 带 QQuickMouseEvent* 参数。
+        _ps = find("pageScroll")
+        if _ps is not None and _fld is not None:
+            _off = tcard.mapToItem(_ps, QPointF(0, 0)).y() + float(_ps.property("contentY"))
+            _ps.setProperty("contentY", max(0.0, _off - 20.0))
+            r.pump(0.4)
+            server.board.commands.clear()
+            _pt = _fld.mapToScene(QPointF(float(_fld.property("width")) / 2,
+                                          float(_fld.property("height")) / 2))
+            QTest.mouseClick(win, Qt.LeftButton, Qt.NoModifier,
+                             QPoint(int(_pt.x()), int(_pt.y())))
+            r.pump(0.4)
+            _mv2 = [c for c in server.board.commands if c.startswith("move ")]
+            r.check("12g) ★在台面正中真点一下 → 走到工作区中心（px→mm 换算正确）",
+                    len(_mv2) == 1 and _mv2[0].startswith(_exp),
+                    f"{_mv2} 期望 {_exp}")
+
+        # ── ★★ 折线锚点回归守卫（2026-10-10"一地乱线"的根因）──
+        # 原因：SegLine 原来锚在**包围盒左上角**并绕左中点旋转，于是"起点落在包围盒
+        #   下角"的那些段（屏幕上朝右上）整体被平移**一个段长**（实测 100mm 段偏 99px）
+        #   —— 网格/圆/矩形/多段线全部变成散乱斜线。
+        # 这里造一条 (左下)→(右上) 的对角折线（正是出 bug 的方向），量第一段的
+        # **旋转原点**（局部 (0, lineWidth/2) 映射回场内）是否落在段起点上。
+        import json as _json
+        stage.savePath("对角锚点守卫", "polyline",
+                       _json.dumps({"points": [[float(stage.wsXMin), float(stage.wsYMin)],
+                                               [float(stage.wsXMax), float(stage.wsYMax)]],
+                                    "smooth": False, "step": 20.0}),
+                       1200, 30)
+        r.pump(0.2)
+        stage.selectPath(len(stage.paths) - 1)
+        r.pump(0.3)
+        _seg_items = [it for it in _walk_items(page)
+                      if str(it.objectName()) == "trajSeg"]
+        _sgs = tcard.property("segs").toVariant()
+        _anchor_ok = False
+        _anchor_msg = f"没找到 trajSeg（{len(_seg_items)} 个）"
+        if _seg_items and _fld is not None and len(_sgs) > 0:
+            _fw = float(_fld.property("width"))
+            _fh = float(_fld.property("height"))
+            _x1, _y1 = float(_sgs[0][0]), float(_sgs[0][1])
+            _ex = _fw * (_x1 - float(stage.wsXMin)) / (float(stage.wsXMax) - float(stage.wsXMin))
+            _ey = _fh * (1 - (_y1 - float(stage.wsYMin)) / (float(stage.wsYMax) - float(stage.wsYMin)))
+            _org = _seg_items[0].mapToItem(_fld, QPointF(0.0, 1.0))
+            _anchor_ok = abs(_org.x() - _ex) <= 2.0 and abs(_org.y() - _ey) <= 2.0
+            _anchor_msg = (f"实际 ({_org.x():.1f},{_org.y():.1f}) "
+                           f"期望 ({_ex:.1f},{_ey:.1f})，段起点 mm ({_x1},{_y1})")
+        r.check("12g) ★★折线锚在段起点上（不是包围盒左上角）", _anchor_ok, _anchor_msg)
 
         # ── 切模式：chip 点下去要真的改状态、参数块要跟着出现 ──
         _chip = find_visual(page, "modeChip_circle")
@@ -1234,6 +1323,79 @@ def main():
             _rin = find_visual(page, "circleRInput")
             r.check("12g) 切到圆后半径输入框出现",
                     _rin is not None and bool(_rin.property("visible")) is True)
+
+            # ── 圆的半径必须被夹到"圆心到四边的最小距离" ──
+            # 用户 2026-10-10："圆都可以画到外面去了"。根因是预览从参数直接算、
+            # 没夹取，而保存/执行时桥会把每个点夹进工作区 —— 预览与实际不一致。
+            _rfield = None
+            if _rin is not None:
+                for _ch in _rin.findChildren(QObject):
+                    if "TextField" in _ch.metaObject().className():
+                        _rfield = _ch
+                        break
+            r.check("12g) 找得到半径输入框（InputRow 里的 TextField）", _rfield is not None)
+            if _rfield is not None:
+                _rfield.setProperty("text", "500")     # 远超工作区
+                r.pump(0.3)
+                _pcx = float(tcard.property("pCx"))
+                _pcy = float(tcard.property("pCy"))
+                _rmax = min(_pcx - float(stage.wsXMin), float(stage.wsXMax) - _pcx,
+                            _pcy - float(stage.wsYMin), float(stage.wsYMax) - _pcy)
+                r.check("12g) ★手输 500 的半径被夹到内切半径（不会画到台面外）",
+                        float(tcard.property("pR")) <= _rmax + 1e-6,
+                        f"pR={tcard.property('pR')} 内切上限={_rmax:.1f}")
+                _dsg = tcard.property("draftSegs").toVariant()
+                _out = []
+                for _sg in _dsg:
+                    for _p in ((float(_sg[0]), float(_sg[1])), (float(_sg[2]), float(_sg[3]))):
+                        if not (float(stage.wsXMin) - 0.01 <= _p[0] <= float(stage.wsXMax) + 0.01
+                                and float(stage.wsYMin) - 0.01 <= _p[1] <= float(stage.wsYMax) + 0.01):
+                            _out.append(_p)
+                r.check("12g) 圆画出来的每个点都在工作区内", not _out,
+                        f"{len(_out)} 个越界点，例：{_out[:2]}")
+
+                # ── 「重画」必须真的把圆清掉（用户 2026-10-10："点重画没反应"）──
+                # 根因：预览改成"从参数推导"之后，只清 dragA/dragB 什么都不会变，
+                #   必须把 pR 也归零。这条守卫就是钉住那件事。
+                _cbtn = find_visual(page, "clearDraftButton")
+                r.check("12g) 圆模式下有「重画」按钮且可见",
+                        _cbtn is not None and bool(_cbtn.property("visible")) is True)
+                if _cbtn is not None:
+                    _cbtn.clicked.emit()
+                    r.pump(0.3)
+                    r.check("12g) ★点「重画」→ 半径归零 + 预览清空",
+                            abs(float(tcard.property("pR"))) < 1e-6
+                            and len(tcard.property("draftSegs").toVariant()) == 0,
+                            f"pR={tcard.property('pR')} "
+                            f"draft={len(tcard.property('draftSegs').toVariant())}")
+                    r.check("12g) 半径归零后「存为轨迹」跟着变灰",
+                            bool(find_visual(page, "savePathButton").property("enabled")) is False)
+
+        # ── 模式 chip 的图标（用户 2026-10-10 给的 5 个 SVG）──
+        # ⚠ `test_ui_theme.py` 会解析每个 IconImage.source 查文件存在，但**空 source
+        #   它跳过**（"没配图标"和"图标不存在"是两回事），这里补上非空 + 存在两条。
+        _bad_icon = []
+        for _key in ("select", "grid", "circle", "rect", "polyline"):
+            _cc = find_visual(page, "modeChip_" + _key)
+            _src = str(_cc.property("iconSource")) if _cc is not None else ""
+            if not _src:
+                _bad_icon.append(f"{_key}:没配图标")
+                continue
+            if not (CONTENT / "images" / _src.split("/")[-1]).exists():
+                _bad_icon.append(f"{_key}:{_src} 不存在")
+        r.check("12g) 5 个模式 chip 的图标都配了且文件真的在",
+                not _bad_icon, "；".join(_bad_icon))
+
+        # ── 台面不许被外层 Flickable 抢走拖动（拖一下页面就滚 = bug）──
+        _ma = find("trajMapArea")
+        r.check("12g) 台面 MouseArea 设了 preventStealing",
+                _ma is not None and bool(_ma.property("preventStealing")) is True)
+
+        # ── 名称输入框要窄（用户 2026-10-10："这个文本框要尽可能的小"）──
+        _ni = find_visual(page, "saveNameInput")
+        r.check("12g) 名称输入框是窄的（不再吃满整行）",
+                _ni is not None and float(_ni.property("width")) <= 230.0,
+                f"w={_ni.property('width') if _ni else None}")
 
         # ── 存为轨迹：**点按钮**（这样才会走卡里的 _saveCurrent 拼 JSON 那段）──
         _gchip = find_visual(page, "modeChip_grid")
@@ -1296,6 +1458,45 @@ def main():
                 _cancel.clicked.emit()
                 r.pump(0.3)
                 r.check("12g) 放弃后不再录制", stage.recording is False)
+
+        # ── Z 高度条：只读读数跟着遥测走 + 能动时点一下真的下发 moveTo ──
+        # （用户 2026-10-10："Z 轴好像没法直接控制" → 这一节钉住"点了真的会动"。）
+        _zarea = find_visual(page, "trajZArea")
+        _zval = find_visual(page, "trajZValue")
+        r.check("12g) Z 高度条在卡里（含可点区域与读数）",
+                _zarea is not None and _zval is not None)
+        r.check("12g) Z 条也禁止外层抢拖动（preventStealing）",
+                _zarea is not None and bool(_zarea.property("preventStealing")) is True)
+        if _zarea is not None and _zval is not None:
+            # 读数：`posZ` 绑的是 ZStageBridge.z，但**未连接时故意显示占位符**，
+            # 所以先让替身"连上"，再喂一个高度。
+            z_fake.set_connected(True)
+            z_fake.set_z(120.0)
+            r.pump(0.4)
+            r.check("12g) Z 读数跟着遥测走（显示 120）",
+                    "120" in str(_zval.property("text")), str(_zval.property("text")))
+            # 动不了的时候：点了不该发命令
+            z_fake.set_can_move(False)
+            r.pump(0.2)
+            z_fake.calls.clear()
+            _zt = _zarea.mapToScene(QPointF(float(_zarea.property("width")) / 2,
+                                            float(_zarea.property("height")) / 2))
+            QTest.mouseClick(win, Qt.LeftButton, Qt.NoModifier,
+                             QPoint(int(_zt.x()), int(_zt.y())))
+            r.pump(0.3)
+            r.check("12g) Z 不可动时点它 → 一条命令都不发",
+                    [c for c in z_fake.calls if c[0] == "moveTo"] == [], f"{z_fake.calls}")
+            # 能动了：点在条的中间 ≈ 行程中段，应该下发一次 moveTo
+            z_fake.set_can_move(True)
+            r.pump(0.3)
+            z_fake.calls.clear()
+            QTest.mouseClick(win, Qt.LeftButton, Qt.NoModifier,
+                             QPoint(int(_zt.x()), int(_zt.y())))
+            r.pump(0.4)
+            _zmm = [c[1] for c in z_fake.calls if c[0] == "moveTo"]
+            r.check("12g) ★Z 能动了：点条中间真的下发了一次 moveTo（约行程中段）",
+                    len(_zmm) == 1 and 90.0 <= float(_zmm[0]) <= 160.0,
+                    f"{z_fake.calls}")
 
     print("=== 13) 断开 ===")
     server.board.commands.clear()

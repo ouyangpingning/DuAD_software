@@ -1,16 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Z 轴升降平台图标：字母 Z + 上下双箭头（"能升能降的单轴平台"）。
-     单色（#cdcdcd），由 IconImage 的 ColorOverlay 跟随主题染色 ——
-     改色只改这里，不用改页面（与 二轴平台.svg 同一套约定）。 -->
-<svg viewBox="0 0 1024 1024" width="256" height="256" xmlns="http://www.w3.org/2000/svg">
-  <g fill="#cdcdcd">
-    <!-- 字母 Z：上横 → 斜线 → 下横（描边画法，斜接处不带尖角） -->
-    <path d="M150 250 H610 L150 650 H610"
-          fill="none" stroke="#cdcdcd" stroke-width="96"
-          stroke-linecap="square" stroke-linejoin="miter"/>
-    <!-- 升降双箭头：竖杆 + 上箭头 + 下箭头 -->
-    <rect x="756" y="248" width="72" height="440" rx="8"/>
-    <polygon points="792,120 700,262 884,262"/>
-    <polygon points="792,816 700,674 884,674"/>
-  </g>
-</svg>
+<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg t="1791623161160" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="11692" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200"><path d="M537.6 773.12H217.6c-14.08 0-25.6-11.52-25.6-25.6V691.2c0-6.4 2.56-12.8 6.4-16.64L512 317.44V307.2H217.6v-51.2h320c14.08 0 25.6 11.52 25.6 25.6v46.08c0 6.4-2.56 12.8-6.4 16.64L243.2 701.44v21.76h294.4v49.92zM618.24 258.56h217.6v46.08h-217.6v-46.08zM618.24 725.76h217.6v46.08h-217.6v-46.08zM709.12 349.44H755.2v353.28h-46.08V349.44z" p-id="11693"></path><path d="M732.16 304.64L663.04 384h136.96l-67.84-79.36zM732.16 725.76l69.12-79.36H663.04l69.12 79.36z" p-id="11694"></path></svg>

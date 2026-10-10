@@ -247,23 +247,12 @@ def polyline_length(points: Sequence[Point]) -> float:
     return sum(_dist(a, b) for a, b in zip(points, points[1:]))
 
 
-def snap_to_cell(fx: float, fy: float, rows: int, cols: int,
-                 x0: float, y0: float, x1: float, y1: float) -> Point:
-    """屏幕比例 (fx, fy ∈ 0~1) → 最近**格心**的台面坐标（mm）。
-
-    ⚠ 这是**唯一**一处"网格点选 → mm"的换算，QML 只负责把鼠标位置换成
-    0~1 的比例（`(mouse.x - field.x) / field.width`）。同一事实不许在 QML 里
-    再写一份 —— 本项目第 4 条坑：同一个事实两份，改一处不生效。
-    """
-    rows = max(1, int(rows))
-    cols = max(1, int(cols))
-    xa, xb = min(x0, x1), max(x0, x1)
-    ya, yb = min(y0, y1), max(y0, y1)
-    cw = (xb - xa) / cols
-    ch = (yb - ya) / rows
-    c = min(cols - 1, max(0, int(float(fx) * cols)))
-    r = min(rows - 1, max(0, int(float(fy) * rows)))
-    return (xa + cw * (c + 0.5), ya + ch * (r + 0.5))
+# ⚠ 2026-10-10 删除了 `snap_to_cell()`（屏幕比例 → 最近格心）。
+# 用户要求台面背景"只留刻度标尺、不要网格"，点选也就不再吸附格心
+# —— 背景没有格子，吸附失去视觉依据；而且不吸附精度更高（±1mm vs 18mm 格心）。
+# 现在点选的换算在 `TrajectoryGridCard.qml` 的 `_mmOf()` 里做（那是卡片里唯一的
+# 坐标变换，与画图共用）。`sample_grid()` **保留**：它是「网格」模式生成巡检
+# 点阵用的，与"背景格线"从来不是一回事。
 
 
 # ================================================================
@@ -590,7 +579,6 @@ class PathRunner:
 __all__ = [
     "dedupe", "simplify", "resample", "catmull_rom", "polyline_length",
     "sample_polyline", "sample_circle", "sample_rect", "sample_grid",
-    "snap_to_cell",
     "PathRunner", "STATE_IDLE", "STATE_RUNNING", "STATE_PAUSED",
     "STATE_DONE", "STATE_ABORTED",
     "DEFAULT_STEP_MM", "MIN_STEP_MM", "MAX_STEP_MM",

@@ -39,7 +39,7 @@ Windows: `pyqml_win\Scripts\python.exe -u main.py`；Jetson: `bash run_jetson.sh
 
 - `camera_bridge.py` — QML 相机桥：search/connect/feature 读写/startGather/applyRoi；每帧写 `frameProvider` 并发 `rawFrameReady`。特征写入：bool 要字符串 `"true"/"false"`；`GX_FLOAT_GAMMA_PARAM` 在 MER2 固件只读（界面只读显示）。**Bayer 转换按 `GX_ENUM_PIXEL_COLOR_FILTER`（寄存器读出）选排列，读不到才按 pixel_format 查表；Windows 的 DxImageProc 与 Linux 语义相反（R/B 互换），`os.name=='nt'` 时做 `_SWAP_RB_BAYER`——不要移除**。低帧率先查曝光，再查吞吐量（`DeviceLinkThroughputLimit` 采集前关掉），最后查 USB2 口/线。
 - `light_bridge.py` — RS-232 光源控制器：**波特率必须 19200**（8N1 半双工；实测其它波特率一个字都不回，而 `serial.Serial()` 永远打开成功 → 静默"已连接没反应"）。三条**不要动**：① `connectSerial` 后必须 `$RD=9999#` 校验链路；② `_read_reply` 收到半截不许缩短等待（长应答分片跨 161ms）；③ 发指令前 `_drain()`。QML 波特率读 `LightBridge.defaultBaud`；自动选口用 `pickDefaultPort`（优先 /dev/ttyUSB*，别用 ports[0]）。
-- `stage_bridge.py` — X/Y 平台（WiFi/TCP，异步走事件循环，行协议与 USB 控制台一致，连上交口令→`#OK/#ERR`）。⚠ **本文件是唯一换算边界**：界面 mm ↔ 固件度，`1mm = 11.25°`、`1600 counts/mm`。移动一律**非阻塞 `move`**（绝不用 `g0`）；急停 `_enqueue(front=True)` 且永不禁用；回零 `home corner … nowait`；连接期只发只读命令（参数登记走 `hcfg` 只写 RAM）；预设位置存 `QSettings("DuAD","DuADSoftware")`（测试必须注入隔离 settings，见 docs/19 §1）。量程只从 `uiMaxRpm/uiMaxAcc` 读（§19）。新增**轨迹与网格**：`paths`（存**参数**不存点列表）、`runPath/pausePath/resumePath/stopPath`、录制、`gridRows/gridCols` + `snapToGrid()`；**所有绝对移动收敛到 `_issue_move()` 一个出口**（录制就守这一个口子）。⚠ `pathCanRun`/`pathHint` 用**单独的 `pathEnableChanged`** 通知（复用 `pathChanged` 会"平台已连上、卡底还写着未连接"）。
+- `stage_bridge.py` — X/Y 平台（WiFi/TCP，异步走事件循环，行协议与 USB 控制台一致，连上交口令→`#OK/#ERR`）。⚠ **本文件是唯一换算边界**：界面 mm ↔ 固件度，`1mm = 11.25°`、`1600 counts/mm`。移动一律**非阻塞 `move`**（绝不用 `g0`）；急停 `_enqueue(front=True)` 且永不禁用；回零 `home corner … nowait`；连接期只发只读命令（参数登记走 `hcfg` 只写 RAM）；预设位置存 `QSettings("DuAD","DuADSoftware")`（测试必须注入隔离 settings，见 docs/19 §1）。量程只从 `uiMaxRpm/uiMaxAcc` 读（§19）。新增**轨迹与网格**：`paths`（存**参数**不存点列表）、`runPath/pausePath/resumePath/stopPath`、录制；**所有绝对移动收敛到 `_issue_move()` 一个出口**（录制就守这一个口子）。⚠ `pathCanRun`/`pathHint` 用**单独的 `pathEnableChanged`** 通知（复用 `pathChanged` 会"平台已连上、卡底还写着未连接"）。⚠ **2026-10-10 删除** `gridRows/gridCols/setGrid/snapToGrid` 与 `stage_traj.snap_to_cell`：台面背景改成只有刻度标尺、点选不再吸附格心，这一组没有消费者了（`sample_grid` 保留）。
 - `stage_traj.py` — 轨迹几何（纯函数）+ **点列序列器 `PathRunner`**，**刻意不碰 Qt**（只调注入的闭包与时钟），所以能用假时钟毫秒级单测。⚠ 序列器必须"发一段 → 等板子报到位 → 再发下一段"：固件的 `0xF3` 是完整梯形曲线（末尾必到 0），而且**在途时再发 `move` 会被静默覆盖目标**。三条时序设计（陈旧帧闸门 / 报停没到位必须中止 / 急停前先掐序列器）见 docs/17 §14.4。
 - `zstage_bridge.py` — Z 轴平台，**另一块板子**、独立 IP/口令/连接。**零换算**（固件就是 mm，别抄 11.25）。连接期只发只读（`json` + `zsign`）；量程读 `uiMaxRpm(1200)/uiMaxAcc(200)/uiMinAcc(1)`（**加速档 0=直接启动，界面必须排除**）。⚠ `@` 开头的驱动器帧行**必须**在 `_handle_line` 第一分支丢掉（板子 `trace` 可能还开着，混进 `_resp_lines` 会让命令判定错位，§20）；协议框/`trace` 开关 2026-10-10 已删除。
   · **无限位回零参数**（2026-09-29）：`setHomeParams(rpm, ma, tmo)` → `zset home`，范围 `uiHomeRpmMin/Max`、`uiHomeMaMin/Max`、`uiHomeTmoMin/Max`、经验区 `uiHomeMaSweetLo/Hi`(60/300，推荐 100) 全从桥里读；板子实际值走 json `hma/hrpm/htmo`（新字段）→ `homeMa/homeRpm/homeTmo`。方向 `setHomeDir("up"/"down")` → `zhome <dir> nowait`，**只存本机**；`setAutohome()` 因此**不带方向**（带 `down` 会顺手改掉板子里的方向）。
@@ -118,9 +118,58 @@ python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图�
 
 **临时产物一律丢在仓库根、文件名以 `_` 开头**（`.gitignore` 里 `/_*` 兜住）：探针脚本 `_probe_*.py`、渲染图 `_render_*.png`、中间译文 `_keys*.txt` 都按这个来 —— 否则这些 PNG/脚本会留在 `git status` 里，一旦 `git add -A` 就被提交。要长期看的截图放 `.uicap/`（同样已忽略）。**跑完测试/探针记得删掉自己的 `_*`**：`git status --short` 干净才算收工。
 
+## 「平台控制」页（v4.5，2026-10-10 第二版「轨迹与网格」：标尺 + 立体感 + Z 高度条）
+
+**`TrajectoryGridCard`**（中列、两张手动控制卡**下面**，默认展开）第二版按用户重画的 UI 改了：
+**五个模式**（点选 / 网格 / 圆 / 矩形 / 多段线，chips 带图标）+ **录制按钮移到右下角**（按需）。
+几条硬规矩：
+
+- ⚠ **背景只有标尺、没有格线**（用户原话"背景不要网格，只留刻度标尺，这个标尺和初始化的
+  工作区大小有关系"）：左=Y 标尺、下=X 标尺，`_niceStep()` 选 1/2/5×10ⁿ 步长，
+  **首末刻度必定落在工作区边界**（12g 有断言）。因此**点选不再吸附格心**，
+  桥侧 `gridRows/gridCols/setGrid/snapToGrid` 与 `stage_traj.snap_to_cell` **已删除**；
+  点选的 mm 由卡里的 `_mmOf()` 算（本文件唯一的坐标变换），信号是 `mapPicked(xmm, ymm)`。
+  ⚠ `sample_grid()` **保留** —— 那是「网格」模式生成巡检点阵用的，与"背景格线"无关。
+- ⚠ **只有「点选」模式会因单击而移动**；网格/圆/矩形/多段线只负责"画 + 预览"，
+  提交一律走「存为轨迹」→「执行」。（以前网格模式也响应单击，用户以为是 bug。）
+- ⚠ **预览一律从参数推导**（`pCx/pCy/pR`、`rectA/rectB`、`draft`），不从"上次拖拽点"推导：
+  否则"在输入框里改半径，图上不变"。拖拽只是**连续写参数**的一种方式；
+  拖动中实时写参数、松手 `_syncInputs()` 回写输入框。⚠ 那三个圆参数框**必须显式声明 `id`**
+  （只写 objectName 会 `ReferenceError`，见 docs/19 §37），且**不写 `text:` 绑定**
+  （回写 + 绑定 = `Binding loop detected`）。
+- ⚠ **圆的半径夹到"圆心到四边的最小距离"**（拖动与手输都夹）：桥在保存/执行时会把每个点
+  夹进工作区，不夹的话"图上看到的"和"实际会走的"不是一个东西（用户报过"圆画到台面外"）。
+- ⚠ **Z 高度条可点/可拖**（2026-10-10 用户说"Z 轴好像没法直接控制"）：点或拖到某个高度 →
+  **松手才下发一条** `moveTo`（拖动中只画预览线），闸门直接用桥的 `canMove`、
+  失败原因用 `datumHint`。**绝不能在拖动中连发**（固件在途时会静默覆盖目标）。
+- ⚠ **`preventStealing: true`**：台面与 Z 条的 MouseArea 都要加，否则外层页面 Flickable
+  会把拖动抢走 —— 表现是"拖一下页面就滚"且"圆拖到一半卡住不变大"（docs/19 §38）。
+- ⚠ **折线锚在段起点**（`x: _px(x1), y: _py(y1) - lineWidth/2`，绕左中点旋转）：
+  锚在"包围盒左上角"会让朝右上的那些段整体平移一个段长 —— 用户看到的"一地乱线"根因
+  （docs/19 §39）。12g 有专门的回归守卫（造 (0,0)→(360,360) 的对角线量旋转原点）。
+- ⚠ **整张卡不用 `Canvas`**（换主题不重绘、测试也看不见它画了什么）：标尺/折线都用
+  `Rectangle`/`Text`；台面"立体感"用卡内 `component StagePlate`（照 `CardSurface`
+  的 panel 配方：上亮下暗渐变 + 顶边高光 + 底边压深 + 下方软投影，颜色全由令牌推导）。
+- ⚠ **版面是上下堆叠**（台面+Z 条 → chips → 提示 → 当前模式参数 → 名称/存为轨迹 → 轨迹速度+录制
+  → 列表 → 进度/执行 → 提示），所以**参数不再挤在窄列里**。台面组的居中靠
+  `GridLayout{ Layout.fillWidth: false; Layout.alignment: Qt.AlignHCenter }`（写 `fillWidth: true`
+  会撑满卡片、把台面顶到最左边）。名称框用"外面包普通 `Item` 定宽"（直接给 `InputRow` 写
+  `Layout.preferredWidth` 会被它的隐式宽度顶开，实测 524px）。
+- ⚠ **`ColumnLayout` 里成对的 `InputRow` 竖排**（不并排）：两个的 label 列各 72px + 输入框，
+  窄列里会把整行顶宽（渲染图抓到过 chips 被挤出卡右边界）。
+- ⚠ **网格点选替代不了十字点动**（330px 台面 / 360mm → 1px ≈ 1.1mm），它管粗定位、
+  精调仍归左侧十字键的 0.1mm 档。
+- ⚠ `tests/test_stage_page.py` 12a 的首屏超出量基线 **2.0 倍**（实测 1.84；`12a2`
+  「点动/急停/设原点必须在首屏」没动）。渲染目检用 `render_page.py ... card`
+  （会滚到这张卡并切到网格模式）。详见 `docs/17` §14。
+
 ## 「平台控制」页（v4.4，2026-10-08 新增中列「轨迹与网格」卡）
 
-中列在两张手动控制卡**下面**（原来这里还有个「高级」折叠节，2026-10-10 已整块删除）多了一张 **`TrajectoryGridCard`**（**默认展开**，用户明确接受"允许多滚一段"——所以 `tests/test_stage_page.py` 12a 的首屏超出量基线从 1.40 倍放宽到 1.85 倍；**12a2「点动/急停/设原点必须在首屏」没动**，因为卡在它们下面）。六模式：点选 / 网格 / 圆 / 矩形 / 多段线 / 录制。几条硬规矩：⚠ **整张卡不用 `Canvas`**（命令式重绘跟不上 `Colors` 换主题，而且测试看不见它画了什么）—— 网格线用 `Rectangle`、轨迹折线用逐段旋转的细 `Rectangle`；⚠ **坐标换算只有一处**（`_px/_py/_fxOf/_fyOf`，`_py` 里含 Y 翻转），点选只把**比例**交给 `StageBridge.snapToGrid()`，mm 由 `stage_traj.snap_to_cell` 算一次；⚠ 卡内主体是 `GridLayout`，`width >= 620 ? 2 : 1` 列（窄窗口上下叠，否则右列被顶宽 → chips 挤出卡右边界，**渲染图里抓到过**）；⚠ **网格点选替代不了十字点动**（330px 图 / 360mm → 1px ≈ 1.1mm，格线现实上限约 40×40），它管粗定位、精调仍归十字键。详见 `docs/17` §14。
+（第一版：六模式 = 点选 / 网格 / 圆 / 矩形 / 多段线 / 录制；背景画格线 + 点选吸附格心。
+2026-10-10 已被上面的 v4.5 取代 —— 格线与吸附都已删除，录制不再算一个模式。
+保留此节只为记住演进：⚠ 当时把"成对的 `InputRow` 并排"和"`fillWidth: true` 的台面组"
+当成正常做法，两处都在渲染图里出过问题。）
+
 
 ## 「平台控制」页（v4.3，2026-09-28 美化：图标接线 + 卡片质感）
 

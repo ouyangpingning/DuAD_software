@@ -134,13 +134,9 @@ OLD_DEFAULT_WS = 300
 # 余量充足"），120ms 是安全且明显更快的取值。
 PATH_POLL_MS = 120
 
-# 网格点选/吸附的分辨率（行×列）。默认 20×20 = 360mm 工作区上 18mm 一格，
-# 屏幕上（约 380px 的网格图）约 19px 一格 —— 既看得出格子、又点得准。
-# ⚠ 现实上限约 40×40：再密的话格线在屏幕上不足 10px，"看清再点"就不成立了
-# （真要更细只能靠吸附：点最近格心，见 stage_traj.snap_to_cell）。
-GRID_DEFAULT_ROWS = 20
-GRID_DEFAULT_COLS = 20
-GRID_MAX = 60
+# ⚠ 2026-10-10：原这里有「网格点选/吸附分辨率 GRID_DEFAULT_ROWS/COLS、GRID_MAX」。
+# 用户要求台面背景只留标尺、不留格线，点选也不再吸附格心 → 这一组连同
+# `gridRows/gridCols/setGrid/snapToGrid` 一起删掉了（见「轨迹与网格」那一段的注释）。
 
 # 轨迹的"每段额外开销"**估计**（秒），只用于界面显示预计耗时。
 # 它包含：json 轮询拿到"已到位"的延迟 + 固件 100ms 的 state_tick 收尾 +
@@ -217,7 +213,6 @@ class StageBridge(QObject):
     #   整条轨迹的落点）跟着 1~8Hz 的遥测反复重算。
     pathEnableChanged = Signal()
     recordChanged = Signal()          # 录制开关或已录点数变了
-    gridChanged = Signal()            # 网格分辨率变了
 
     def __init__(self, parent=None, settings=None):
         """settings 可注入 —— **测试必须传一个文件隔离的 QSettings**，
@@ -280,11 +275,7 @@ class StageBridge(QObject):
         self._park_failed = False
 
         # ── 轨迹与网格（2026-10-08）─────────────────────────
-        # 网格分辨率、轨迹列表都存 QSettings（与预设同一套路）。
-        self._grid_rows = _inum(self._settings.value("stage/grid_rows", GRID_DEFAULT_ROWS),
-                                GRID_DEFAULT_ROWS)
-        self._grid_cols = _inum(self._settings.value("stage/grid_cols", GRID_DEFAULT_COLS),
-                                GRID_DEFAULT_COLS)
+        # 轨迹列表存 QSettings（与预设同一套路）。
         self._selected_path = -1
         # 遥测帧序号：序列器的"陈旧帧"判据全靠它。
         # 为什么不用时间戳就够：一条在 move **之前**发出去的 json 可能在我们
@@ -1512,39 +1503,15 @@ class StageBridge(QObject):
     # ⚠ 执行侧一律走 `stage_traj.PathRunner`：固件的 `move` 是点到点、
     #   而且在途时再发一条会静默覆盖目标（见 docs/17）。**绝不能连发**。
 
-    # ── 网格分辨率 ────────────────────────────────────────
-    def _get_grid_rows(self) -> int:
-        return self._grid_rows
-
-    gridRows = Property(int, _get_grid_rows, notify=gridChanged)
-
-    def _get_grid_cols(self) -> int:
-        return self._grid_cols
-
-    gridCols = Property(int, _get_grid_cols, notify=gridChanged)
-
-    @Slot(int, int)
-    def setGrid(self, rows: int, cols: int):
-        self._grid_rows = max(1, min(GRID_MAX, int(rows)))
-        self._grid_cols = max(1, min(GRID_MAX, int(cols)))
-        self._settings.setValue("stage/grid_rows", self._grid_rows)
-        self._settings.setValue("stage/grid_cols", self._grid_cols)
-        self.gridChanged.emit()
-        self._log(self.tr("网格分辨率：{} 行 × {} 列（约 {:.1f}mm 一格）").format(
-            self._grid_rows, self._grid_cols,
-            max(self._ws_xmax - self._ws_xmin, 1.0) / self._grid_cols))
-
-    @Slot(float, float, result="QVariantList")
-    def snapToGrid(self, fx: float, fy: float):
-        """屏幕比例 (0~1) → 最近格心的台面坐标 [x, y]（mm）。
-
-        QML 只负责把鼠标位置换成比例；"比例 → mm"的换算只在本文件的
-        `stage_traj.snap_to_cell` 里做一次（同一事实两份是本项目第 4 条坑）。
-        """
-        x, y = stage_traj.snap_to_cell(fx, fy, self._grid_rows, self._grid_cols,
-                                       self._ws_xmin, self._ws_ymin,
-                                       self._ws_xmax, self._ws_ymax)
-        return [round(x, 3), round(y, 3)]
+    # ── ⚠ 2026-10-10 删除了「网格分辨率 + 格心吸附」一组 ────────────────
+    # 用户要求台面背景"不要网格、只留刻度标尺"，于是：
+    #   · `gridRows/gridCols/setGrid/gridChanged` —— 只用来画格线与吸附，没有别的消费者；
+    #   · `snapToGrid()` + `stage_traj.snap_to_cell()` —— 吸到格心用的，背景没格子之后
+    #     它失去视觉依据，而且**不吸附精度更高**（±1mm vs 18mm 的格心）。
+    # 现在点选由卡片自己把比例换算成 mm（`_mmOf`），`StagePage` 直接 `moveTo`。
+    # ⚠ QSettings 里的 `stage/grid_rows|grid_cols` 成了遗留键：不写迁移代码（留着无害）。
+    # ⚠ 「网格」**模式**还在（它生成巡检点阵），它的 `params.rows/cols` 是**巡逻点数**，
+    #   与这里的格线分辨率从来不是一回事。
 
     # ── 轨迹列表（存 QSettings，与预设同一套路）────────────
     def _load_paths(self) -> List[Dict[str, Any]]:
