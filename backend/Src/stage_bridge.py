@@ -240,6 +240,9 @@ class StageBridge(QObject):
         self._token = str(self._settings.value("stage/token", DEFAULT_TOKEN))
         self._rpm = self._migrating_setting("stage/rpm", OLD_DEFAULT_RPM, DEFAULT_RPM)
         self._acc = self._migrating_setting("stage/acc", OLD_DEFAULT_ACC, DEFAULT_ACC)
+        # 轨迹默认速度（与手动那对分开存，理由见 setPathSpeed 的注释）
+        self._path_rpm = max(1, min(MAX_RPM, _inum(self._settings.value("stage/path_rpm", 1200), 1200)))
+        self._path_acc = max(1, min(MAX_ACC, _inum(self._settings.value("stage/path_acc", 30), 30)))
         # 零点角写死见 DATUM_CORNER（不再有 `stage/home_corner` 这个设置项）
 
         # 工作区（台面 X/Y 行程，mm）。固件侧 `travel` 的单位是度，下发时换算。
@@ -797,6 +800,32 @@ class StageBridge(QObject):
         self._settings.setValue("stage/rpm", self._rpm)
         self._settings.setValue("stage/acc", self._acc)
         self.telemetryChanged.emit()
+
+    # ── 轨迹速度（2026-10-10）──────────────────────────────────
+    # ⚠ 与手动点动速度**刻意分开**存储（用户要求"轨迹的 rpm/acc 放到设置界面改"）。
+    #   为什么不能直接沿用 `rpm`/`acc`：手动点动是"按住就走一小段"，
+    #   默认 acc 是 **1**；而轨迹每段都是一条**完整的梯形曲线**（起步→匀速→刹停），
+    #   5mm 的小段用 acc=1 会全程在爬坡，一段要好几秒 —— 整条轨迹慢到没法用。
+    #   所以轨迹有自己的一对默认值（1200 / 30），两者都在「二轴相机平台设置」里改。
+    def _get_path_rpm(self) -> int:
+        return self._path_rpm
+
+    pathRpm = Property(int, _get_path_rpm, notify=pathChanged)
+
+    def _get_path_acc(self) -> int:
+        return self._path_acc
+
+    pathAcc = Property(int, _get_path_acc, notify=pathChanged)
+
+    @Slot(int, int)
+    def setPathSpeed(self, rpm: int, acc: int):
+        """轨迹默认速度（存本机，每次保存轨迹时随每条轨迹一起记下）。"""
+        self._path_rpm = max(1, min(MAX_RPM, int(rpm)))
+        self._path_acc = max(1, min(MAX_ACC, int(acc)))
+        self._settings.setValue("stage/path_rpm", self._path_rpm)
+        self._settings.setValue("stage/path_acc", self._path_acc)
+        self.pathChanged.emit()
+        self._log(self.tr("轨迹速度：{} rpm / acc {}").format(self._path_rpm, self._path_acc))
 
     # ============================================================
     # 连接 / 断开

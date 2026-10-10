@@ -728,6 +728,24 @@ def main():
     #   现在"点击 → mm"的换算在 `TrajectoryGridCard.qml` 的 `_mmOf()` 里，
     #   端到端由 `tests/test_stage_page.py` 12g 的"真点一下台面正中"那条守卫钉住。
 
+    # ── 18b2) 轨迹默认速度（2026-10-10 从卡里搬进「平台设置」）──
+    # ⚠ 与手动速度**分开**存储：手动 acc 默认 1，而轨迹每段都是完整梯形曲线，
+    #   用 acc=1 会让 5mm 的小段全程爬坡（实测整条轨迹慢到没法用）。
+    r.check("18b2) 默认轨迹速度 1200 / 30（不是手动那对）",
+            b6.pathRpm == 1200 and b6.pathAcc == 30,
+            f"{b6.pathRpm}/{b6.pathAcc}")
+    b6.setPathSpeed(9999, 9999)
+    r.check("18b2) 轨迹速度也夹到固件真会接受的范围（rpm≤6000 / acc≤200）",
+            b6.pathRpm == 6000 and b6.pathAcc == 200,
+            f"{b6.pathRpm}/{b6.pathAcc}")
+    b6.setPathSpeed(0, 0)
+    r.check("18b2) 下限 1（0 会被固件当成\u201c直接启动\u201d）",
+            b6.pathRpm == 1 and b6.pathAcc == 1, f"{b6.pathRpm}/{b6.pathAcc}")
+    b6.setPathSpeed(1200, 30)
+    r.check("18b2) 改动落盘（重开同一个 settings 还在）",
+            b6._settings.value("stage/path_rpm") == 1200
+            and b6._settings.value("stage/path_acc") == 30)
+
     # ── 18c) 保存参数化轨迹 ──
     ok = b6.savePath("圆R20", "circle",
                      json.dumps({"cx": 50, "cy": 50, "r": 20, "step": 20}), 1200, 30)

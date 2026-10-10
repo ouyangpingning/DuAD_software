@@ -31,13 +31,19 @@ Item {
     property real wsXMax: 360
     property real wsYMax: 360
 
-    // 速度
+    // 速度（手动点动/绝对定位）
     property int rpm: 1200
     property int acc: 1
+    // 轨迹速度（2026-10-10：从「轨迹与网格」卡搬到这里 —— 用户要求"直接在设置界面改"）
+    // ⚠ 与上面的手动速度**刻意分开**：轨迹每段都是一条完整梯形曲线，
+    //   手动那个 acc（默认 1）会让 5mm 的小段全程爬坡、一段好几秒。
+    property int pathRpm: 1200
+    property int pathAcc: 30
 
     signal applyRequested()
     // 拖动滑块松手就发（不必等「应用设置」）—— 用户拖动时期待的就是立即生效
     signal speedChanged(int rpm, int acc)
+    signal pathSpeedChanged(int rpm, int acc)
 
     // ============================================================
     // 输入框里的**当前内容**（不是 bridge 里已保存的值）
@@ -67,6 +73,8 @@ Item {
     readonly property real fieldYmax: parseFloat(ymaxRow.text)
     readonly property int fieldRpm: rpmRow.sliderValue
     readonly property int fieldAcc: accRow.sliderValue
+    readonly property int fieldPathRpm: pathRpmRow.sliderValue
+    readonly property int fieldPathAcc: pathAccRow.sliderValue
 
     implicitWidth: 460
     implicitHeight: expanded ? contentLayout.implicitHeight + 42 : 0
@@ -219,6 +227,42 @@ Item {
             // 然后合理地认为这个参数坏了 —— 实际上是行程太短，看不出差别。
             // 样式走 ThemedButton（tone: soft = 淡强调底）：原来这里**没写 background**，
             // 用的是 Fusion 默认灰渐变，换主题时纹丝不动（用户 2026-09-28 点名要改）。
+            SectionHeader { text: qsTr("轨迹速度") }
+
+            // 与上面的手动速度是**两对**参数：轨迹的每段都是一条完整的梯形曲线
+            // （起步→匀速→刹停），而手动点动只走很短一截 —— 用同一个 acc 的话，
+            // acc=1 会让 5mm 的小段全程在爬坡，整条轨迹慢到没法用（实测：63 段的圆
+            // 要跑几分钟）。所以轨迹默认 1200 / 30，改在这里改。
+            SliderRow {
+                id: pathRpmRow
+                objectName: "pathRpmSliderRow"
+                label: qsTr("轨迹转速")
+                from: 60; to: StageBridge.uiMaxRpm
+                sliderValue: root.pathRpm
+                suffix: "rpm"; decimals: 0
+                snapTicks: [60, 300, 600, 1200, 2000, StageBridge.uiMaxRpm]
+                wheelStep: 50
+                resetValue: 1200
+                onReleased: root.pathSpeedChanged(pathRpmRow.sliderValue,
+                                                  pathAccRow.sliderValue)
+            }
+            SliderRow {
+                id: pathAccRow
+                objectName: "pathAccSliderRow"
+                label: qsTr("轨迹加减速")
+                // 上限 200 与手动同一个理由：固件 `if (acc > 200) return -1;` 直接拒帧
+                from: 1; to: StageBridge.uiMaxAcc
+                sliderValue: root.pathAcc
+                suffix: ""; decimals: 0
+                logScale: true     // 与手动那档一致：低端值得多给行程
+                snapTicks: [1, 2, 3, 4, 5, 7, 9, 12, 16, 21, 28, 37, 50, 67, 90, 120, 160, 200]
+                wheelStep: pathAccRow.sliderValue <= 20 ? 1
+                         : (pathAccRow.sliderValue <= 60 ? 2 : 5)
+                resetValue: 30
+                onReleased: root.pathSpeedChanged(pathRpmRow.sliderValue,
+                                                  pathAccRow.sliderValue)
+            }
+
             ThemedButton {
                 Layout.fillWidth: true
                 implicitHeight: 42

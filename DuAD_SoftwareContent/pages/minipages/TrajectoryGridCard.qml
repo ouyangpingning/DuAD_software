@@ -126,6 +126,20 @@ Item {
     // Z 条拖拽中的归一化高度：< 0 = 没在拖
     property real zDragFrac: -1
 
+    // ── 无卡片模式（2026-10-10）：住进页面的折叠节时用 ──
+    // 只画内容，不画白卡片底、不画自己的表头（标题由页面的 FoldHeader 负责）。
+    // 与 `ZStageTelemetryPanel.flat` 同一套做法。
+    property bool flat: false
+
+    // ── 台面纹理（2026-10-10 用户要求"纹理质感"）──
+    // 候选三张都在 `DuAD_SoftwareContent/images/`，由 `scripts/make_texture.py` 生成
+    // （无缝、中性灰 0.5、512²、41~75KB、四边淡出）：
+    //     台面_哑光喷砂.jpg（默认）  台面_拉丝铝.jpg  台面_磨砂玻璃.jpg
+    // ⚠ 为什么用**中性灰**而不是接近白色：台面 = 纹理 + `Colors.panelBg` 半透明覆盖，
+    //   而 panelBg 在**暗色主题下是 #2a2a2a** —— 中性灰在明/暗两套主题下都成立。
+    // 换纹理 = 改这一个字符串（空字符串 = 回到纯色板）。
+    property string plateTexture: "../../images/台面_哑光喷砂.jpg"
+
     property var paths: []                  // [{name, kind, params, rpm, acc}]
     property var previewPoints: []          // 选中轨迹的落点 [[x,y],...]
     property int selectedPath: -1
@@ -160,7 +174,7 @@ Item {
     signal recordStopRequested(string name)
     signal recordCancelRequested()
 
-    implicitHeight: mainCol.implicitHeight + 32
+    implicitHeight: mainCol.implicitHeight + (root.flat ? 0 : 32)
 
     // ============================================================
     // 内部状态
@@ -363,6 +377,11 @@ Item {
         property color baseColor: Colors.panelBg
         property color edgeColor: Colors.panelBorder
         property real radius: 10
+        // 纹理底图（空字符串 = 纯色板）。候选图由 `scripts/make_texture.py` 生成。
+        property string textureSource: ""
+        // 主题色覆盖的不透明度：1.0 = 完全纯色（看不到纹理），越小纹理越明显。
+        // ⚠ 0.72 是实测值：纹理看得见、又不跟轨迹线抢注意力（见 make_texture.py 的头注释）。
+        property real textureCover: 0.72
 
         // 投影：与面同大、下移 3px → 只在底边露出一点（面声明在后面，盖住其余部分）
         Rectangle {
@@ -373,14 +392,49 @@ Item {
             radius: plate.radius
             color: Colors.panelShadow
         }
-        // 面：上亮下暗极轻渐变 + 顶边高光 + 底边压深
+
+        // ── 纹理 + 主题色覆盖（都在"面"的下层；面只画描边与高光/压深）──
+        // ⚠ 为什么图片要**内缩 radius**：`Image` 只能画成矩形，而台面是圆角矩形。
+        //   内缩之后图片的方角落在圆角**以内**，再配合纹理自带的四边淡出
+        //   （`make_texture.py --fade`），就看不到"方块状纹理"那条硬边。
+        //   ⚠ 也想过用 OpacityMask/layer 做圆角裁剪 —— 项目里 ColorOverlay
+        //     在离屏/改尺寸时画不出来（docs/19 §32），不为一个纹理引这个风险。
+        Item {
+            anchors.fill: parent
+
+            Image {
+                objectName: "plateTexture"
+                visible: plate.textureSource !== ""
+                anchors.fill: parent
+                anchors.margins: plate.radius
+                source: plate.textureSource
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+                // ⚠ 静态图**留着**缓存（跟流式帧相反）；并按显示尺寸解码，别拿原图去缩
+                cache: true
+                sourceSize.width: 512
+                sourceSize.height: 512
+            }
+
+            // 主题色覆盖：有纹理时半透明（纹理透出来），没纹理时就是纯色板
+            Rectangle {
+                anchors.fill: parent
+                radius: plate.radius
+                opacity: plate.textureSource !== "" ? plate.textureCover : 1.0
+                gradient: Gradient {
+                    // ⚠ `GradientStop` 看不到外层项的属性（grouped property 的作用域），
+                    //   必须写 `plate.baseColor`（docs/19 §38）
+                    GradientStop { position: 0.0; color: Qt.lighter(plate.baseColor, 1.03) }
+                    GradientStop { position: 1.0; color: Qt.darker(plate.baseColor, 1.04) }
+                }
+            }
+        }
+
+        // 面：只有描边 + 顶边高光 + 底边压深（填充透明，让下层的纹理/覆盖显出来）
         Rectangle {
             anchors.fill: parent
             radius: plate.radius
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.lighter(plate.baseColor, 1.03) }
-                GradientStop { position: 1.0; color: Qt.darker(plate.baseColor, 1.04) }
-            }
+            color: "transparent"
             border { width: 1; color: plate.edgeColor }
 
             Rectangle {
@@ -447,16 +501,30 @@ Item {
     // ============================================================
     CardSurface {
         anchors.fill: parent
+        // ⚠ `flat`（2026-10-10 用户要求"像平台状态/平台设置那样可折叠"）：
+        //   折叠节里这张卡是"面板的内容"，所以不能再套一层白卡片 + 自己的表头
+        //   （标题由页面的 `FoldHeader` 负责，套两层就是"面板套卡片"，
+        //    与 `ZStageTelemetryPanel.flat` 同一套做法）。
+        // ⚠⚠ **不能写 `visible: !root.flat`** —— 那是把底板的可见性关掉，而
+        //   `mainCol` 是它的子项，于是**整张卡的内容一起不画了**（渲染图里表现成
+        //   "折叠头在、里面全空白"）。只让它透明即可。
+        shadowed: !root.flat
+        color: root.flat ? "transparent" : Colors.cardBg
+        borderColor: root.flat ? "transparent" : Colors.cardBorderStrong
 
         ColumnLayout {
             id: mainCol
             spacing: 10
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+            anchors {
+                left: parent.left; right: parent.right; top: parent.top
+                margins: root.flat ? 0 : 14
+            }
 
-            // ── 表头 ──────────────────────────────────────
+            // ── 表头（flat 时整行不画：标题在折叠头上）──
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
+                visible: !root.flat
 
                 IconImage {
                     Layout.alignment: Qt.AlignVCenter
@@ -473,16 +541,62 @@ Item {
                     font.bold: true
                     color: Colors.textPrimary
                 }
-                Item { Layout.fillWidth: true }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 1
+                color: Colors.cardBorder
+                visible: !root.flat
+            }
+
+            // ── 录制（2026-10-10 用户要求：放右上角）──────────────
+            // ⚠ 记录的是**移动**（点选 / 十字点动 / 绝对定位 / 预设前往），
+            //   不是"画出来的形状" —— 那三个模式不移动台面（见文件头）。
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
                 Text {
+                    objectName: "recordStatus"
                     visible: root.recording
                     text: qsTr("● 正在记录移动（%1 点）").arg(root.recordCount)
                     font.pixelSize: 11
                     color: Colors.statusDisconnected
                 }
-            }
+                Item { Layout.fillWidth: true }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
+                ThemedButton {
+                    objectName: "recordButton"
+                    implicitHeight: 32
+                    hPadding: 12
+                    tone: root.recording ? "dangerSoft" : "soft"
+                    enabled: root.connected
+                    text: root.recording
+                          ? qsTr("结束录制（%1 点）").arg(root.recordCount)
+                          : qsTr("录制")
+                    iconSource: "../../images/电源.svg"
+                    iconSize: 13
+                    fontPixelSize: 12
+                    onClicked: {
+                        if (root.recording) root.recordStopRequested(root.saveName)
+                        else root.recordStartRequested()
+                    }
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 600
+                    ToolTip.text: qsTr("记录**移动**：点选 / 十字点动 / 绝对定位 / 预设前往 都会被记下来，之后可以原样重放。圆、矩形、多段线是用「存为轨迹」画出来的（它们不移动台面），所以录制对它们没有内容可记。")
+                }
+                ThemedButton {
+                    objectName: "recordCancelButton"
+                    visible: root.recording
+                    implicitHeight: 32
+                    hPadding: 10
+                    tone: "neutral"
+                    text: qsTr("放弃")
+                    fontPixelSize: 12
+                    onClicked: root.recordCancelRequested()
+                }
+            }
 
             // ══════════════════════════════════════════════════
             // 台面 + Z 高度条（宽了并排、窄了上下叠）
@@ -515,6 +629,7 @@ Item {
                         width: root._plateW
                         height: root._plateH
                         radius: 10
+                        textureSource: root.plateTexture
                     }
 
                     // ── 场：所有"台面坐标"的东西都挂在这儿（尺寸与台面严格重合）──
@@ -1149,74 +1264,6 @@ Item {
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
-
-            // ── 轨迹速度（详细参数）+ 录制（按需，右下角）──
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                InputRow {
-                    objectName: "pathRpmInput"
-                    Layout.preferredWidth: 210
-                    label: qsTr("轨迹 rpm")
-                    text: String(root.pathRpm)
-                    onTextChanged: {
-                        var v = parseInt(text)
-                        if (!isNaN(v) && v >= 1) root.pathRpm = v
-                    }
-                }
-                InputRow {
-                    objectName: "pathAccInput"
-                    Layout.preferredWidth: 210
-                    label: qsTr("轨迹 acc")
-                    text: String(root.pathAcc)
-                    onTextChanged: {
-                        var v = parseInt(text)
-                        if (!isNaN(v) && v >= 1) root.pathAcc = v
-                    }
-
-                    // 「为什么 acc 默认这么大」属于**说明**，按规矩不进界面正文，放 ToolTip。
-                    // ⚠ `InputRow` 的根是普通 Item（不是 Control），**没有 `hovered`**
-                    //   —— 用 HoverHandler 取悬停态（它不消耗点击，MouseArea 会）。
-                    HoverHandler { id: accHover }
-                    ToolTip.visible: accHover.hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: qsTr("加减速故意比手动点动大得多：位置模式每段都是一条完整的起步→匀速→刹停曲线，5mm 的小段用 acc=1 会全程在爬坡，一段要好几秒。")
-                }
-
-                Item { Layout.fillWidth: true }   // 弹簧：录制按钮靠右
-
-                ThemedButton {
-                    objectName: "recordButton"
-                    implicitHeight: 34
-                    hPadding: 14
-                    tone: root.recording ? "dangerSoft" : "soft"
-                    enabled: root.connected
-                    text: root.recording
-                          ? qsTr("结束录制（%1 点）").arg(root.recordCount)
-                          : qsTr("录制")
-                    iconSource: "../../images/电源.svg"
-                    iconSize: 13
-                    fontPixelSize: 12
-                    onClicked: {
-                        if (root.recording) root.recordStopRequested(root.saveName)
-                        else root.recordStartRequested()
-                    }
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 600
-                    ToolTip.text: qsTr("记录**移动**：点选 / 十字点动 / 绝对定位 / 预设前往 都会被记下来，之后可以原样重放。圆、矩形、多段线是用「存为轨迹」画出来的（它们不移动台面），所以录制对它们没有内容可记。")
-                }
-                ThemedButton {
-                    objectName: "recordCancelButton"
-                    visible: root.recording
-                    implicitHeight: 34
-                    hPadding: 12
-                    tone: "neutral"
-                    text: qsTr("放弃")
-                    fontPixelSize: 12
-                    onClicked: root.recordCancelRequested()
-                }
-            }
 
             // ── 轨迹列表 ──────────────────────────────────
             RowLayout {

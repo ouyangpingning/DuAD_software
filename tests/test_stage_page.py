@@ -1202,6 +1202,65 @@ def main():
         r.check("12g) 默认是点选模式", str(tcard.property("mode")) == "select",
                 str(tcard.property("mode")))
 
+        # ── 折叠（2026-10-10 用户要求：像「平台状态」「平台设置」那样可折叠）──
+        _fold = find("trajFold")
+        _fbody = find("trajBody")
+        r.check("12g) 有「轨迹与网格」折叠头与折叠体",
+                _fold is not None and _fbody is not None)
+        r.check("12g) 默认展开（常用卡，用户当初明确接受\u201c多滚一段\u201d）",
+                page.property("_trajOpen") is True
+                and bool(_fbody.property("visible")) is True,
+                f"open={page.property('_trajOpen')}")
+        if _fold is not None and _fbody is not None:
+            _fold.toggled.emit()          # ⚠ 折叠头是自定义组件，用它的 toggled 信号
+            r.pump(0.3)
+            r.check("12g) 点折叠头 → 收起：状态与内容一起收",
+                    page.property("_trajOpen") is False
+                    and bool(_fbody.property("visible")) is False)
+            _fold.toggled.emit()
+            r.pump(0.3)
+            r.check("12g) 再点一次 → 展开回来", page.property("_trajOpen") is True
+                    and bool(_fbody.property("visible")) is True)
+
+        # ── 台面纹理（用户 2026-10-10 要求"纹理质感"）──
+        # ⚠ 纹理路径写错会**静默不画**（普通 Image 不被 test_ui_theme 兜底），
+        #   所以这里连"文件真的在 images/ 里"一起钉住。
+        _tex = find_visual(page, "plateTexture")
+        # ⚠ `Image.source` 是 **QUrl**，直接 str() 会得到
+        #   "PySide6.QtCore.QUrl('../../images/…')" 这种外壳（第一次就这么栽了）
+        _tex_q = _tex.property("source") if _tex is not None else None
+        _tex_src = _tex_q.toString() if hasattr(_tex_q, "toString") else str(_tex_q or "")
+        _tex_files = [q.name for q in (CONTENT / "images").glob("台面_*.jpg")]
+        r.check("12g) 台面有纹理底图，且文件真的存在（写错会静默不画）",
+                _tex is not None and _tex_files
+                and _tex_src.rsplit("/", 1)[-1] in _tex_files,
+                f"source={_tex_src!r} 候选={_tex_files}")
+
+        # ── 录制按钮必须在**右上角**（用户 2026-10-10 要求）──
+        _rb = find("recordButton")
+        _pl = find("trajPlate")
+        if _rb is not None and _pl is not None:
+            _rb_p = _rb.mapToItem(tcard, QPointF(0, 0))
+            _pl_p = _pl.mapToItem(tcard, QPointF(0, 0))
+            _pl_right = _pl_p.x() + float(_pl.property("width"))
+            r.check("12g) 录制按钮在台面**上方、靠右**（原来在最下面一行）",
+                    _rb_p.y() < _pl_p.y() and _rb_p.x() > _pl_right - 140,
+                    f"按钮 x={_rb_p.x():.0f} y={_rb_p.y():.0f}；"
+                    f"台面右缘={_pl_right:.0f} 下缘={_pl_p.y():.0f}")
+
+        # ── 轨迹速度已搬进「平台设置」（用户："直接在设置界面修改就行"）──
+        r.check("12g) 卡里已经没有轨迹 rpm/acc 输入框",
+                page.findChild(QObject, "pathRpmInput") is None
+                and page.findChild(QObject, "pathAccInput") is None)
+        r.check("12g) 「平台设置」里多了轨迹转速/加减速两个滑块",
+                find("pathRpmSliderRow") is not None
+                and find("pathAccSliderRow") is not None)
+        r.check("12g) 卡上的轨迹速度来自桥（与手动速度**分开**的那一对）",
+                int(tcard.property("pathRpm")) == int(stage.pathRpm)
+                and int(tcard.property("pathAcc")) == int(stage.pathAcc),
+                f"卡 {tcard.property('pathRpm')}/{tcard.property('pathAcc')} "
+                f"桥 {stage.pathRpm}/{stage.pathAcc}")
+
         # ── 位置：必须在两张手动控制卡**下面** ──
         # 这条是 12a 基线放宽（首屏超出量 ≤2.0 倍）的正当理由：
         # 卡往下长，顶出去的只是它自己，不会把「点动/急停/设原点」挤出首屏。
@@ -1240,8 +1299,10 @@ def main():
         for _c in _chips:
             _worst = max(_worst,
                          _c.mapToItem(tcard, QPointF(float(_c.property("width")), 0)).x())
+        # ⚠ flat（住进折叠节）之后内容**贴边**，所以判据是"不越出卡右缘"，
+        #   不再是"留 10px 内边距"（那是卡片形态的旧假设）
         r.check("12g) 5 个模式 chip 全部落在卡片内（不被右边界挤出去）",
-                len(_chips) == 5 and _worst <= _card_w - 10,
+                len(_chips) == 5 and _worst <= _card_w + 1,
                 f"最右 {_worst:.0f} / 卡宽 {_card_w:.0f}，找到 {len(_chips)} 个")
 
         # ── 点选：卡把点击位置换算成**台面 mm** 后交给页面（不再经过 snapToGrid）──
@@ -1269,6 +1330,8 @@ def main():
             _off = tcard.mapToItem(_ps, QPointF(0, 0)).y() + float(_ps.property("contentY"))
             _ps.setProperty("contentY", max(0.0, _off - 20.0))
             r.pump(0.4)
+            r.check("12g) 台面停稳（真点之前必须静止，否则 MouseArea 是灰的）",
+                    r.wait_for(lambda: not stage.moving, 8))
             server.board.commands.clear()
             _pt = _fld.mapToScene(QPointF(float(_fld.property("width")) / 2,
                                           float(_fld.property("height")) / 2))

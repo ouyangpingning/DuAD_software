@@ -109,6 +109,9 @@ Item {
     // ⚠ 原来还有第五个「高级（协议显示）」—— 2026-10-10 用户要求整节删除。
     property bool _xyStatusOpen: false
     property bool _zStatusOpen: false
+    // 「轨迹与网格」卡也能折叠（2026-10-10 用户要求，与状态/设置两节同一套做法）
+    // ⚠ 默认**展开**：常用卡，用户当初明确接受"允许多滚一段"；想默认收起改成 false
+    property bool _trajOpen: true
     property bool _xySetupOpen: false
     property bool _zSetupOpen: false
 
@@ -621,11 +624,18 @@ Item {
                                     wsXMax: StageBridge.wsXMax
                                     wsYMax: StageBridge.wsYMax
                                     rpm: StageBridge.rpm
+                                    pathRpm: StageBridge.pathRpm
+                                    pathAcc: StageBridge.pathAcc
                                     acc: StageBridge.acc
 
                                     // 拖动滑块松手立即生效（不必等「应用设置」）
                                     onSpeedChanged: function (rpm, acc) {
                                         StageBridge.setSpeed(rpm, acc)
+                                    }
+
+                                    // 轨迹默认速度（卡里那两个输入框已按用户要求搬到这儿）
+                                    onPathSpeedChanged: function (rpm, acc) {
+                                        StageBridge.setPathSpeed(rpm, acc)
                                     }
 
                                     onApplyRequested: {
@@ -637,6 +647,8 @@ Item {
                                         StageBridge.setWorkspace(setupPanel.fieldXmin, setupPanel.fieldYmin,
                                                                  setupPanel.fieldXmax, setupPanel.fieldYmax)
                                         StageBridge.setSpeed(setupPanel.fieldRpm, setupPanel.fieldAcc)
+                                        StageBridge.setPathSpeed(setupPanel.fieldPathRpm,
+                                                                 setupPanel.fieldPathAcc)
                                         // 已连着同一目标时 connectDevice 内部会跳过重连（只更新参数）
                                         StageBridge.connectDevice(setupPanel.fieldHost,
                                                                   setupPanel.fieldPort,
@@ -838,94 +850,124 @@ Item {
                                 }
                             }
 
-                            // ── 轨迹与网格（2026-10-08 用户提出）────────────
-                            // 网格点选 + 圆/矩形/多段线 + 录制重放，执行靠 Python 侧的
+                            // ── 轨迹与网格（2026-10-08 用户提出；2026-10-10 改成可折叠）──
+                            // 网格点阵 + 圆/矩形/多段线 + 录制重放，执行靠 Python 侧的
                             // 点列序列器（stage_traj.PathRunner）。本卡只画图收点击。
                             // 位置：放在两张手动控制卡**下面** —— 这样它变高也不会把
                             // 「点动/急停/设原点」顶出首屏（tests 12a2 钉的就是那三个）。
-                            TrajectoryGridCard {
-                                id: trajCard
-                                objectName: "trajGridCard"
+                            // ⚠ 折叠方式与左/右列的「…状态」「…设置」完全一致
+                            //   （FoldHeader + FoldBody + 面板 flat），只是它住在中列。
+                            // ⚠ 默认**展开**：这是常用卡，用户当初也明确接受"允许多滚一段"；
+                            //   想默认收起就把 `_trajOpen` 初值改成 false。
+                            FoldHeader {
+                                id: trajFold
+                                objectName: "trajFold"
                                 Layout.fillWidth: true
+                                title: qsTr("轨迹与网格")
+                                badge: StageBridge.recording ? qsTr("录制中") : ""
+                                expanded: root._trajOpen
+                                onToggled: root._trajOpen = !root._trajOpen
+                            }
 
-                                connected: root._connected
-                                canRun: StageBridge.pathCanRun
-                                moving: root._moving
-                                hint: StageBridge.pathHint
-                                posX: StageBridge.posX
-                                posY: StageBridge.posY
-                                targetX: root._targetX
-                                targetY: root._targetY
-                                wsXMin: StageBridge.wsXMin
-                                wsYMin: StageBridge.wsYMin
-                                wsXMax: StageBridge.wsXMax
-                                wsYMax: StageBridge.wsYMax
-                                // Z 高度条：软限位设过就用软限位当标尺范围，
-                                // 没设过退回固件限位 —— 纯属性读，不在绑定里调函数。
-                                // ⚠ 能不能动直接用桥的 `canMove`（已连接+已立基准+
-                                //   设过软限位+当前不动），QML 里**不要**自己拼一遍条件。
-                                // ⚠ 点不动的原因用桥的 `datumHint`（铁律：提前说为什么）。
-                                zConnected: root._zConnected
-                                posZ: ZStageBridge.z
-                                zLo: ZStageBridge.limitsSet ? ZStageBridge.limitLo
-                                                            : ZStageBridge.firmwareLo
-                                zHi: ZStageBridge.limitsSet ? ZStageBridge.limitHi
-                                                            : ZStageBridge.firmwareHi
-                                zCanMove: ZStageBridge.canMove
-                                zHint: ZStageBridge.datumHint
-                                paths: StageBridge.paths
-                                previewPoints: StageBridge.previewPoints
-                                selectedPath: StageBridge.selectedPath
-                                pathState: StageBridge.pathState
-                                pathDone: StageBridge.pathDone
-                                pathTotal: StageBridge.pathTotal
-                                abortReason: StageBridge.pathAbortReason
-                                estimateS: StageBridge.pathEstimateS
-                                recording: StageBridge.recording
-                                recordCount: StageBridge.recordCount
+                            FoldBody {
+                                id: trajBody
+                                objectName: "trajBody"
+                                Layout.fillWidth: true
+                                visible: root._trajOpen
 
-                                // 点选：卡片已经把比例换算成**台面 mm**（换算只在本卡
-                                // 的 `_mmOf` 里做一次），页面直接下发。
-                                // ⚠ 2026-10-10 起不再吸附格心（背景没有格子了），
-                                //   精度约 ±1mm，比吸到 18mm 格心更准。
-                                onMapPicked: function (xmm, ymm) {
-                                    if (StageBridge.moveTo(xmm, ymm)) {
-                                        root._targetX = xmm
-                                        root._targetY = ymm
+                                    inner: TrajectoryGridCard {
+                                        id: trajCard
+                                    objectName: "trajGridCard"
+                                    Layout.fillWidth: true
+
+                                    // 折叠节里的内容形态：不画白卡片底、不画自己的表头
+                                    flat: true
+
+                                    connected: root._connected
+                                    canRun: StageBridge.pathCanRun
+                                    moving: root._moving
+                                    hint: StageBridge.pathHint
+                                    posX: StageBridge.posX
+                                    posY: StageBridge.posY
+                                    targetX: root._targetX
+                                    targetY: root._targetY
+                                    wsXMin: StageBridge.wsXMin
+                                    wsYMin: StageBridge.wsYMin
+                                    wsXMax: StageBridge.wsXMax
+                                    wsYMax: StageBridge.wsYMax
+                                    // Z 高度条：软限位设过就用软限位当标尺范围，
+                                    // 没设过退回固件限位 —— 纯属性读，不在绑定里调函数。
+                                    // ⚠ 能不能动直接用桥的 `canMove`（已连接+已立基准+
+                                    //   设过软限位+当前不动），QML 里**不要**自己拼一遍条件。
+                                    // ⚠ 点不动的原因用桥的 `datumHint`（铁律：提前说为什么）。
+                                    zConnected: root._zConnected
+                                    posZ: ZStageBridge.z
+                                    zLo: ZStageBridge.limitsSet ? ZStageBridge.limitLo
+                                                                : ZStageBridge.firmwareLo
+                                    zHi: ZStageBridge.limitsSet ? ZStageBridge.limitHi
+                                                                : ZStageBridge.firmwareHi
+                                    zCanMove: ZStageBridge.canMove
+                                    zHint: ZStageBridge.datumHint
+                                    paths: StageBridge.paths
+                                    previewPoints: StageBridge.previewPoints
+                                    selectedPath: StageBridge.selectedPath
+                                    pathState: StageBridge.pathState
+                                    pathDone: StageBridge.pathDone
+                                    pathTotal: StageBridge.pathTotal
+                                    abortReason: StageBridge.pathAbortReason
+                                    estimateS: StageBridge.pathEstimateS
+                                    recording: StageBridge.recording
+                                    recordCount: StageBridge.recordCount
+                                    // 轨迹速度不再在卡里改（用户 2026-10-10："直接在设置界面修改"）
+                                    // ⚠ 与手动点动速度**分开**两个参数：位置模式每段都是完整的
+                                    //   起步→匀速→刹停曲线，手动那个 acc（默认 1）会让 5mm 的小段
+                                    //   全程在爬坡，一段要好几秒、整条轨迹慢到没法用。
+                                    pathRpm: StageBridge.pathRpm
+                                    pathAcc: StageBridge.pathAcc
+
+                                    // 点选：卡片已经把比例换算成**台面 mm**（换算只在本卡
+                                    // 的 `_mmOf` 里做一次），页面直接下发。
+                                    // ⚠ 2026-10-10 起不再吸附格心（背景没有格子了），
+                                    //   精度约 ±1mm，比吸到 18mm 格心更准。
+                                    onMapPicked: function (xmm, ymm) {
+                                        if (StageBridge.moveTo(xmm, ymm)) {
+                                            root._targetX = xmm
+                                            root._targetY = ymm
+                                        }
                                     }
-                                }
-                                // Z 条被点/拖到某个高度 → 走到那里。
-                                // ⚠ 走 `moveTo` 的绝对移动（一条命令），桥自己会把
-                                //   高度夹到软限位里；不可动时卡片的 MouseArea 本来就是
-                                //   灰的（`zCanMove`），不会走到这里。
-                                onZPicked: function (zmm) {
-                                    ZStageBridge.moveTo(zmm)
-                                }
-                                onSaveRequested: function (name, kind, paramsJson, rpm, acc) {
-                                    StageBridge.savePath(name, kind, paramsJson, rpm, acc)
-                                }
-                                onSelectRequested: function (index) {
-                                    StageBridge.selectPath(index)
-                                }
-                                onDeleteRequested: function (index) {
-                                    StageBridge.deletePath(index)
-                                }
-                                onRunRequested: function (index) {
-                                    if (StageBridge.runPath(index)) {
-                                        // 目标叉收掉：轨迹自己的落点由预览折线表达，
-                                        // 再画一个叉会和"当前在走哪一段"混淆
-                                        root._targetX = NaN
-                                        root._targetY = NaN
+                                    // Z 条被点/拖到某个高度 → 走到那里。
+                                    // ⚠ 走 `moveTo` 的绝对移动（一条命令），桥自己会把
+                                    //   高度夹到软限位里；不可动时卡片的 MouseArea 本来就是
+                                    //   灰的（`zCanMove`），不会走到这里。
+                                    onZPicked: function (zmm) {
+                                        ZStageBridge.moveTo(zmm)
                                     }
+                                    onSaveRequested: function (name, kind, paramsJson, rpm, acc) {
+                                        StageBridge.savePath(name, kind, paramsJson, rpm, acc)
+                                    }
+                                    onSelectRequested: function (index) {
+                                        StageBridge.selectPath(index)
+                                    }
+                                    onDeleteRequested: function (index) {
+                                        StageBridge.deletePath(index)
+                                    }
+                                    onRunRequested: function (index) {
+                                        if (StageBridge.runPath(index)) {
+                                            // 目标叉收掉：轨迹自己的落点由预览折线表达，
+                                            // 再画一个叉会和"当前在走哪一段"混淆
+                                            root._targetX = NaN
+                                            root._targetY = NaN
+                                        }
+                                    }
+                                    onPauseRequested: StageBridge.pausePath()
+                                    onResumeRequested: StageBridge.resumePath()
+                                    onStopRequested: StageBridge.stopPath()
+                                    onRecordStartRequested: StageBridge.startRecording()
+                                    onRecordStopRequested: function (name) {
+                                        StageBridge.stopRecording(name)
+                                    }
+                                    onRecordCancelRequested: StageBridge.cancelRecording()
                                 }
-                                onPauseRequested: StageBridge.pausePath()
-                                onResumeRequested: StageBridge.resumePath()
-                                onStopRequested: StageBridge.stopPath()
-                                onRecordStartRequested: StageBridge.startRecording()
-                                onRecordStopRequested: function (name) {
-                                    StageBridge.stopRecording(name)
-                                }
-                                onRecordCancelRequested: StageBridge.cancelRecording()
                             }
                         }
                     }
