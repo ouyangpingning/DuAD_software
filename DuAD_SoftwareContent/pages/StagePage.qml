@@ -847,6 +847,80 @@ Item {
                                 }
                             }
 
+                            // ── 轨迹与网格（2026-10-08 用户提出）────────────
+                            // 网格点选 + 圆/矩形/多段线 + 录制重放，执行靠 Python 侧的
+                            // 点列序列器（stage_traj.PathRunner）。本卡只画图收点击。
+                            // 位置：放在两张手动控制卡**下面** —— 这样它变高也不会把
+                            // 「点动/急停/设原点」顶出首屏（tests 12a2 钉的就是那三个）。
+                            TrajectoryGridCard {
+                                id: trajCard
+                                objectName: "trajGridCard"
+                                Layout.fillWidth: true
+
+                                connected: root._connected
+                                canRun: StageBridge.pathCanRun
+                                moving: root._moving
+                                hint: StageBridge.pathHint
+                                posX: StageBridge.posX
+                                posY: StageBridge.posY
+                                targetX: root._targetX
+                                targetY: root._targetY
+                                wsXMin: StageBridge.wsXMin
+                                wsYMin: StageBridge.wsYMin
+                                wsXMax: StageBridge.wsXMax
+                                wsYMax: StageBridge.wsYMax
+                                gridRows: StageBridge.gridRows
+                                gridCols: StageBridge.gridCols
+                                paths: StageBridge.paths
+                                previewPoints: StageBridge.previewPoints
+                                selectedPath: StageBridge.selectedPath
+                                pathState: StageBridge.pathState
+                                pathDone: StageBridge.pathDone
+                                pathTotal: StageBridge.pathTotal
+                                abortReason: StageBridge.pathAbortReason
+                                estimateS: StageBridge.pathEstimateS
+                                recording: StageBridge.recording
+                                recordCount: StageBridge.recordCount
+
+                                // 点选：只把**比例**交给桥，mm 由 snapToGrid 算
+                                // （换算只在 stage_traj.snap_to_cell 里做一次）
+                                onGridClicked: function (fx, fy) {
+                                    var mm = StageBridge.snapToGrid(fx, fy)
+                                    if (StageBridge.moveTo(mm[0], mm[1])) {
+                                        root._targetX = mm[0]
+                                        root._targetY = mm[1]
+                                    }
+                                }
+                                onGridChanged: function (rows, cols) {
+                                    StageBridge.setGrid(rows, cols)
+                                }
+                                onSaveRequested: function (name, kind, paramsJson, rpm, acc) {
+                                    StageBridge.savePath(name, kind, paramsJson, rpm, acc)
+                                }
+                                onSelectRequested: function (index) {
+                                    StageBridge.selectPath(index)
+                                }
+                                onDeleteRequested: function (index) {
+                                    StageBridge.deletePath(index)
+                                }
+                                onRunRequested: function (index) {
+                                    if (StageBridge.runPath(index)) {
+                                        // 目标叉收掉：轨迹自己的落点由预览折线表达，
+                                        // 再画一个叉会和"当前在走哪一段"混淆
+                                        root._targetX = NaN
+                                        root._targetY = NaN
+                                    }
+                                }
+                                onPauseRequested: StageBridge.pausePath()
+                                onResumeRequested: StageBridge.resumePath()
+                                onStopRequested: StageBridge.stopPath()
+                                onRecordStartRequested: StageBridge.startRecording()
+                                onRecordStopRequested: function (name) {
+                                    StageBridge.stopRecording(name)
+                                }
+                                onRecordCancelRequested: StageBridge.cancelRecording()
+                            }
+
                             // ── 高级：公用协议显示框（预设位置已搬去左列）──────
                             FoldHeader {
                                 id: advHeader

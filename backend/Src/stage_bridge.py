@@ -209,6 +209,14 @@ class StageBridge(QObject):
     # ── 轨迹与网格（网格点选 / 图形轨迹 / 录制重放）─────────
     pathsChanged = Signal()           # 轨迹列表变了（增删改名/内容变）
     pathChanged = Signal()            # 运行状态/进度/中止原因变了
+    # ⚠ 单独一个"能不能跑"的信号，**不能复用 pathChanged**：
+    #   pathCanRun/pathHint 依赖 connected/datum/travelSet/moving/recording，
+    #   而这些都不发 pathChanged —— 曾经因此出现"平台已连上、底部却一直写着
+    #   『未连接平台』"（因为那个 Property 从加载后再没重新求值过，正是本项目
+    #   第 6 条坑的镜像：Property 的 notify 太窄 = 界面永远停在第一次的值）。
+    #   反过来也不该把 pathChanged 绑到遥测上：那会让 previewPoints（要重算
+    #   整条轨迹的落点）跟着 1~8Hz 的遥测反复重算。
+    pathEnableChanged = Signal()
     recordChanged = Signal()          # 录制开关或已录点数变了
     gridChanged = Signal()            # 网格分辨率变了
 
@@ -304,6 +312,10 @@ class StageBridge(QObject):
             arm_dwell=self._arm_dwell)
         self._runner.on_state = self._on_path_state
         self._runner.on_progress = self._on_path_progress
+        # "能不能跑"跟随这几个信号一起刷新（见 pathEnableChanged 的注释）
+        for _sig in (self.telemetryChanged, self.connectedChanged,
+                     self.movingChanged, self.recordChanged, self.pathChanged):
+            _sig.connect(self.pathEnableChanged.emit)
 
         # ── 状态位 ──────────────────────────────────────
         self._connecting = False
@@ -1822,7 +1834,7 @@ class StageBridge(QObject):
                 and not self._runner.busy and not self._moving
                 and not self._recording)
 
-    pathCanRun = Property(bool, _get_path_can_run, notify=pathChanged)
+    pathCanRun = Property(bool, _get_path_can_run, notify=pathEnableChanged)
 
     def _get_path_hint(self) -> str:
         if not self.connected:
@@ -1839,7 +1851,7 @@ class StageBridge(QObject):
             return self.tr("台面还在动 —— 等它停稳再开始轨迹")
         return ""
 
-    pathHint = Property(str, _get_path_hint, notify=pathChanged)
+    pathHint = Property(str, _get_path_hint, notify=pathEnableChanged)
 
     def _path_send_move(self, x: float, y: float) -> bool:
         """序列器发一段（**不录制**，并用轨迹自己的速度）。

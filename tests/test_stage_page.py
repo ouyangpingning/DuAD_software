@@ -55,6 +55,26 @@ from test_stage_bridge import TOKEN, FakeBoardServer                 # noqa: E40
 DEG_PER_MM = 11.25
 
 
+def find_visual(host, name):
+    """按 objectName 在**可视树**里找控件。
+
+    ⚠ 为什么不能只用 `page.findChild(QObject, name)`：**Repeater 生成的 delegate
+      不在 QObject 树里**（AGENTS.md「冒烟测试/通用坑」里记过这条）。所以
+      「轨迹与网格」卡里那些由 Repeater 生成的模式 chip，用 findChild 一定返回
+      None —— 看着像"页面没做这个控件"，其实是找法不对。
+      （反过来，**Repeater 自己**是普通 QObject，仍要用 findChild 找。）
+    """
+    def walk(it):
+        yield it
+        for c in it.childItems():
+            yield from walk(c)
+
+    for it in walk(host):
+        if str(it.objectName()) == name:
+            return it
+    return None
+
+
 # ============================================================
 # 被页面引用的两个桥的最小替身
 # ============================================================
@@ -994,10 +1014,17 @@ def main():
         # ⚠ 这一版**故意**允许首屏超一点：预览按 2448:2048 等比、用户点名"可以大一些"。
         #   硬保证仍然是 12a2：点动/急停/设原点这些**控件**必须落在首屏内。
         #   这里只钉"超出的量是有限的"，免得哪天悄悄长出一大截（比如折叠区没真正收起）。
+        #
+        # ⚠ 2026-10-08 重设基线：中列新增了「轨迹与网格」卡（用户要求，**默认展开**，
+        #   且明确接受"允许多滚一段"）。它是画在两张手动控制卡**下面**的，所以
+        #   12a2（点动/急停/设原点在首屏）不受影响 —— 这里只把总高的上限跟着放宽。
+        #   实测 1782/1000 ≈ 1.78 倍；留到 1.85 是给字体/DPI 差异的余量。
         _ch = float(pscroll.property("contentHeight"))
         _vh = float(pscroll.property("height"))
-        r.check("默认形态下首屏只超一点（≤ 40% 视口高）", _ch <= _vh * 1.40,
+        r.check("默认形态下首屏超出量在预期内（≤ 85% 视口高）", _ch <= _vh * 1.85,
                 f"content={_ch:.0f} view={_vh:.0f}")
+        # 顺带钉住"新卡确实在里面"，否则上面那条放宽之后，卡没渲染也照样过
+        r.check("「轨迹与网格」卡在页面里", find("trajGridCard") is not None)
         page.setProperty("_advExpanded", True)
         r.pump(0.4)
         r.check("展开「高级」后整页可以滚（里面是预设位置与协议框）",
@@ -1228,6 +1255,157 @@ def main():
                      f"text={it.property('text')!r})")
     r.check("页面上没有'没写 background 的默认样式按钮'（已主题化/已放行 %d 个）" % themed,
             not stock, "；".join(sorted(set(stock))))
+
+    print("=== 12g) 轨迹与网格卡：点选 / 画图 / 存为轨迹 / 执行 / 录制 ===")
+    # 这一节走的是**真的 StageBridge + 假板子**：所以"点了没反应"这类问题
+    # （信号没接上、参数拼错、槽签名不匹配）在这里就会露出来。
+    tcard = find("trajGridCard")
+    r.check("12g) 卡在页面里", tcard is not None)
+    if tcard is not None:
+        # ── 结构 ──
+        grep_rep = page.findChild(QObject, "trajGridLines")
+        r.check("12g) 网格线数量 = 列数-1（说明真的按 gridCols 画了）",
+                grep_rep is not None
+                and int(grep_rep.property("count")) == int(stage.gridCols) - 1,
+                f"{grep_rep.property('count') if grep_rep else None} "
+                f"vs {int(stage.gridCols) - 1}")
+        r.check("12g) 默认是点选模式", str(tcard.property("mode")) == "select",
+                str(tcard.property("mode")))
+
+        # ── 位置：必须在两张手动控制卡**下面** ──
+        # 这条是 12a 基线放宽（首屏超出量 ≤1.85 倍）的正当理由：
+        # 卡往下长，顶出去的只是它自己，不会把「点动/急停/设原点」挤出首屏。
+        _jog = find("jogPanel")
+        if _jog is not None:
+            _y_card = tcard.mapToItem(page, QPointF(0, 0)).y()
+            _y_jog = _jog.mapToItem(page, QPointF(0, 0)).y()
+            r.check("12g) 卡在手动控制卡下方（不挤占首屏操作区）",
+                    _y_card > _y_jog, f"card_y={_y_card:.0f} jog_y={_y_jog:.0f}")
+
+        # ── 几何：网格场比例 + 不许溢出 ──
+        _fld = find("trajField")
+        _mb = find("trajMap")
+        r.check("12g) 网格场保持工作区比例（360×360 → 正方形）",
+                _fld is not None and _mb is not None
+                and abs(float(_fld.property("width")) - float(_fld.property("height"))) < 1.0,
+                f"{_fld.property('width') if _fld else None}×"
+                f"{_fld.property('height') if _fld else None}")
+        r.check("12g) 场不超出网格框（不会画到卡外）",
+                _fld is not None and _mb is not None
+                and float(_fld.property("width")) <= float(_mb.property("width")) + 1
+                and float(_fld.property("height")) <= float(_mb.property("height")) + 1)
+
+        # ⚠ 下面这条守卫是**渲染图抓出来的**：原来把成对的 InputRow 并排放在右列，
+        #   它们的最小宽度加起来超过右列 → 把 RowLayout 顶宽 → 模式 chips 第三列
+        #   被挤出卡片右边。断言量不到"溢出"，只有看图才发现，所以补一条几何守卫。
+        def _walk_items(it):
+            yield it
+            for c in it.childItems():
+                yield from _walk_items(c)
+
+        _chips = [it for it in _walk_items(page)
+                  if str(it.objectName()).startswith("modeChip_")]
+        _card_w = float(tcard.property("width"))
+        _worst = 0.0
+        for _c in _chips:
+            _worst = max(_worst,
+                         _c.mapToItem(tcard, QPointF(float(_c.property("width")), 0)).x())
+        r.check("12g) 5 个模式 chip 全部落在卡片内（不被右边界挤出去）",
+                len(_chips) == 5 and _worst <= _card_w - 10,
+                f"最右 {_worst:.0f} / 卡宽 {_card_w:.0f}，找到 {len(_chips)} 个")
+
+        # ── 点选：卡发 gridClicked(比例) → 页面用 snapToGrid 换算 → 真的下发 move ──
+        # ⚠ 这里**emit 信号**而不是 QTest.mouseClick：坐标换算（比例→mm）在
+        #   stage_traj.snap_to_cell 里已经单测过（test_stage_bridge 18b），
+        #   这一节要钉的是"信号接上了没有、换算完有没有真的发出去"。
+        r.check("12g) 台面已停稳（后面几项要求静止）",
+                r.wait_for(lambda: not stage.moving, 8))
+        server.board.commands.clear()
+        _want = stage.snapToGrid(0.5, 0.5)
+        tcard.gridClicked.emit(0.5, 0.5)
+        r.pump(0.3)
+        _mv = [c for c in server.board.commands if c.startswith("move ")]
+        _exp = "move %.3f %.3f" % (_want[0] * DEG_PER_MM, _want[1] * DEG_PER_MM)
+        r.check("12g) 点选换算出的目标真的发到了板子",
+                len(_mv) == 1 and _mv[0].startswith(_exp), f"{_mv} 期望 {_exp}")
+        r.check("12g) 目标叉落在换算出来的格心上",
+                abs(float(tcard.property("targetX")) - _want[0]) < 1e-6
+                and abs(float(tcard.property("targetY")) - _want[1]) < 1e-6,
+                f"{tcard.property('targetX')},{tcard.property('targetY')} vs {_want}")
+
+        # ── 切模式：chip 点下去要真的改状态、参数块要跟着出现 ──
+        _chip = find_visual(page, "modeChip_circle")
+        r.check("12g) 有「圆」模式 chip", _chip is not None)
+        if _chip is not None:
+            _chip.clicked.emit()
+            r.pump(0.2)
+            r.check("12g) 点 chip 能切到圆模式",
+                    str(tcard.property("mode")) == "circle", str(tcard.property("mode")))
+            _rin = find_visual(page, "circleRInput")
+            r.check("12g) 切到圆后半径输入框出现",
+                    _rin is not None and bool(_rin.property("visible")) is True)
+
+        # ── 存为轨迹：**点按钮**（这样才会走卡里的 _saveCurrent 拼 JSON 那段）──
+        _gchip = find_visual(page, "modeChip_grid")
+        if _gchip is not None:
+            _gchip.clicked.emit()
+            r.pump(0.2)
+        tcard.setProperty("saveName", "页面测试点阵")
+        tcard.setProperty("pRows", 3)
+        tcard.setProperty("pCols", 3)
+        r.pump(0.2)
+        _n0 = len(stage.paths)
+        _sbtn = page.findChild(QObject, "savePathButton")
+        r.check("12g) 有「存为轨迹」按钮", _sbtn is not None)
+        if _sbtn is not None:
+            r.check("12g) 点阵模式下按钮可用", bool(_sbtn.property("enabled")) is True)
+            _sbtn.clicked.emit()
+            r.pump(0.3)
+        r.check("12g) 存为轨迹后列表 +1", len(stage.paths) == _n0 + 1,
+                f"{_n0} → {len(stage.paths)}")
+        if len(stage.paths) > _n0:
+            _p = stage.paths[-1]
+            r.check("12g) 存下来的是 grid 且行列是界面上那两个值",
+                    _p.get("kind") == "grid"
+                    and int(_p["params"].get("rows", 0)) == 3
+                    and int(_p["params"].get("cols", 0)) == 3, str(_p))
+            r.check("12g) 3×3 点阵算得出 9 个落点",
+                    len(stage.pathPoints(len(stage.paths) - 1)) == 9,
+                    str(len(stage.pathPoints(len(stage.paths) - 1))))
+
+            # ── 选中 → 预览折线 → 执行 ──
+            stage.selectPath(len(stage.paths) - 1)
+            r.pump(0.3)
+            # ⚠ property() 拿回来的是 QJSValue（不是 Python list），
+            #   直接 len() 会 TypeError —— 必须先 toVariant()。
+            _segs = tcard.property("segs").toVariant()
+            r.check("12g) 选中后图上出现预览折线（9 个点 → 8 段）",
+                    len(_segs) == 8, f"segs={len(_segs)}")
+            r.check("12g) 台面停稳后再执行", r.wait_for(lambda: not stage.moving, 8))
+            _rbtn = page.findChild(QObject, "trajRunButton")
+            r.check("12g) 有「执行」按钮", _rbtn is not None)
+            if _rbtn is not None:
+                _rbtn.clicked.emit()
+                r.check("12g) 执行后轨迹跑完（页面→桥→序列器→假板子整条链路）",
+                        r.wait_for(lambda: stage.pathState == "done", 40),
+                        f"state={stage.pathState} {stage.pathDone}/{stage.pathTotal}")
+                r.check("12g) 进度到终点", stage.pathDone == stage.pathTotal == 9,
+                        f"{stage.pathDone}/{stage.pathTotal}")
+
+        # ── 录制按钮 ──
+        _rec = find("recordButton")
+        r.check("12g) 有录制按钮", _rec is not None)
+        if _rec is not None:
+            _rec.clicked.emit()
+            r.pump(0.3)
+            r.check("12g) 点录制真的开始录了", stage.recording is True)
+            _cancel = find("recordCancelButton")
+            r.check("12g) 录制中出现「放弃」按钮",
+                    _cancel is not None and bool(_cancel.property("visible")) is True)
+            if _cancel is not None:
+                _cancel.clicked.emit()
+                r.pump(0.3)
+                r.check("12g) 放弃后不再录制", stage.recording is False)
 
     print("=== 13) 断开 ===")
     server.board.commands.clear()
