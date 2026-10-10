@@ -71,7 +71,13 @@ Item {
     signal stopRequested()
 
     implicitWidth: 460
-    implicitHeight: body.implicitHeight + 32
+    // ── 无卡片模式（2026-10-10）：住进页面的折叠节时用 ──
+    // 只画内容，不画白卡片底、不画自己的表头（标题由页面 FoldHeader 负责）。
+    // ⚠ 与轨迹卡同一套做法：`flat` 只置透明，**绝不能写 visible** ——
+    //   内容布局是它的子项，一藏就整卡空白。
+    property bool flat: false
+
+    implicitHeight: body.implicitHeight + (root.flat ? 0 : 32)
 
     // ============================================================
     // 卡内小组件：步长选项
@@ -115,15 +121,20 @@ Item {
 
     CardSurface {
         anchors.fill: parent
+        shadowed: !root.flat
+        color: root.flat ? "transparent" : Colors.cardBg
+        borderColor: root.flat ? "transparent" : Colors.cardBorderStrong
 
         ColumnLayout {
             id: body
             objectName: "zJogBody"
             spacing: 10
             // 16（原 24）：卡收窄后的内容宽 = 224 − 32 = 192
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: root.flat ? 0 : 16 }
 
             RowLayout {
+                id: titleRow
+                visible: !root.flat
                 Layout.fillWidth: true
                 spacing: 8
 

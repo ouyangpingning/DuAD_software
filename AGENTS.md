@@ -148,8 +148,15 @@ python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图�
   ⚠⚠ `flat` 只许把底板的 `color/borderColor/shadowed` 置空，**绝不能写
   `visible: !flat`** —— `mainCol` 是底板的子项，一藏就整卡空白（渲染图抓到过）。
   默认展开（`_trajOpen: true`），想默认收起改初值即可。
-- ⚠ **台面纹理**：卡里 `plateTexture` 指向 `../../images/台面_*.jpg`（空串 = 纯色板），
+- ⚠ **这张卡与两张手动控制卡都可折叠**：`二轴手动控制`（`xyJogFold`/`xyJogBody`）+
+  `Z 轴手动控制`（`zJogFold`/`zJogBody`）也用 `FoldHeader`+`FoldBody` 包住，
+  两张面板 `flat: true` 住进去（面板自己的标题行在 flat 下不画，标题由折叠头负责——
+  别一个名字说两遍）。⚠ **默认都展开**：12a2「点动/急停/设原点必须在首屏内」
+  这条硬保证靠它成立（收起来的话那些控件 visible=False，断言会变成假通过）。
+- ⚠ **台面纹理**：卡里 `plateTexture` 指向 `../../images/台面_哑光喷砂.jpg`（空串 = 纯色板），
   图由 **`scripts/make_texture.py`** 生成（无缝、**中性灰 0.5**、四边淡出、512²、41~75KB）。
+  ⚠ 脚本一次生成三张候选（哑光喷砂/拉丝铝/磨砂玻璃），**默认只保留哑光喷砂**，
+  另两张是候选（用户 2026-10-10 已删；要换跑一次脚本再改 `plateTexture` 即可）。
   ⚠ 为什么是中性灰：台面 = 纹理 + `Colors.panelBg` 半透明覆盖，而 panelBg
   **暗色主题下是 `#2a2a2a`** —— 一张中性灰图在明/暗两套主题下都成立（近白色的图
   在暗色下会被冲成灰白）。⚠ 图要**内缩 `radius`** 放（`Image` 只能画矩形，

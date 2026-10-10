@@ -112,6 +112,9 @@ Item {
     // 「轨迹与网格」卡也能折叠（2026-10-10 用户要求，与状态/设置两节同一套做法）
     // ⚠ 默认**展开**：常用卡，用户当初明确接受"允许多滚一段"；想默认收起改成 false
     property bool _trajOpen: true
+    // 两张手动控制卡也能折叠（2026-10-10 用户要求）
+    property bool _xyJogOpen: true
+    property bool _zJogOpen: true
     property bool _xySetupOpen: false
     property bool _zSetupOpen: false
 
@@ -768,85 +771,133 @@ Item {
                                 columnSpacing: root._gap
                                 rowSpacing: root._gap
 
-                                StageJogPanel {
+                                ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 344
                                     Layout.maximumWidth: 520
-                                    // ⚠ 必须带 AlignTop：只写 AlignHCenter 时较矮的那张卡
-                                    //   会在格子里**垂直居中**，两张卡的顶边就错开了
-                                    //   （用户："这里没有顶部对齐"）
                                     Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
-                                    connected: root._connected
-                                    canMove: root._canMove
-                                    moving: root._moving
-                                    gateHint: root._gateHint
-                                    posX: StageBridge.posX
-                                    posY: StageBridge.posY
-                                    motorEnabled: StageBridge.enabled
+                                    spacing: 6
 
-                                    onEnableToggled: StageBridge.setMotorEnabled(!StageBridge.enabled)
-
-                                    onJogRequested: function (dx, dy) {
-                                        if (!StageBridge.jog(dx, dy)) return
-                                        root._targetX = StageBridge.posX + dx
-                                        root._targetY = StageBridge.posY + dy
+                                    FoldHeader {
+                                        id: xyJogFold
+                                        objectName: "xyJogFold"
+                                        Layout.fillWidth: true
+                                        title: qsTr("二轴手动控制")
+                                        expanded: root._xyJogOpen
+                                        onToggled: root._xyJogOpen = !root._xyJogOpen
                                     }
-                                    onMoveToRequested: function (x, y) {
-                                        // 先按工作区夹取再显示目标叉，和 bridge 的实际行为一致
-                                        var cx = Math.max(StageBridge.wsXMin, Math.min(StageBridge.wsXMax, x))
-                                        var cy = Math.max(StageBridge.wsYMin, Math.min(StageBridge.wsYMax, y))
-                                        if (StageBridge.moveTo(x, y)) {
-                                            root._targetX = cx
-                                            root._targetY = cy
+                                    FoldBody {
+                                        id: xyJogBody
+                                        objectName: "xyJogBody"
+                                        Layout.fillWidth: true
+                                        visible: root._xyJogOpen
+
+                                        inner: StageJogPanel {
+                                    flat: true
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: 344
+                                        Layout.maximumWidth: 520
+                                        // ⚠ 必须带 AlignTop：只写 AlignHCenter 时较矮的那张卡
+                                        //   会在格子里**垂直居中**，两张卡的顶边就错开了
+                                        //   （用户："这里没有顶部对齐"）
+                                        Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                                        connected: root._connected
+                                        canMove: root._canMove
+                                        moving: root._moving
+                                        gateHint: root._gateHint
+                                        posX: StageBridge.posX
+                                        posY: StageBridge.posY
+                                        motorEnabled: StageBridge.enabled
+
+                                        onEnableToggled: StageBridge.setMotorEnabled(!StageBridge.enabled)
+
+                                        onJogRequested: function (dx, dy) {
+                                            if (!StageBridge.jog(dx, dy)) return
+                                            root._targetX = StageBridge.posX + dx
+                                            root._targetY = StageBridge.posY + dy
+                                        }
+                                        onMoveToRequested: function (x, y) {
+                                            // 先按工作区夹取再显示目标叉，和 bridge 的实际行为一致
+                                            var cx = Math.max(StageBridge.wsXMin, Math.min(StageBridge.wsXMax, x))
+                                            var cy = Math.max(StageBridge.wsYMin, Math.min(StageBridge.wsYMax, y))
+                                            if (StageBridge.moveTo(x, y)) {
+                                                root._targetX = cx
+                                                root._targetY = cy
+                                            }
+                                        }
+                                        onStopRequested: {
+                                            StageBridge.stopNow()
+                                            root._targetX = NaN
+                                            root._targetY = NaN
+                                        }
+                                        onZeroRequested: {
+                                            StageBridge.zeroAll()
+                                            root._targetX = NaN
+                                            root._targetY = NaN
                                         }
                                     }
-                                    onStopRequested: {
-                                        StageBridge.stopNow()
-                                        root._targetX = NaN
-                                        root._targetY = NaN
-                                    }
-                                    onZeroRequested: {
-                                        StageBridge.zeroAll()
-                                        root._targetX = NaN
-                                        root._targetY = NaN
                                     }
                                 }
 
-                                ZStageJogPanel {
+                                ColumnLayout {
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 344
                                     Layout.maximumWidth: 520
                                     Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
-                                    connected: root._zConnected
-                                    moving: ZStageBridge.moving
-                                    // 点动不受基准闸限制（固件允许无基准相对点动）；桥的 canJog 与之一致
-                                    canJog: ZStageBridge.canJog
-                                    motorEnabled: ZStageBridge.enabled
-                                    onEnableToggled: ZStageBridge.setEnabled(!ZStageBridge.enabled)
-                                    // ⚠ 不传桥的 canMove：它挂 telemetryChanged，而这里想从各自带 notify
-                                    //   的属性本地算（见面板里的说明）——两者结论一致，但本地算不依赖约定
-                                    datum: ZStageBridge.datum
-                                    limitsSet: ZStageBridge.limitsSet
-                                    // 桥已经算好了"为什么点不动"（未连接/无基准/无软限位），
-                                    // 而且它是带 notify 的 Property —— 直接绑，不要在 QML 里调函数
-                                    gateHint: ZStageBridge.datumHint
-                                    posZ: ZStageBridge.z
-                                    step: ZStageBridge.step
-                                    stepChoices: ZStageBridge.stepChoices
-                                    homing: ZStageBridge.homing
-                                    // 自动回零的方向（只存上位机；板子里那个方向归「上电自动回零」）
-                                    homeDir: ZStageBridge.homeDir
+                                    spacing: 6
 
-                                    onStepPicked: function (mm) { ZStageBridge.setStep(mm) }
-                                    onJogUpRequested: ZStageBridge.jogUp(0)
-                                    onJogDownRequested: ZStageBridge.jogDown(0)
-                                    onMoveToRequested: function (mm) { ZStageBridge.moveTo(mm) }
-                                    onZeroRequested: ZStageBridge.setZero()
-                                    onHomeRequested: ZStageBridge.homeNow()
-                                    onHomeDirPicked: function (dir) { ZStageBridge.setHomeDir(dir) }
-                                    // 急停同一入口：中断回零也走它（固件 `stop all` 能打断回零，
-                                    // 而且固件侧会把 0x93 提前并重发到送达 —— 见固件 docs/使用说明 §6）
-                                    onStopRequested: ZStageBridge.stopNow()
+                                    FoldHeader {
+                                        id: zJogFold
+                                        objectName: "zJogFold"
+                                        Layout.fillWidth: true
+                                        title: qsTr("Z 轴手动控制")
+                                        expanded: root._zJogOpen
+                                        onToggled: root._zJogOpen = !root._zJogOpen
+                                    }
+                                    FoldBody {
+                                        id: zJogBody
+                                        objectName: "zJogBody"
+                                        Layout.fillWidth: true
+                                        visible: root._zJogOpen
+
+                                        inner: ZStageJogPanel {
+                                    flat: true
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: 344
+                                        Layout.maximumWidth: 520
+                                        Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                                        connected: root._zConnected
+                                        moving: ZStageBridge.moving
+                                        // 点动不受基准闸限制（固件允许无基准相对点动）；桥的 canJog 与之一致
+                                        canJog: ZStageBridge.canJog
+                                        motorEnabled: ZStageBridge.enabled
+                                        onEnableToggled: ZStageBridge.setEnabled(!ZStageBridge.enabled)
+                                        // ⚠ 不传桥的 canMove：它挂 telemetryChanged，而这里想从各自带 notify
+                                        //   的属性本地算（见面板里的说明）——两者结论一致，但本地算不依赖约定
+                                        datum: ZStageBridge.datum
+                                        limitsSet: ZStageBridge.limitsSet
+                                        // 桥已经算好了"为什么点不动"（未连接/无基准/无软限位），
+                                        // 而且它是带 notify 的 Property —— 直接绑，不要在 QML 里调函数
+                                        gateHint: ZStageBridge.datumHint
+                                        posZ: ZStageBridge.z
+                                        step: ZStageBridge.step
+                                        stepChoices: ZStageBridge.stepChoices
+                                        homing: ZStageBridge.homing
+                                        // 自动回零的方向（只存上位机；板子里那个方向归「上电自动回零」）
+                                        homeDir: ZStageBridge.homeDir
+
+                                        onStepPicked: function (mm) { ZStageBridge.setStep(mm) }
+                                        onJogUpRequested: ZStageBridge.jogUp(0)
+                                        onJogDownRequested: ZStageBridge.jogDown(0)
+                                        onMoveToRequested: function (mm) { ZStageBridge.moveTo(mm) }
+                                        onZeroRequested: ZStageBridge.setZero()
+                                        onHomeRequested: ZStageBridge.homeNow()
+                                        onHomeDirPicked: function (dir) { ZStageBridge.setHomeDir(dir) }
+                                        // 急停同一入口：中断回零也走它（固件 `stop all` 能打断回零，
+                                        // 而且固件侧会把 0x93 提前并重发到送达 —— 见固件 docs/使用说明 §6）
+                                        onStopRequested: ZStageBridge.stopNow()
+                                    }
+                                    }
                                 }
                             }
 

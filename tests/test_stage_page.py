@@ -1222,6 +1222,31 @@ def main():
             r.check("12g) 再点一次 → 展开回来", page.property("_trajOpen") is True
                     and bool(_fbody.property("visible")) is True)
 
+        # ── 两张手动控制卡也能折叠（2026-10-10 用户要求）──
+        # ⚠ 默认**展开**：12a2 那条"点动/急停/设原点必须在首屏内"的硬保证靠它成立
+        #   （收起来的话那些控件 visible=False，断言会变成假通过/假失败）。
+        for _tag, _prop, _fid, _bid in (("二轴", "_xyJogOpen", "xyJogFold", "xyJogBody"),
+                                        ("Z 轴", "_zJogOpen", "zJogFold", "zJogBody")):
+            _fh = find(_fid)
+            _fb = find(_bid)
+            r.check(f"12g) 有「{_tag}手动控制」折叠头与折叠体",
+                    _fh is not None and _fb is not None)
+            r.check(f"12g) 「{_tag}手动控制」默认展开（首屏保证靠它）",
+                    page.property(_prop) is True
+                    and _fb is not None and bool(_fb.property("visible")) is True,
+                    f"open={page.property(_prop)}")
+            if _fh is not None and _fb is not None:
+                _fh.toggled.emit()
+                r.pump(0.3)
+                r.check(f"12g) 「{_tag}手动控制」点一下收起（内容一起收）",
+                        page.property(_prop) is False
+                        and bool(_fb.property("visible")) is False)
+                _fh.toggled.emit()
+                r.pump(0.3)
+                r.check(f"12g) 「{_tag}手动控制」再点展开",
+                        page.property(_prop) is True
+                        and bool(_fb.property("visible")) is True)
+
         # ── 台面纹理（用户 2026-10-10 要求"纹理质感"）──
         # ⚠ 纹理路径写错会**静默不画**（普通 Image 不被 test_ui_theme 兜底），
         #   所以这里连"文件真的在 images/ 里"一起钉住。
