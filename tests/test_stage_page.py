@@ -1280,6 +1280,61 @@ def main():
         r.check("12g) 「平台设置」里多了轨迹转速/加减速两个滑块",
                 find("pathRpmSliderRow") is not None
                 and find("pathAccSliderRow") is not None)
+        # ── 网格模式：**实时预览点阵**（用户 2026-10-10 问"拖动没反应是不是 bug"）──
+        # 预览点由桥的 `draftPoints()` 算（复用 `_sample_params`，与保存/执行同一个），
+        # 所以"改行/列立刻看到点阵"，而且预览 = 将要执行的点。
+        _gchip2 = find_visual(page, "modeChip_grid")
+        if _gchip2 is not None:
+            _gchip2.clicked.emit()
+            r.pump(0.4)
+
+            def _field(host_name):
+                """取 InputRow 里的 TextField（改它的 text 才会触发卡里的处理）"""
+                row = find_visual(page, host_name)
+                if row is None:
+                    return None
+                for ch in row.findChildren(QObject):
+                    if "TextField" in ch.metaObject().className():
+                        return ch
+                return None
+
+            _f_r = _field("gridRowsInput")
+            _f_c = _field("gridColsInput")
+            r.check("12g) 找得到行/列输入框（预览要靠它们触发）",
+                    _f_r is not None and _f_c is not None)
+            if _f_r is not None and _f_c is not None:
+                _f_r.setProperty("text", "4")
+                r.pump(0.2)
+                _f_c.setProperty("text", "5")
+                r.pump(0.3)
+        # ⚠ 桥灌回来的 `draftPts` 是 PySide 的 **list**（QVariantList 直转），
+        #   而 QML 自己 new 出来的数组是 QJSValue —— 两种读法都要能应付
+        def _as_list(prop):
+            v = tcard.property(prop)
+            if hasattr(v, "toVariant"):
+                return v.toVariant()
+            return list(v) if v is not None else []
+
+        _dp = _as_list("draftPts")
+        r.check("12g) ★网格模式不用先保存：图上就有实时点阵（4×5 = 20 个点）",
+                len(_dp) == 20, f"draftPts={len(_dp)}")
+        r.check("12g) 实时点阵连成折线画了出来（20 点 → 19 段）",
+                len(_as_list("draftSegs")) == 19, str(len(_as_list("draftSegs"))))
+        if len(_dp) > 3:
+            r.check("12g) 点阵都在工作区内（桥采样时夹过）",
+                    all(float(stage.wsXMin) - 0.01 <= float(q[0]) <= float(stage.wsXMax) + 0.01
+                        and float(stage.wsYMin) - 0.01 <= float(q[1]) <= float(stage.wsYMax) + 0.01
+                        for q in _dp))
+
+        # ⚠ 必须切回「点选」：只有它会因单击而移动，而下面的"真点一下台面"
+        #   与锚点守卫都假定当前是点选模式（网格模式点了不动是**设计**）
+        _schip = find_visual(page, "modeChip_select")
+        if _schip is not None:
+            _schip.clicked.emit()
+            r.pump(0.3)
+        r.check("12g) 预览那一段结束后切回「点选」（后面的点击测试要靠它）",
+                str(tcard.property("mode")) == "select", str(tcard.property("mode")))
+
         r.check("12g) 卡上的轨迹速度来自桥（与手动速度**分开**的那一对）",
                 int(tcard.property("pathRpm")) == int(stage.pathRpm)
                 and int(tcard.property("pathAcc")) == int(stage.pathAcc),

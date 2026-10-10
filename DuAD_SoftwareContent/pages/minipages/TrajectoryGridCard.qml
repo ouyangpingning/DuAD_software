@@ -163,6 +163,8 @@ Item {
     signal mapPicked(real xmm, real ymm)
     // Z 条被点/拖到了某个高度（mm）
     signal zPicked(real zmm)
+    // 请求页面算一版「将要执行的点」（页面调 StageBridge.draftPoints 再灌回 draftPts）
+    signal draftRequested(string kind, string paramsJson)
     signal saveRequested(string name, string kind, string paramsJson, int rpm, int acc)
     signal selectRequested(int index)
     signal deleteRequested(int index)
@@ -210,6 +212,8 @@ Item {
     //   执行本身**不受影响**：序列器走的是桥算出来的完整点列，这里只是"别全画出来"。
     readonly property int _drawCap: 1500
     property bool drawTruncated: false
+    // 草稿（未保存）那版预览是否被画段上限截断
+    property bool draftTruncated: false
 
     function _rebuildSegs() {
         var pts = root.previewPoints
@@ -230,35 +234,47 @@ Item {
     // ⚠ 一律**从参数推导**（pCx/pCy/pR、rectA/rectB、draft），不从"上一次拖拽的
     //   起止点"推导。以前从拖拽点推导，于是"在输入框里改了半径，图上还是旧的"
     //   （用户 2026-10-10 报的）。现在拖拽只是**连续写参数**的一种方式。
-    property var draftSegs: []
-    function _touchDraft() {
+    // 桥算出来的「将要执行的点」（[[x,y],...]），预览的唯一来源
+    property var draftPts: []
+    property var draftSegs: []          // 由 draftPts 连成段（画图用）
+    function _rebuildDraftSegs() {
+        var pts = root.draftPts
         var out = []
-        var m = root.mode
-        if (m === "polyline") {
-            for (var i = 0; i + 1 < root.draft.length; i++) {
-                if (out.length >= root._drawCap) break
-                out.push([root.draft[i][0], root.draft[i][1],
-                          root.draft[i + 1][0], root.draft[i + 1][1]])
-            }
-        } else if (m === "circle" && root.pR > 0.01) {
-            // 段数与 stage_traj.sample_circle 同规：max(8, ceil(周长/段长))。
-            // 这样"图上看到的多边形感"就是执行时真实的多边形感（含最少 8 段的下限）。
-            var n = Math.max(8, Math.ceil(2 * Math.PI * root.pR / Math.max(0.2, root.pStep)))
-            if (n > root._drawCap) n = root._drawCap      // ⚠ 见 _drawCap 的注释
-            for (var k = 0; k < n; k++) {
-                var a1 = 2 * Math.PI * k / n, a2 = 2 * Math.PI * (k + 1) / n
-                out.push([root.pCx + root.pR * Math.cos(a1), root.pCy + root.pR * Math.sin(a1),
-                          root.pCx + root.pR * Math.cos(a2), root.pCy + root.pR * Math.sin(a2)])
-            }
-        } else if (m === "rect" && root.rectA && root.rectB) {
-            var x0 = Math.min(root.rectA[0], root.rectB[0]), x1 = Math.max(root.rectA[0], root.rectB[0])
-            var y0 = Math.min(root.rectA[1], root.rectB[1]), y1 = Math.max(root.rectA[1], root.rectB[1])
-            if (x1 - x0 > 0.05 && y1 - y0 > 0.05) {
-                out = [[x0, y0, x1, y0], [x1, y0, x1, y1], [x1, y1, x0, y1], [x0, y1, x0, y0]]
+        var cut = false
+        if (pts && pts.length > 1) {
+            for (var i = 0; i + 1 < pts.length; i++) {
+                if (out.length >= root._drawCap) { cut = true; break }
+                out.push([pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]])
             }
         }
         root.draftSegs = out
+        root.draftTruncated = cut
     }
+    // ⚠ 这里**不再自己算几何**：预览必须是「将要执行的那串点」—— 采样里还夹着
+    //   工作区夹取、样条平滑、按段长重采样、圆的最少 8 段下限……在 QML 里再写一份
+    //   就是「同一事实两份」（第 4 条坑），而且用户已经被这种不一致坑过一次
+    //   （「圆能画到台面外，执行时却会被夹回去」）。
+    //   现在改成：本卡只发 `draftRequested(kind, paramsJson)`，页面调
+    //   `StageBridge.draftPoints()`（复用 `_sample_params`，与保存/执行同一个），
+    //   再把结果灌回 `draftPts`。卡里仍然**不出现任何 Bridge 调用**。
+    // ⚠ 节流 40ms（≈25fps）：拖圆的半径时 `_touchDraft()` 按鼠标频率被调用，而一次
+    //   采样 + 跨语言搬运在「段长 0.2mm 的大圆」下是几千个点 —— 不节流会拖卡界面。
+    //   松手时会 `_touchDraft(true)` 强制刷新，所以最终状态一定是最新的。
+    property double _lastDraftMs: 0
+    function _touchDraft(force) {
+        var prm = root._paramsObject()
+        if (prm === null) {          // 该模式现在没有可预览的东西（如半径还是 0）
+            root.draftPts = []
+            return
+        }
+        var now = Date.now()
+        if (!force && now - root._lastDraftMs < 40) return
+        root._lastDraftMs = now
+        root.draftRequested(root.mode, JSON.stringify(prm))
+    }
+    // 页面把 `StageBridge.draftPoints()` 的结果灌回来 → 连成折线
+    onDraftPtsChanged: _rebuildDraftSegs()
+
     onModeChanged: _touchDraft()
 
     // ============================================================
@@ -793,6 +809,7 @@ Item {
                                 root._applyDrag()
                                 root.dragging = false
                                 root._syncInputs()
+                                root._touchDraft(true)   // 松手强制刷新（节流不挡最终状态）
                             }
                             onCanceled: {
                                 root.dragging = false
@@ -1065,7 +1082,7 @@ Item {
             Text {
                 objectName: "trajTruncHint"
                 Layout.fillWidth: true
-                visible: root.drawTruncated
+                visible: root.drawTruncated || root.draftTruncated
                 text: qsTr("线段太多，图上只画前 %1 段（执行时仍然走完整轨迹）").arg(root._drawCap)
                 font.pixelSize: 10
                 color: Colors.textPlaceholder
@@ -1101,7 +1118,11 @@ Item {
                 text: String(root.pRows)
                 onTextChanged: {
                     var v = parseInt(text)
-                    if (!isNaN(v) && v >= 1 && v <= 60) root.pRows = v
+                    if (!isNaN(v) && v >= 1 && v <= 60) {
+                        root.pRows = v
+                        // ⚠ 改行/列要**立刻**重算预览（用户要的就是这个）
+                        root._touchDraft()
+                    }
                 }
             }
             InputRow {
@@ -1112,7 +1133,11 @@ Item {
                 text: String(root.pCols)
                 onTextChanged: {
                     var v = parseInt(text)
-                    if (!isNaN(v) && v >= 1 && v <= 60) root.pCols = v
+                    if (!isNaN(v) && v >= 1 && v <= 60) {
+                        root.pCols = v
+                        // ⚠ 改行/列要**立刻**重算预览（用户要的就是这个）
+                        root._touchDraft()
+                    }
                 }
             }
             SwitchRow {
@@ -1121,7 +1146,10 @@ Item {
                 visible: root.mode === "grid"
                 label: qsTr("蛇形走位（省空行程）")
                 on: root.pSerpentine
-                onToggled: root.pSerpentine = on
+                onToggled: {
+                    root.pSerpentine = on
+                    root._touchDraft()      // 蛇形改了，点阵顺序跟着变
+                }
             }
             Text {
                 objectName: "gridCountHint"
@@ -1558,7 +1586,7 @@ Item {
     function _modeHint() {
         switch (root.mode) {
         case "select":   return qsTr("在台面上单击 → 相机立刻走到那一点（精度约 ±1mm；0.1mm 级精调仍用左侧十字键）")
-        case "grid":     return qsTr("生成巡检点阵：每格中心一个点。按「存为轨迹」再用「执行」跑一遍。")
+        case "grid":     return qsTr("生成巡检点阵：每格中心一个点，改行/列就能在图上实时看到。按「存为轨迹」再用「执行」跑一遍。")
         case "circle":   return qsTr("在台面上按住 = 定圆心，拖 = 定半径；也可以直接改下面的半径/圆心。")
         case "rect":     return qsTr("在台面上按住拖出两个对角；松手后可以重新拖。")
         case "polyline": return qsTr("依次单击加顶点（图上会出现圆点），勾「平滑」可走样条。")
@@ -1592,24 +1620,36 @@ Item {
     // ⚠ 传 JSON 字符串而不是 JS 对象：QML 的 JS 对象过到 Python 是嵌套的
     //   QVariantMap/QVariantList，`json.dumps` 序列化不了，得先递归转换 ——
     //   那是一类"看着能跑、偶尔炸"的坑（StageBridge.savePath 的注释里写了）。
+    // 当前模式的参数对象（**保存**与**预览**共用这一份，不许写两遍）。
+    // 该模式现在没有可保存/可预览的内容时返回 null。
+    function _paramsObject() {
+        var kind = root.mode
+        if (kind === "grid") {
+            return { rows: root.pRows, cols: root.pCols, serpentine: root.pSerpentine,
+                     x0: root.wsXMin, y0: root.wsYMin, x1: root.wsXMax, y1: root.wsYMax,
+                     step: root.pStep }
+        }
+        if (kind === "circle") {
+            if (!(root.pR > 0.5)) return null          // 半径还是 0：没有可预览的圆
+            return { cx: root.pCx, cy: root.pCy, r: root.pR, step: root.pStep }
+        }
+        if (kind === "rect") {
+            if (!root.rectA || !root.rectB) return null
+            return { x0: root.rectA[0], y0: root.rectA[1],
+                     x1: root.rectB[0], y1: root.rectB[1], step: root.pStep }
+        }
+        if (kind === "polyline") {
+            if (root.draft.length < 2) return null
+            return { points: root.draft, smooth: root.pSmooth, step: root.pStep }
+        }
+        return null
+    }
+
     function _saveCurrent() {
         var name = root.saveName.length > 0 ? root.saveName : root._autoName()
         var kind = root.mode
-        var prm = null
-        if (kind === "grid") {
-            prm = { rows: root.pRows, cols: root.pCols, serpentine: root.pSerpentine,
-                    x0: root.wsXMin, y0: root.wsYMin, x1: root.wsXMax, y1: root.wsYMax,
-                    step: root.pStep }
-        } else if (kind === "circle") {
-            prm = { cx: root.pCx, cy: root.pCy, r: root.pR, step: root.pStep }
-        } else if (kind === "rect") {
-            prm = { x0: root.rectA[0], y0: root.rectA[1],
-                    x1: root.rectB[0], y1: root.rectB[1], step: root.pStep }
-        } else if (kind === "polyline") {
-            prm = { points: root.draft, smooth: root.pSmooth, step: root.pStep }
-        } else {
-            return
-        }
+        var prm = root._paramsObject()
+        if (prm === null) return
         root.saveRequested(name, kind, JSON.stringify(prm), root.pathRpm, root.pathAcc)
     }
 

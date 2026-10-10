@@ -1658,6 +1658,31 @@ class StageBridge(QObject):
     def pathPoints(self, index: int):
         return [[round(x, 3), round(y, 3)] for x, y in self._sample_path(index)]
 
+    @Slot(str, str, result="QVariantList")
+    def draftPoints(self, kind: str, params_json: str):
+        """**还没保存**的一版轨迹 → 落点序列（供界面上实时预览）。
+
+        为什么要走桥（而不是在 QML 里自己算几何）：预览必须是"**将要执行的那串点**"，
+        而采样里还夹着工作区夹取、样条平滑、按段长重采样、圆的最少 8 段下限……
+        在 QML 里再写一份就是"同一事实两份"（本项目第 4 条坑），而且
+        用户已经被这种不一致坑过一次（"圆能画到台面外，但执行时会被夹回去"）。
+        这里直接复用 `_sample_params` —— 它也是保存/执行时走的那一个。
+
+        ⚠ 这是**纯几何**，不连板子、不下发命令、不写 QSettings，也不进录制
+        （录制守的是 `_issue_move` 那一个出口）—— 所以未连接时也能画预览。
+        ⚠ 参数走 **JSON 字符串**：QML 的 JS 对象过到 Python 是嵌套的
+        QVariantMap/QVariantList，`json.dumps` 序列化不了（与 savePath 同一套约定）。
+        """
+        import json
+        try:
+            prm = json.loads(params_json) if params_json else {}
+        except (ValueError, TypeError):
+            return []
+        if not isinstance(prm, dict):
+            return []
+        pts = self._sample_params({"kind": str(kind), "params": prm})
+        return [[round(x, 3), round(y, 3)] for x, y in pts]
+
     @Slot(int)
     def selectPath(self, index: int):
         paths = self._load_paths()

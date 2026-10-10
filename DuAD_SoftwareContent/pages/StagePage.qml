@@ -993,6 +993,17 @@ Item {
                                     onZPicked: function (zmm) {
                                         ZStageBridge.moveTo(zmm)
                                     }
+
+                                    // 未保存的一版轨迹 → 落点序列，供图上**实时预览**。
+                                    // ⚠ 走桥的 `draftPoints()`：它复用 `_sample_params`，
+                                    //   与保存/执行是**同一个**采样（含工作区夹取、样条、
+                                    //   按段长重采样）——预览因此不会撒谎。
+                                    // ⚠ 结果直接写回卡片的属性（不是绑定）：这是"卡发问、
+                                    //   页面回答"的一次往返，卡里仍然没有 Bridge 调用。
+                                    onDraftRequested: function (kind, paramsJson) {
+                                        trajCard.draftPts =
+                                            StageBridge.draftPoints(kind, paramsJson)
+                                    }
                                     onSaveRequested: function (name, kind, paramsJson, rpm, acc) {
                                         StageBridge.savePath(name, kind, paramsJson, rpm, acc)
                                     }

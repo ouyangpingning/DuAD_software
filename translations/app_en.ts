@@ -1426,8 +1426,8 @@
         <location filename="../backend/Src/stage_bridge.py" line="1381" />
         <location filename="../backend/Src/stage_bridge.py" line="1393" />
         <location filename="../backend/Src/stage_bridge.py" line="1474" />
-        <location filename="../backend/Src/stage_bridge.py" line="1835" />
-        <location filename="../backend/Src/stage_bridge.py" line="1931" />
+        <location filename="../backend/Src/stage_bridge.py" line="1860" />
+        <location filename="../backend/Src/stage_bridge.py" line="1956" />
         <source>未连接平台</source>
         <translation>Stage not connected</translation>
     </message>
@@ -1478,7 +1478,7 @@
     </message>
     <message>
         <location filename="../backend/Src/stage_bridge.py" line="600" />
-        <location filename="../backend/Src/stage_bridge.py" line="1787" />
+        <location filename="../backend/Src/stage_bridge.py" line="1812" />
         <source>未设置工作区：绝对移动会被固件拒绝</source>
         <translation>Workspace not set: absolute moves will be rejected by the firmware</translation>
     </message>
@@ -1695,13 +1695,13 @@
     <message>
         <location filename="../backend/Src/stage_bridge.py" line="1201" />
         <location filename="../backend/Src/stage_bridge.py" line="1247" />
-        <location filename="../backend/Src/stage_bridge.py" line="1845" />
+        <location filename="../backend/Src/stage_bridge.py" line="1870" />
         <source>还没有基准：先「设为原点」或自动回零</source>
         <translation>No datum yet: use Set Origin or auto-homing first</translation>
     </message>
     <message>
         <location filename="../backend/Src/stage_bridge.py" line="1204" />
-        <location filename="../backend/Src/stage_bridge.py" line="1848" />
+        <location filename="../backend/Src/stage_bridge.py" line="1873" />
         <source>还没设置工作区，绝对移动会被固件拒绝</source>
         <translation>Workspace not set - absolute moves will be rejected by the firmware</translation>
     </message>
@@ -1848,162 +1848,162 @@
         <translation>Path data is corrupted; ignored</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1679" />
+        <location filename="../backend/Src/stage_bridge.py" line="1704" />
         <source>不支持的轨迹类型：{}</source>
         <translation>Unsupported path kind: {}</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1684" />
+        <location filename="../backend/Src/stage_bridge.py" line="1709" />
         <source>轨迹参数不是合法的 JSON</source>
         <translation>Path parameters are not valid JSON</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1687" />
+        <location filename="../backend/Src/stage_bridge.py" line="1712" />
         <source>轨迹参数必须是一个对象</source>
         <translation>Path parameters must be an object</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1691" />
+        <location filename="../backend/Src/stage_bridge.py" line="1716" />
         <source>请给轨迹起个名字</source>
         <translation>Please give the path a name</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1696" />
+        <location filename="../backend/Src/stage_bridge.py" line="1721" />
         <source>这条轨迹算不出落点 —— 检查半径/区域/段长是否合理</source>
         <translation>This path yields no points — check radius / area / step</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1708" />
+        <location filename="../backend/Src/stage_bridge.py" line="1733" />
         <source>轨迹「{}」已更新（{} 段，预计 {:.0f} 秒）</source>
         <translation>Path [{}] updated ({} segments, ~{:.0f} s)</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1714" />
+        <location filename="../backend/Src/stage_bridge.py" line="1739" />
         <source>已保存轨迹「{}」（{} 段，预计 {:.0f} 秒）</source>
         <translation>Saved path [{}] ({} segments, ~{:.0f} s)</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1725" />
+        <location filename="../backend/Src/stage_bridge.py" line="1750" />
         <source>已经有同名的轨迹了</source>
         <translation>A path with that name already exists</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1742" />
+        <location filename="../backend/Src/stage_bridge.py" line="1767" />
         <source>已删除轨迹「{}」</source>
         <translation>Deleted path [{}]</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1781" />
+        <location filename="../backend/Src/stage_bridge.py" line="1806" />
         <source>未连接平台：先点上面的平台卡片连接</source>
         <translation>Stage not connected: click the stage card above to connect</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1783" />
+        <location filename="../backend/Src/stage_bridge.py" line="1808" />
         <source>正在录制中 —— 先点「结束录制」再执行轨迹</source>
         <translation>Recording in progress — click [Finish recording] before running a path</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1785" />
+        <location filename="../backend/Src/stage_bridge.py" line="1810" />
         <source>缺少基准：每次上电都要重立一次 —— 推到位后点「设为原点」</source>
         <translation>Datum missing: it must be re-established after every power-up — push to the stop, then click [Set as origin]</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1791" />
+        <location filename="../backend/Src/stage_bridge.py" line="1816" />
         <source>台面还在动 —— 等它停稳再开始轨迹</source>
         <translation>The stage is still moving — wait for it to settle before starting a path</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1838" />
+        <location filename="../backend/Src/stage_bridge.py" line="1863" />
         <source>正在录制中 —— 先结束录制再执行轨迹（否则录制里会混进轨迹自己的移动）</source>
         <translation>Recording in progress — finish recording first (otherwise the path's own moves get recorded into it)</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1842" />
+        <location filename="../backend/Src/stage_bridge.py" line="1867" />
         <source>轨迹已经在跑了 —— 要打断按「停止」</source>
         <translation>A path is already running — press [Stop] to interrupt</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1851" />
+        <location filename="../backend/Src/stage_bridge.py" line="1876" />
         <source>台面还在动 —— 等它停稳再开始轨迹（否则第一段的增量会从运动中的瞬时位置算出来）</source>
         <translation>The stage is still moving — wait for it to settle (otherwise the first segment's delta is computed from a moving position)</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1857" />
+        <location filename="../backend/Src/stage_bridge.py" line="1882" />
         <source>轨迹不存在</source>
         <translation>Path not found</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1862" />
+        <location filename="../backend/Src/stage_bridge.py" line="1887" />
         <source>这条轨迹算不出落点 —— 打开它检查参数</source>
         <translation>This path yields no points — open it and check the parameters</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1896" />
+        <location filename="../backend/Src/stage_bridge.py" line="1921" />
         <source>用户停止</source>
         <translation>stopped by user</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1934" />
+        <location filename="../backend/Src/stage_bridge.py" line="1959" />
         <source>轨迹正在运行 —— 先停下来再开始录制</source>
         <translation>A path is running — stop it before recording</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1942" />
+        <location filename="../backend/Src/stage_bridge.py" line="1967" />
         <source>开始录制：之后的十字点动 / 绝对定位 / 网格点选 / 预设前往都会被记下来</source>
         <translation>Recording started: jog / absolute moves / grid clicks / preset jumps are all captured</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1952" />
+        <location filename="../backend/Src/stage_bridge.py" line="1977" />
         <source>已放弃这次录制</source>
         <translation>Recording discarded</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1966" />
+        <location filename="../backend/Src/stage_bridge.py" line="1991" />
         <source>这次录制只记到了不到两个不同的位置，没有存成轨迹</source>
         <translation>This recording captured fewer than two distinct positions; nothing was saved</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1972" />
+        <location filename="../backend/Src/stage_bridge.py" line="1997" />
         <source>录制</source>
         <translation>Record</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1983" />
+        <location filename="../backend/Src/stage_bridge.py" line="2008" />
         <source>录制已更新轨迹「{}」（原始 {} 点 → 压缩成 {} 段）</source>
         <translation>Recording updated path [{}] ({} raw points -&gt; {} segments)</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="1989" />
+        <location filename="../backend/Src/stage_bridge.py" line="2014" />
         <source>录制已存成轨迹「{}」（原始 {} 点 → 压缩成 {} 段）</source>
         <translation>Recording saved as path [{}] ({} raw points -&gt; {} segments)</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="2005" />
+        <location filename="../backend/Src/stage_bridge.py" line="2030" />
         <source>预设位置数据损坏，已忽略</source>
         <translation>The preset-position data was corrupt and has been ignored</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="2022" />
+        <location filename="../backend/Src/stage_bridge.py" line="2047" />
         <source>请给预设起个名字</source>
         <translation>Give the preset a name</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="2029" />
+        <location filename="../backend/Src/stage_bridge.py" line="2054" />
         <source>预设「{}」已更新为 ({:.2f}, {:.2f}) mm</source>
         <translation>Preset "{}" updated to ({:.2f}, {:.2f}) mm</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="2033" />
+        <location filename="../backend/Src/stage_bridge.py" line="2058" />
         <source>已记录预设「{}」= ({:.2f}, {:.2f}) mm</source>
         <translation>Preset "{}" saved = ({:.2f}, {:.2f}) mm</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="2043" />
+        <location filename="../backend/Src/stage_bridge.py" line="2068" />
         <source>已删除预设「{}」</source>
         <translation>Preset "{}" deleted</translation>
     </message>
     <message>
-        <location filename="../backend/Src/stage_bridge.py" line="2050" />
+        <location filename="../backend/Src/stage_bridge.py" line="2075" />
         <source>预设不存在</source>
         <translation>The preset does not exist</translation>
     </message>
@@ -2077,57 +2077,57 @@
 <context>
     <name>StageJogPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="97" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="108" />
         <source>二轴手动控制</source>
         <translation>2-Axis Manual Control</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="114" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="125" />
         <source>步长</source>
         <translation>Step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="177" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="188" />
         <source>失能</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="177" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="188" />
         <source>使能</source>
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="185" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="196" />
         <source>当前【已使能】（按钮淡红）：闭环抱住台面、带电。点它 = 失能：松掉电机，可以用手推台面调机械；但台面被推动后基准就废了，要重新「设为原点」。</source>
         <translation>Currently ENABLED (button is light red): the closed loop holds the stage and it is powered. Click = Disable: let the motors go so you can push the stage by hand to adjust mechanics; but once pushed the datum is gone — set the origin again.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="188" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="199" />
         <source>当前【未使能】（按钮淡绿）：电机松着，可以手推台面。点它 = 使能：闭环抱住台面、顶住外力。注意「设为原点」和任何运动命令都会自动重新使能。</source>
         <translation>Currently DISABLED (button is light green): the motors are let go, you can push the stage by hand. Click = Enable: the closed loop holds the stage and resists external force. Note that “Set origin” and every motion command re-enable the motors.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="208" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="219" />
         <source>把当前位置当作 0 点（立基准）。先把滑座推到靠块/硬限位贴实再点它，每次上电都要重立一次。</source>
         <translation>Treat the current position as 0 (establish the datum). Push the carriage against its hard stop first; it must be redone after every power-up.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="200" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="211" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="228" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="239" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="250" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="261" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="286" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/StageJogPanel.qml" line="297" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
@@ -2135,157 +2135,167 @@
 <context>
     <name>StagePage</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="134" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="137" />
         <source>未连接平台：先点上面的平台卡片连接</source>
         <translation>Stage not connected: click the stage card above to connect</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="599" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1166" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="602" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1228" />
         <source>待设置</source>
         <translation>Not set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="420" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="998" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="423" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1060" />
         <source>已使能</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="138" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="141" />
         <source>缺少基准：每次上电都要重立一次 —— 先把滑座推到靠块/硬限位贴实，再点「设为原点」</source>
         <translation>No datum yet: it must be re-established after every power-up — push the carriage against its hard stop/fixture, then click “Set origin”</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="420" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="998" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="423" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1060" />
         <source>未使能</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="422" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1000" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="425" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1062" />
         <source>已立基准</source>
         <translation>Datum set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="422" />
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1000" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="425" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1062" />
         <source>无基准</source>
         <translation>No datum</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="424" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="427" />
         <source>行程已设</source>
         <translation>Travel set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="424" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="427" />
         <source>行程未设</source>
         <translation>Travel not set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="497" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="500" />
         <source>还没配置板子地址 —— 点这里展开下方「平台设置」填入，板子 USB 控制台敲 net 会打印这三个值</source>
         <translation>Board address not configured — click here to open “Stage Setup” below and fill it in; typing net in the board's USB console prints these three values</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="749" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="752" />
         <source>⚠ 预览没能启动：相机采集没有起来。请到「相机设置」确认相机已连上且没被别的页面占着；大分辨率下也可能是系统 usbfs 缓冲太小（终端跑 bash scripts/set_usbfs.sh 后重启程序）。</source>
         <translation>⚠ Preview did not start: camera capture never came up. Check “Camera Settings” that the camera is connected and not held by another page; at high resolution the system usbfs buffer may also be too small (run bash scripts/set_usbfs.sh in a terminal, then restart the app).</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1005" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1067" />
         <source>Z 轴升降平台</source>
         <translation>Z-Axis Lift Stage</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="536" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="539" />
         <source>二轴相机平台状态</source>
         <translation>2-Axis Camera Stage Status</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1134" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1196" />
         <source>Z 轴升降平台状态</source>
         <translation>Z-Axis Lift Stage Status</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1006" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1068" />
         <source>正在连接 Z 轴平台...</source>
         <translation>Connecting to the Z-axis stage...</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1002" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1064" />
         <source>软限位已设</source>
         <translation>Limits set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1002" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1064" />
         <source>软限位未设</source>
         <translation>Limits not set</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="139" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="142" />
         <source>未设置工作区：展开左侧「二轴相机平台设置」填写台面行程（固件不设行程就拒绝一切绝对移动）</source>
         <translation>Workspace not set: open “XY Stage Setup” on the left and enter the table travel (the firmware rejects all absolute moves until then)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="597" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="600" />
         <source>二轴相机平台设置</source>
         <translation>2-Axis Camera Stage Setup</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="694" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="697" />
         <source>实时预览</source>
         <translation>Live preview</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="700" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="703" />
         <source>↑+Y 向里   →+X 向右</source>
         <translation>↑+Y inward   →+X right</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="708" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="711" />
         <source>相机未连接</source>
         <translation>Camera not connected</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="738" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="741" />
         <source>相机未连接 —— 预览需要先在「相机设置」里连上相机</source>
         <translation>Camera not connected — connect it in “Camera” first</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="740" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="743" />
         <source>正在等待画面…</source>
         <translation>Waiting for frames…</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="741" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="744" />
         <source>预览已关闭（打开右上角开关即可）</source>
         <translation>Preview off (use the switch at top right)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="866" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="785" />
+        <source>二轴手动控制</source>
+        <translation>2-Axis Manual Control</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="853" />
+        <source>Z 轴手动控制</source>
+        <translation>Z-Axis Manual Control</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="917" />
         <source>轨迹与网格</source>
         <translation>Paths &amp; grid</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="867" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="918" />
         <source>录制中</source>
         <translation>Recording</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1063" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1125" />
         <source>还没配置 Z 轴板子的地址 —— 点这里展开下方「Z 轴设置」填入，在 Z 轴板子的 USB 控制台上敲 net 就能看到这三个值</source>
         <translation>Z-axis board address not configured yet — click here to open “Z-axis Setup” below and fill it in; type net in the Z-axis board's USB console to see these three values</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1102" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1164" />
         <source>处置：先点「停止」（急停会同时清掉故障锁存），再把平台推到靠块重新「设为原点」。</source>
         <translation>Fix: press “Stop” first (e-stop also clears the latched fault), then push the stage against its hard stop and set the origin again.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1164" />
+        <location filename="../DuAD_SoftwareContent/pages/StagePage.qml" line="1226" />
         <source>Z 轴升降平台设置</source>
         <translation>Z-Axis Lift Stage Setup</translation>
     </message>
@@ -2449,252 +2459,252 @@
 <context>
     <name>TrajectoryGridCard</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="539" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="555" />
         <source>轨迹与网格</source>
         <translation>Paths &amp; grid</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="576" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="592" />
         <source>结束录制（%1 点）</source>
         <translation>Finish recording (%1 pts)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="577" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1575" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="593" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1603" />
         <source>录制</source>
         <translation>Record</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="595" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="611" />
         <source>放弃</source>
         <translation>Discard</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="817" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="834" />
         <source>台面正在动</source>
         <translation>the table is moving</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="563" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="579" />
         <source>● 正在记录移动（%1 点）</source>
         <translation>● Recording motion (%1 points)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="817" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="834" />
         <source>先连接平台</source>
         <translation>Connect the stage first</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="977" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="994" />
         <source>Z --</source>
         <translation>Z --</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1010" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1027" />
         <source>点或拖到某个高度 → Z 轴走到那里（松手才下发）</source>
         <translation>Click or drag to a height -&gt; the Z axis moves there (issued on release)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1012" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1029" />
         <source>Z 轴现在动不了：需要先连接、立基准、设软限位</source>
         <translation>The Z axis cannot move now: connect it, set the datum and the soft limits first</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1028" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1045" />
         <source>点选</source>
         <translation>Pick</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1029" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1046" />
         <source>网格</source>
         <translation>Grid</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1030" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1572" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1047" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1600" />
         <source>圆</source>
         <translation>Circle</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1031" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1573" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1048" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1601" />
         <source>矩形</source>
         <translation>Rect</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1032" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1574" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1049" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1602" />
         <source>多段线</source>
         <translation>Polyline</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1069" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1086" />
         <source>线段太多，图上只画前 %1 段（执行时仍然走完整轨迹）</source>
         <translation>Too many segments; only the first %1 are drawn (running still follows the full path)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1084" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1101" />
         <source>段长 mm</source>
         <translation>Step mm</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1100" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1117" />
         <source>行</source>
         <translation>Rows</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1111" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1132" />
         <source>列</source>
         <translation>Cols</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1122" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1147" />
         <source>蛇形走位（省空行程）</source>
         <translation>Serpentine (saves travel)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1130" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1158" />
         <source>共 %1 个巡检点（每格中心一个）</source>
         <translation>%1 inspection points in total (one per cell center)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1148" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1176" />
         <source>半径 mm</source>
         <translation>Radius mm</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1165" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1193" />
         <source>圆心 X</source>
         <translation>Center X</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1180" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1208" />
         <source>圆心 Y</source>
         <translation>Center Y</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1197" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1225" />
         <source>区域：(%1, %2) → (%3, %4) mm</source>
         <translation>Area: (%1, %2) -&gt; (%3, %4) mm</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1200" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1228" />
         <source>在台面上按住拖出两个对角即可。</source>
         <translation>Press and drag two opposite corners on the stage.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1211" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1239" />
         <source>平滑（过点样条）</source>
         <translation>Smooth (through-point spline)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1295" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1323" />
         <source>还没有轨迹。选一个模式在上面画出来，或者点右下角「录制」把手动移动记成一条。</source>
         <translation>No paths yet. Draw one with a mode above, or click [Record] at the bottom right to capture manual motion as a path.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1560" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1588" />
         <source>在台面上单击 → 相机立刻走到那一点（精度约 ±1mm；0.1mm 级精调仍用左侧十字键）</source>
         <translation>Click the stage -&gt; the camera moves to that point at once (about ±1 mm; use the jog pad on the left for 0.1 mm fine work)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1562" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1589" />
+        <source>生成巡检点阵：每格中心一个点，改行/列就能在图上实时看到。按「存为轨迹」再用「执行」跑一遍。</source>
+        <translation>Generate an inspection point grid: one point per cell center — it updates on the map as you change rows/columns. Click [Save as path], then [Run].</translation>
+    </message>
+    <message>
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1590" />
         <source>在台面上按住 = 定圆心，拖 = 定半径；也可以直接改下面的半径/圆心。</source>
         <translation>Press on the stage to set the center, drag to set the radius; you can also edit the radius/center below.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1563" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1591" />
         <source>在台面上按住拖出两个对角；松手后可以重新拖。</source>
         <translation>Press and drag two opposite corners on the stage; drag again after releasing to redo.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1564" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1592" />
         <source>依次单击加顶点（图上会出现圆点），勾「平滑」可走样条。</source>
         <translation>Click to add vertices one by one (dots appear on the map); tick [Smooth] to follow a spline.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1236" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1264" />
         <source>名称</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1247" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1275" />
         <source>存为轨迹</source>
         <translation>Save as path</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1259" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1287" />
         <source>重画</source>
         <translation>Redraw</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="587" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="603" />
         <source>记录**移动**：点选 / 十字点动 / 绝对定位 / 预设前往 都会被记下来，之后可以原样重放。圆、矩形、多段线是用「存为轨迹」画出来的（它们不移动台面），所以录制对它们没有内容可记。</source>
         <translation>Records **motion**: clicking the stage, jog-pad moves, absolute moves and preset moves are all captured and can be replayed. Circles, rectangles and polylines are drawn with [Save as path] and do not move the stage, so recording captures nothing for them.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1273" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1301" />
         <source>已存轨迹</source>
         <translation>Saved paths</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1279" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1307" />
         <source>条</source>
         <translation>items</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1286" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1314" />
         <source>只列出前 10 条 —— 先删掉不用的</source>
         <translation>Only the first 10 are listed — delete the ones you no longer need</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1356" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1433" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1384" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1461" />
         <source>执行</source>
         <translation>Run</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1365" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1393" />
         <source>删除</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1412" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1440" />
         <source>段</source>
         <translation>segs</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1413" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1441" />
         <source>未运行</source>
         <translation>Not running</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1422" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1450" />
         <source>约 %1 秒</source>
         <translation>~%1 s</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1443" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1471" />
         <source>继续</source>
         <translation>Resume</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1443" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1471" />
         <source>暂停</source>
         <translation>Pause</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1456" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1484" />
         <source>停止轨迹</source>
         <translation>Stop path</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1561" />
-        <source>生成巡检点阵：每格中心一个点。按「存为轨迹」再用「执行」跑一遍。</source>
-        <translation>Generate an inspection point grid: one point per cell center. Click [Save as path], then [Run].</translation>
-    </message>
-    <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1571" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/TrajectoryGridCard.qml" line="1599" />
         <source>点阵</source>
         <translation>Point grid</translation>
     </message>
@@ -3204,99 +3214,99 @@
 <context>
     <name>ZStageJogPanel</name>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="142" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="153" />
         <source>Z 轴手动控制</source>
         <translation>Z-Axis Manual Control</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="162" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="173" />
         <source>步长</source>
         <translation>Step</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="113" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="184" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="119" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="195" />
         <source>向上</source>
         <translation>Up</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="113" />
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="201" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="119" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="212" />
         <source>向下</source>
         <translation>Down</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="263" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="274" />
         <source>失能</source>
         <translation>Disable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="263" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="274" />
         <source>使能</source>
         <translation>Enable</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="271" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="282" />
         <source>设为原点</source>
         <translation>Set origin</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="255" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="266" />
         <source>当前【已使能】：闭环抱住平台、带电（按钮是淡红）。点它 = 失能：电机完全不出力，可以用手推平台去靠块（丝杠自锁，平台不会掉）。急停与它的分工：急停是刹车且保持使能。</source>
         <translation>Currently ENABLED: the closed loop holds the platform and it is powered (button is light red). Click = Disable: the motors output no torque at all, so you can push the platform against its stop by hand (the lead screws are self-locking, the platform won't drop). Stop vs disable: stop brakes but keeps the loop enabled.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="258" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="269" />
         <source>当前【未使能】：电机不出力，可以手推平台（按钮是淡绿）。点它 = 使能：闭环抱住平台，顶住外力（失能时被推动坐标系就废了）。</source>
         <translation>Currently DISABLED: the motors output no torque, you can push the platform by hand (button is light green). Click = Enable: the closed loop holds the platform against external force (if pushed while disabled, the coordinate frame is ruined).</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="279" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="290" />
         <source>把当前位置当作 Z=0（立基准）。先把平台推到靠块/机械死点贴实再点它 —— 这是主线的立基准方式，每次上电都要重立一次。</source>
         <translation>Treat the current position as Z=0 (establish the datum). Push the stage against its hard stop first — this is the mainline way; it must be redone after every power-up.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="295" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="306" />
         <source>停止</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="318" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="329" />
         <source>绝对定位</source>
         <translation>Absolute move</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="330" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="341" />
         <source>目标 (mm)</source>
         <translation>Target (mm)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="343" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="354" />
         <source>移动到该位置</source>
         <translation>Move to this position</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="361" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="372" />
         <source>回零方向</source>
         <translation>Homing direction</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="380" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="391" />
         <source>自动回零（可选）</source>
         <translation>Auto Home (optional)</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="385" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="396" />
         <source>驱动器让两个电机同时朝下顶死点、按相电流判「顶住了」。它要求两侧丝杠同时顶到各自的死点，否则会把平台拧歪 —— 主线做法是「推到靠块 → 设为原点」。</source>
         <translation>The drivers push both motors down into their hard stops and detect “stalled” by phase current. Both screws must reach their stops together, otherwise the stage twists — the mainline way is “push against the stop → Set origin”.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="388" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="399" />
         <source>方向由上面那对按钮选（向下 = 往底座死点，重力帮忙、撞不坏）。回零中随时能按「停止」打断。</source>
         <translation>The direction is chosen by the pair of buttons above (Down = toward the base hard stop, where gravity helps and nothing gets damaged). You can interrupt homing at any time with “Stop”.</translation>
     </message>
     <message>
-        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="399" />
+        <location filename="../DuAD_SoftwareContent/pages/minipages/ZStageJogPanel.qml" line="410" />
         <source>中断回零</source>
         <translation>Abort homing</translation>
     </message>
