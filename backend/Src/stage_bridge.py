@@ -29,12 +29,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+import math
+from typing import Any, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import (QCoreApplication, QObject, QSettings, QThread, QTimer,
                             Property, Signal, Slot)
 from PySide6.QtNetwork import QAbstractSocket, QTcpSocket
 
+from Src import stage_traj
 from Src.proto_log import ProtoLog
 
 # ── 机械换算（GT2-16 齿带轮，每圈 32mm）────────────────────────────
@@ -125,6 +127,35 @@ OLD_DEFAULT_ACC = 100
 DEFAULT_WS = 360
 OLD_DEFAULT_WS = 300
 
+# ── 轨迹与网格（网格点选 / 圆 / 矩形 / 多段线 / 录制重放）────────────
+# 走轨迹时的轮询节奏。**必须**比 POLL_MOVING_MS 快：
+# 序列器是"等板子报到位 → 立刻发下一段"，而两段之间那**一帧遥测的延迟会
+# 乘上段数**变成总时长 —— 63 段的圆，每段多等 200ms 就是凭空多出 12 秒。
+# 板子那边一条 json 要读好几个驱动器寄存器（docs/17 §4.3 记的"双轴 10Hz
+# 余量充足"），120ms 是安全且明显更快的取值。
+PATH_POLL_MS = 120
+
+# 网格点选/吸附的分辨率（行×列）。默认 20×20 = 360mm 工作区上 18mm 一格，
+# 屏幕上（约 380px 的网格图）约 19px 一格 —— 既看得出格子、又点得准。
+# ⚠ 现实上限约 40×40：再密的话格线在屏幕上不足 10px，"看清再点"就不成立了
+# （真要更细只能靠吸附：点最近格心，见 stage_traj.snap_to_cell）。
+GRID_DEFAULT_ROWS = 20
+GRID_DEFAULT_COLS = 20
+GRID_MAX = 60
+
+# 轨迹的"每段额外开销"**估计**（秒），只用于界面显示预计耗时。
+# 它包含：json 轮询拿到"已到位"的延迟 + 固件 100ms 的 state_tick 收尾 +
+# 指令往返。⚠ 这是估计值，真机跑一条轨迹后按实测校正（docs/17 记了做法）。
+PATH_SEG_OVERHEAD_S = 0.22
+
+# 轨迹起点"就在脚下"时的跳过阈值（mm）。省掉一次"移动到原地"——
+# 那一次要白白等一个完整的到位周期（0.2~0.3 秒），而且毫无意义。
+PATH_SKIP_START_MM = 0.3
+
+# 录制轨迹抽稀的弦高容差（mm）。0.2mm 对 0.1mm 步长的精细操作是能看出来的，
+# 所以别再放大 —— 放大就等于"重放时走的和我当初走的不是同一条路"。
+REC_SIMPLIFY_TOL_MM = 0.2
+
 
 def _fnum(value: Any, fallback: float = 0.0) -> float:
     """把 JSON 里的值安全地转成 float（板子偶尔会回 null/字符串）。"""
@@ -174,6 +205,12 @@ class StageBridge(QObject):
 
     # ── 预设 ──────────────────────────────────────────────
     presetsChanged = Signal()
+
+    # ── 轨迹与网格（网格点选 / 图形轨迹 / 录制重放）─────────
+    pathsChanged = Signal()           # 轨迹列表变了（增删改名/内容变）
+    pathChanged = Signal()            # 运行状态/进度/中止原因变了
+    recordChanged = Signal()          # 录制开关或已录点数变了
+    gridChanged = Signal()            # 网格分辨率变了
 
     # ── 协议显示框（与 Z 轴那块共用同一个框，见 proto_hub.py）──
     protoChanged = Signal()
@@ -237,6 +274,36 @@ class StageBridge(QObject):
                 self._last_park = None
         self._park_check_pending = False
         self._park_failed = False
+
+        # ── 轨迹与网格（2026-10-08）─────────────────────────
+        # 网格分辨率、轨迹列表都存 QSettings（与预设同一套路）。
+        self._grid_rows = _inum(self._settings.value("stage/grid_rows", GRID_DEFAULT_ROWS),
+                                GRID_DEFAULT_ROWS)
+        self._grid_cols = _inum(self._settings.value("stage/grid_cols", GRID_DEFAULT_COLS),
+                                GRID_DEFAULT_COLS)
+        self._selected_path = -1
+        # 遥测帧序号：序列器的"陈旧帧"判据全靠它。
+        # 为什么不用时间戳就够：一条在 move **之前**发出去的 json 可能在我们
+        # 发完 move 之后才被应用，那一帧的 moving 还是 0、位置还是上一段的目标。
+        # 只看时间的话，密集采样的小段（几十毫秒）会被这种帧骗过去。
+        self._tel_seq = 0
+        self._recording = False
+        self._rec_points: List[Tuple[float, float]] = []
+        self._path_speed: Tuple[int, int] = (DEFAULT_RPM, DEFAULT_ACC)
+        self._dwell_cb = None
+        self._dwell_timer = QTimer(self)
+        self._dwell_timer.setSingleShot(True)
+        self._dwell_timer.timeout.connect(self._on_dwell_timeout)
+        # ⚠ 序列器是**普通 Python 对象**（不是 QObject）：它只调我们给的两个
+        #   闭包 + 注入的 tr/时钟，所以能脱离 Qt 事件循环单测（tests/test_stage_traj.py）。
+        #   tr=self.tr 是必须的 —— 它的日志行会画在「诊断」面板里，属于用户可见文案。
+        self._runner = stage_traj.PathRunner(
+            send_move=self._path_send_move,
+            log=self._log,
+            tr=self.tr,
+            arm_dwell=self._arm_dwell)
+        self._runner.on_state = self._on_path_state
+        self._runner.on_progress = self._on_path_progress
 
         # ── 状态位 ──────────────────────────────────────
         self._connecting = False
@@ -467,6 +534,10 @@ class StageBridge(QObject):
         if not self.connected:
             self._set_error(self.tr("未连接平台"))
             return False
+        if not on:
+            # 失能 = 台面可以被外力推动。轨迹继续走毫无意义：坐标系已经从
+            # 编码器脚下溜走了，接着走就是"按错误的坐标走到错误的地方"。
+            self._abort_path(self.tr("电机失能"))
         cmd = "en all" if on else "dis all"
         self._enqueue(cmd, note=self.tr("使能电机") if on else self.tr("失能电机"))
         self._log("→ {}（{}）".format(cmd, self.tr("运动命令之后会自动使能，注意顺序") if not on
@@ -585,6 +656,10 @@ class StageBridge(QObject):
         # 崩溃/超时那次就留空 → 下次连接不做位置核对（宁可不查，也不报假警）。
         if self.connected and self._datum:
             self._settings.remove("stage/last_park_pos")
+        # 退出的回零点也是一条 `move`：轨迹还活着的话，两条会互相覆盖目标
+        self._abort_path(self.tr("退出程序"))
+        if self._recording:
+            self.cancelRecording()
         if not self.connected:
             self.disconnectDevice()
             return
@@ -800,6 +875,9 @@ class StageBridge(QObject):
 
     @Slot()
     def disconnectDevice(self):
+        self._abort_path(self.tr("断开连接"))
+        if self._recording:
+            self.cancelRecording()
         self._poll.stop()
         self._cmd_timer.stop()
         self._in_flight = None
@@ -829,6 +907,10 @@ class StageBridge(QObject):
 
     def _on_disconnected(self):
         was = self._get_connected()
+        # 断线之后板子的状态完全未知：轨迹没法接着走（连"到没到位"都收不到）
+        self._abort_path(self.tr("连接已断开"))
+        if self._recording:
+            self.cancelRecording()
         # 断线后固件那边的 hset 状态未知（可能是板子重启），闸重新关上
         self._home_cfg_sent = False
         self._connect_timer.stop()
@@ -997,6 +1079,12 @@ class StageBridge(QObject):
         # 运动中加快轮询：位置读数的实时感全靠它。
         # 注意 json 在固件侧还会顺手判定"非阻塞移动是否到位"，所以轮询本身就是到位检测。
         want = POLL_MOVING_MS if self._moving else POLL_IDLE_MS
+        # ⚠ 跑轨迹时必须用**固定的**快节奏，不能跟着 `_moving` 在 200ms/1000ms
+        #   之间来回跳。踩过的坑：每一段到位的那一帧里 moving 会变 0，若此时
+        #   把间隔切回 1000ms，下一段的"已到位"就要等整整 1 秒才拿到 ——
+        #   63 段的圆凭空多出 60 秒，而且现象是"轨迹一段快一段慢"，极难归因。
+        if self._runner.busy:
+            want = PATH_POLL_MS
         if self._poll.interval() != want:
             self._poll.setInterval(want)
         # 队列里有别的命令就先不发轮询（避免把用户的命令挤到后面）
@@ -1036,6 +1124,14 @@ class StageBridge(QObject):
         if moving != self._moving:
             self._moving = moving
             self.movingChanged.emit()
+
+        # ── 序列器的遥测驱动（必须放在 moving 算出来之后）──
+        # "是否到位"用的就是**这一帧**的 moving + 位置，两者必须来自同一次
+        # json 采样 —— 一个用新值、一个用上一帧的旧值，就会出现"位置到了但
+        # moving 还是 1"或反过来的假判据。帧序号一并带上（陈旧帧闸门）。
+        self._tel_seq += 1
+        if self._runner.busy:
+            self._runner.on_telemetry(self._tel_seq, self._pos_x, self._pos_y, moving)
 
         self.telemetryChanged.emit()
 
@@ -1091,10 +1187,15 @@ class StageBridge(QObject):
     # ============================================================
     # 运动
     # ============================================================
-    def _move_cmd(self, x_mm: float, y_mm: float) -> str:
+    def _move_cmd(self, x_mm: float, y_mm: float,
+                  rpm: Optional[int] = None, acc: Optional[int] = None) -> str:
         # 固件的角度域：1mm = 11.25°
+        # rpm/acc 可覆盖：轨迹有自己的速度（默认 acc 会明显大于手动点动的
+        # acc=1 —— 5mm 的小段用 acc=1 的话每段全程都在爬坡，根本走不动）。
         return "move {:.3f} {:.3f} {} {}".format(
-            x_mm * DEG_PER_MM, y_mm * DEG_PER_MM, self._rpm, self._acc)
+            x_mm * DEG_PER_MM, y_mm * DEG_PER_MM,
+            self._rpm if rpm is None else rpm,
+            self._acc if acc is None else acc)
 
     def _clamp(self, x_mm: float, y_mm: float):
         """按工作区夹取目标。
@@ -1105,9 +1206,18 @@ class StageBridge(QObject):
         return (max(self._ws_xmin, min(self._ws_xmax, x_mm)),
                 max(self._ws_ymin, min(self._ws_ymax, y_mm)))
 
-    @Slot(float, float, result=bool)
-    def moveTo(self, x_mm: float, y_mm: float) -> bool:
-        """绝对定位（非阻塞）。"""
+    def _issue_move(self, x_mm: float, y_mm: float, rpm: Optional[int] = None,
+                    acc: Optional[int] = None, record: bool = True,
+                    note: Optional[str] = None) -> bool:
+        """**所有绝对移动的唯一出口** —— 手动 / 预设 / 网格点选 / 轨迹序列器都走它。
+
+        为什么要收敛成一个出口：`moveTo` 是录制功能的唯一挂钩点。只要守住这一个
+        口子，"十字点动 / 绝对定位输入 / 网格点击 / 预设前往"就**全都自动被录下来**，
+        不必在 QML 的每个按钮上都记得写一句"顺便记录一下"（那迟早会漏一个）。
+
+        序列器自己发的段传 `record=False` —— 否则重放一条轨迹会把它录成两倍长
+        （一边放一边录）。
+        """
         if not self.connected:
             self._set_error(self.tr("未连接平台"))
             return False
@@ -1121,14 +1231,35 @@ class StageBridge(QObject):
         cx, cy = self._clamp(float(x_mm), float(y_mm))
         if abs(cx - x_mm) > 0.05 or abs(cy - y_mm) > 0.05:
             self._log(self.tr('目标已按工作区夹取: ({:.2f},{:.2f}) → ({:.2f},{:.2f}) mm').format(x_mm, y_mm, cx, cy))
-        self._enqueue(self._move_cmd(cx, cy),
-                      note=self.tr('移动到 ({:.2f}, {:.2f}) mm').format(cx, cy),
+        self._enqueue(self._move_cmd(cx, cy, rpm, acc),
+                      note=(note if note is not None
+                            else self.tr('移动到 ({:.2f}, {:.2f}) mm').format(cx, cy)),
                       timeout_ms=MOVE_TIMEOUT_MS)
+        if record and self._recording:
+            # 记的是**夹取后的目标**，和固件实际收到的目标一致；
+            # 相邻重复点由 stopRecording 里的 dedupe 收掉。
+            self._rec_points.append((cx, cy))
+            self.recordChanged.emit()
         # 乐观更新：立刻标成运动中，让 UI 马上禁用按钮、加快轮询
         if not self._moving:
             self._moving = True
             self.movingChanged.emit()
         return True
+
+    @Slot(float, float, result=bool)
+    def moveTo(self, x_mm: float, y_mm: float) -> bool:
+        """绝对定位（非阻塞）。
+
+        ⚠ 轨迹运行期间一律拒绝手动移动：固件的 `move` 是**读回当前位置**算增量的，
+        而它允许在途时再发一条并**静默覆盖**目标（见 docs/17「轨迹与网格」）。
+        两条运动同时发 = 增量从运动中的瞬时位置算出来，误差逐段累积，
+        而且台面到底停在哪变得说不清。页面也会把控件禁掉，这是第二道防线。
+        """
+        if self._runner.busy:
+            self._set_error(self.tr("轨迹正在运行 —— 先停止轨迹再手动移动"
+                                    "（否则两条运动会互相覆盖目标，台面停在哪就说不清了）"))
+            return False
+        return self._issue_move(x_mm, y_mm)
 
     @Slot(float, float, result=bool)
     def jog(self, dx_mm: float, dy_mm: float) -> bool:
@@ -1156,6 +1287,10 @@ class StageBridge(QObject):
         if not self.connected:
             self._set_error(self.tr("未连接平台，无法停止"))
             return False
+        # ⚠ 必须**先掐掉序列器再发 stop**：stop 会让板子把 moving 报成 0，
+        #   序列器若还活着就会把这帧当成"这一段到位了"，于是刚急停完、
+        #   台面又自己动起来 —— 这正是"急停不干净"最典型的样子。
+        self._abort_path(self.tr("急停"))
         self._enqueue("stop all", note=self.tr("急停"), front=True, timeout_ms=CMD_TIMEOUT_MS)
         if self._moving:
             self._moving = False
@@ -1173,6 +1308,12 @@ class StageBridge(QObject):
         if not self.connected:
             self._set_error(self.tr("未连接平台"))
             return False
+        # 重新立基准 = 整个坐标系挪到脚下：在跑的轨迹、正在录的点**都失去意义**
+        # （同一串坐标在旧基准下是位置 A、在新基准下是位置 B）。
+        self._abort_path(self.tr("重新立基准"))
+        if self._recording:
+            self.cancelRecording()
+            self._log(self.tr("因为重新立了基准，这次录制已作废（坐标含义变了）"))
         self._enqueue("zero all", note=self.tr("设为原点"))
         self._pos_x = 0.0
         self._pos_y = 0.0
@@ -1201,6 +1342,9 @@ class StageBridge(QObject):
         if self._homing == 1:
             self._set_error(self.tr("已经在回零中 —— 要停下按「停止」"))
             return False
+        # 回零占着整台机器（固件那边 `motion_begin` 会拒掉别的运动）：
+        # 轨迹必须让路，否则会得到一串"已有运动指令在执行"的拒绝
+        self._abort_path(self.tr("回零"))
         if not self._home_cfg_sent:
             # ⚠ 措辞必须**不指向已删除的控件**。2026-09-13 大扫除把
             #   「应用回零参数」按钮去掉了，这里原来的提示"先点上面的「应用回零参数」"
@@ -1236,6 +1380,7 @@ class StageBridge(QObject):
         if self._homing == 1:
             self._set_error(self.tr("已经在回零中 —— 要停下按「停止」"))
             return False
+        self._abort_path(self.tr("单趟回零"))
         if not self._home_cfg_sent:
             self._gate_error("homecfg", self.tr("还没给回零参数 —— 先点「应用回零参数」"))
             return False
@@ -1391,6 +1536,507 @@ class StageBridge(QObject):
         self.telemetryChanged.emit()
         self._maybe_clear_error()
         self._log(self.tr('回零参数已登记（未写驱动器、未触发回零）：方式={} {}rpm 限位电流={}mA').format(c['kind'], c['rpm'], c['ma']))
+
+    # ============================================================
+    # 轨迹与网格（2026-10-08）
+    # ============================================================
+    # 这一节解决三件事，共用**一套数据模型**：
+    #   ① 网格点选 —— 在工作区俯视图上点一下，相机就走到那个格心（粗定位；
+    #      0.1mm 级的精调仍然归十字点动管，"密集网格"替代不了它）；
+    #   ② 图形轨迹 —— 圆 / 矩形 / 多段线（可平滑）/ 巡检点阵；
+    #   ③ 录制重放 —— 把手动操作记成一条轨迹，之后原样再走一遍。
+    #
+    # ⚠ **数据模型存"参数"而不是"点列表"**（录制那条除外）：圆只存圆心+半径+段长，
+    #   点阵只存行列数+区域，多段线只存手点的那几个原始点。两个好处：
+    #     · QSettings 里一条轨迹几百字节，而不是 157 个坐标；
+    #     · 能改参数重新生成（"半径改成 60 再来一遍"），而不是一堆死坐标。
+    #   落点序列在 runPath 时才现算（`_sample_params`）——所以将来改采样规则
+    #   （段长/蛇形/平滑）对所有**已存**的轨迹立刻生效，不必迁移数据。
+    #
+    # ⚠ 执行侧一律走 `stage_traj.PathRunner`：固件的 `move` 是点到点、
+    #   而且在途时再发一条会静默覆盖目标（见 docs/17）。**绝不能连发**。
+
+    # ── 网格分辨率 ────────────────────────────────────────
+    def _get_grid_rows(self) -> int:
+        return self._grid_rows
+
+    gridRows = Property(int, _get_grid_rows, notify=gridChanged)
+
+    def _get_grid_cols(self) -> int:
+        return self._grid_cols
+
+    gridCols = Property(int, _get_grid_cols, notify=gridChanged)
+
+    @Slot(int, int)
+    def setGrid(self, rows: int, cols: int):
+        self._grid_rows = max(1, min(GRID_MAX, int(rows)))
+        self._grid_cols = max(1, min(GRID_MAX, int(cols)))
+        self._settings.setValue("stage/grid_rows", self._grid_rows)
+        self._settings.setValue("stage/grid_cols", self._grid_cols)
+        self.gridChanged.emit()
+        self._log(self.tr("网格分辨率：{} 行 × {} 列（约 {:.1f}mm 一格）").format(
+            self._grid_rows, self._grid_cols,
+            max(self._ws_xmax - self._ws_xmin, 1.0) / self._grid_cols))
+
+    @Slot(float, float, result="QVariantList")
+    def snapToGrid(self, fx: float, fy: float):
+        """屏幕比例 (0~1) → 最近格心的台面坐标 [x, y]（mm）。
+
+        QML 只负责把鼠标位置换成比例；"比例 → mm"的换算只在本文件的
+        `stage_traj.snap_to_cell` 里做一次（同一事实两份是本项目第 4 条坑）。
+        """
+        x, y = stage_traj.snap_to_cell(fx, fy, self._grid_rows, self._grid_cols,
+                                       self._ws_xmin, self._ws_ymin,
+                                       self._ws_xmax, self._ws_ymax)
+        return [round(x, 3), round(y, 3)]
+
+    # ── 轨迹列表（存 QSettings，与预设同一套路）────────────
+    def _load_paths(self) -> List[Dict[str, Any]]:
+        raw = str(self._settings.value("stage/paths", ""))
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list):
+                return [p for p in data
+                        if isinstance(p, dict) and "name" in p and "kind" in p]
+        except (json.JSONDecodeError, TypeError):
+            self._log(self.tr("轨迹数据损坏，已忽略"))
+        return []
+
+    def _save_paths(self, paths: List[Dict[str, Any]]):
+        self._settings.setValue("stage/paths", json.dumps(paths, ensure_ascii=False))
+        self.pathsChanged.emit()
+        # 预览/预计耗时都跟着列表走；Property 只能有一个 notify，所以一并发这个
+        self.pathChanged.emit()
+
+    def _get_paths(self):
+        return self._load_paths()
+
+    paths = Property("QVariantList", _get_paths, notify=pathsChanged)
+
+    def _get_selected_path(self) -> int:
+        return self._selected_path
+
+    def _get_preview_points(self):
+        """当前选中轨迹的落点序列（给界面画折线用）。"""
+        pts = self._sample_path(self._selected_path)
+        return [[round(x, 3), round(y, 3)] for x, y in pts]
+
+    # 由 pathChanged 通知（选中项变了或列表变了都发它）
+    previewPoints = Property("QVariantList", _get_preview_points, notify=pathChanged)
+
+    selectedPath = Property(int, _get_selected_path, notify=pathChanged)
+
+    def _get_path_estimate(self) -> float:
+        """选中轨迹的**预计耗时**（秒）。
+
+        ⚠ 这是估算，用于让用户对"这条轨迹要跑多久"有概念（尤其是巡检点阵：
+        36 个点 ≈ 十几秒，而 400 个点是几分钟）。真正的每段开销要真机实测校正
+        —— 它主要由 `PATH_SEG_OVERHEAD_S`（轮询到位 + 固件 100ms tick）决定，
+        而不是由速度决定：5mm 的小段根本跑不到巡航速度。
+        """
+        paths = self._load_paths()
+        if self._selected_path < 0 or self._selected_path >= len(paths):
+            return 0.0
+        pts = self._sample_params(paths[self._selected_path])
+        if len(pts) < 2:
+            return 0.0
+        rpm = max(1, _inum(paths[self._selected_path].get("rpm"), self._rpm))
+        speed = max(1.0, rpm / 60.0 * 32.0)      # GT2-16 齿带轮：每圈 32mm
+        est = 0.0
+        for a, b in zip(pts, pts[1:]):
+            est += max(PATH_SEG_OVERHEAD_S, math.dist(a, b) / speed)
+        return est
+
+    pathEstimateS = Property(float, _get_path_estimate, notify=pathChanged)
+
+    def _area_from(self, prm: Dict[str, Any]) -> Tuple[float, float, float, float]:
+        """轨迹的区域：默认就是当前工作区（用户不必把行程再填一遍）。"""
+        return (_fnum(prm.get("x0"), self._ws_xmin), _fnum(prm.get("y0"), self._ws_ymin),
+                _fnum(prm.get("x1"), self._ws_xmax), _fnum(prm.get("y1"), self._ws_ymax))
+
+    def _sample_params(self, p: Dict[str, Any]) -> List[Tuple[float, float]]:
+        """把一条轨迹的 kind+params 算成落点序列（**已按工作区夹取**）。"""
+        kind = str(p.get("kind", ""))
+        prm = p.get("params") or {}
+        if not isinstance(prm, dict):
+            return []
+        step = _fnum(prm.get("step"), stage_traj.DEFAULT_STEP_MM)
+        step = max(stage_traj.MIN_STEP_MM, min(stage_traj.MAX_STEP_MM, step))
+        try:
+            if kind == "grid":
+                x0, y0, x1, y1 = self._area_from(prm)
+                pts = stage_traj.sample_grid(_inum(prm.get("rows"), 6),
+                                             _inum(prm.get("cols"), 6),
+                                             x0, y0, x1, y1,
+                                             bool(prm.get("serpentine", True)))
+            elif kind == "circle":
+                pts = stage_traj.sample_circle(_fnum(prm.get("cx")), _fnum(prm.get("cy")),
+                                               _fnum(prm.get("r")), step)
+            elif kind == "rect":
+                x0, y0, x1, y1 = self._area_from(prm)
+                pts = stage_traj.sample_rect(x0, y0, x1, y1, step)
+            elif kind == "polyline":
+                raw = prm.get("points") or []
+                hand = [(_fnum(q[0]), _fnum(q[1])) for q in raw
+                        if isinstance(q, (list, tuple)) and len(q) >= 2]
+                pts = stage_traj.sample_polyline(hand, step,
+                                                 bool(prm.get("smooth", False)),
+                                                 bool(prm.get("closed", False)))
+            elif kind == "recorded":
+                raw = prm.get("points") or []
+                pts = [(_fnum(q[0]), _fnum(q[1])) for q in raw
+                       if isinstance(q, (list, tuple)) and len(q) >= 2]
+            else:
+                return []
+        except (TypeError, ValueError, IndexError, KeyError):
+            return []
+        # 一律夹到工作区：固件那边行程闸是 fail-closed，越界直接拒帧，
+        # 表现成"轨迹走到一半停住"。这里先夹住（用户看得见日志里的夹取记录）。
+        return [self._clamp(x, y) for x, y in pts]
+
+    def _sample_path(self, index: int) -> List[Tuple[float, float]]:
+        paths = self._load_paths()
+        if index < 0 or index >= len(paths):
+            return []
+        return self._sample_params(paths[index])
+
+    @Slot(int, result="QVariantList")
+    def pathPoints(self, index: int):
+        return [[round(x, 3), round(y, 3)] for x, y in self._sample_path(index)]
+
+    @Slot(int)
+    def selectPath(self, index: int):
+        paths = self._load_paths()
+        self._selected_path = index if 0 <= index < len(paths) else -1
+        self.pathChanged.emit()
+
+    @Slot(str, str, str, int, int, result=bool)
+    def savePath(self, name: str, kind: str, params_json: str,
+                 rpm: int, acc: int) -> bool:
+        """保存一条参数化轨迹。
+
+        ⚠ `params_json` 是**JSON 字符串**而不是 QVariantMap：QML 的 JS 对象
+        过到 Python 会变成嵌套的 QVariantMap/QVariantList，`json.dumps` 不能
+        直接序列化它们，得先递归转换 —— 那是一类"看着能跑、偶尔炸"的坑。
+        QML 侧写 `JSON.stringify({...})` 就完全绕开了它，而且存盘格式本来就是 JSON。
+        """
+        kind = (kind or "").strip()
+        if kind not in ("grid", "circle", "rect", "polyline"):
+            self._set_error(self.tr("不支持的轨迹类型：{}").format(kind))
+            return False
+        try:
+            prm = json.loads(params_json) if params_json else {}
+        except (json.JSONDecodeError, TypeError):
+            self._set_error(self.tr("轨迹参数不是合法的 JSON"))
+            return False
+        if not isinstance(prm, dict):
+            self._set_error(self.tr("轨迹参数必须是一个对象"))
+            return False
+        name = (name or "").strip()
+        if not name:
+            self._set_error(self.tr("请给轨迹起个名字"))
+            return False
+        # 先试算一遍落点：参数不完整时**现在就报**，而不是等用户点了执行才发现
+        pts = self._sample_params({"kind": kind, "params": prm})
+        if not pts:
+            self._set_error(self.tr("这条轨迹算不出落点 —— 检查半径/区域/段长是否合理"))
+            return False
+
+        entry = {"name": name, "kind": kind, "params": prm,
+                 "rpm": max(1, min(MAX_RPM, int(rpm))),
+                 "acc": max(1, min(MAX_ACC, int(acc)))}
+        paths = self._load_paths()
+        for i, p in enumerate(paths):
+            if p.get("name") == name:          # 同名覆盖（与预设一致）
+                paths[i] = entry
+                self._selected_path = i
+                self._save_paths(paths)
+                self._log(self.tr('轨迹「{}」已更新（{} 段，预计 {:.0f} 秒）').format(
+                    name, len(pts), self.pathEstimateS))
+                return True
+        paths.append(entry)
+        self._selected_path = len(paths) - 1
+        self._save_paths(paths)
+        self._log(self.tr('已保存轨迹「{}」（{} 段，预计 {:.0f} 秒）').format(
+            name, len(pts), self.pathEstimateS))
+        return True
+
+    @Slot(int, str, result=bool)
+    def renamePath(self, index: int, name: str) -> bool:
+        name = (name or "").strip()
+        paths = self._load_paths()
+        if not name or index < 0 or index >= len(paths):
+            return False
+        if any(p.get("name") == name for i, p in enumerate(paths) if i != index):
+            self._set_error(self.tr("已经有同名的轨迹了"))
+            return False
+        paths[index]["name"] = name
+        self._save_paths(paths)
+        return True
+
+    @Slot(int, result=bool)
+    def deletePath(self, index: int) -> bool:
+        paths = self._load_paths()
+        if index < 0 or index >= len(paths):
+            return False
+        gone = paths.pop(index)
+        if self._selected_path == index:
+            self._selected_path = -1
+        elif self._selected_path > index:
+            self._selected_path -= 1
+        self._save_paths(paths)
+        self._log(self.tr('已删除轨迹「{}」').format(gone.get('name')))
+        return True
+
+    # ── 执行（点列序列器）──────────────────────────────────
+    def _get_path_state(self) -> str:
+        return self._runner.state
+
+    pathState = Property(str, _get_path_state, notify=pathChanged)
+
+    def _get_path_done(self) -> int:
+        return self._runner.done
+
+    pathDone = Property(int, _get_path_done, notify=pathChanged)
+
+    def _get_path_total(self) -> int:
+        return self._runner.total
+
+    pathTotal = Property(int, _get_path_total, notify=pathChanged)
+
+    def _get_path_busy(self) -> bool:
+        return self._runner.busy
+
+    pathBusy = Property(bool, _get_path_busy, notify=pathChanged)
+
+    def _get_path_reason(self) -> str:
+        return self._runner.abort_reason
+
+    pathAbortReason = Property(str, _get_path_reason, notify=pathChanged)
+
+    def _get_path_can_run(self) -> bool:
+        """界面按钮的 enabled。把"为什么不能跑"提前说清，而不是让用户猜灰按钮。"""
+        return (self.connected and self._datum and self._travel_set
+                and not self._runner.busy and not self._moving
+                and not self._recording)
+
+    pathCanRun = Property(bool, _get_path_can_run, notify=pathChanged)
+
+    def _get_path_hint(self) -> str:
+        if not self.connected:
+            return self.tr("未连接平台：先点上面的平台卡片连接")
+        if self._recording:
+            return self.tr("正在录制中 —— 先点「结束录制」再执行轨迹")
+        if not self._datum:
+            return self.tr("缺少基准：每次上电都要重立一次 —— 推到位后点「设为原点」")
+        if not self._travel_set:
+            return self.tr("未设置工作区：绝对移动会被固件拒绝")
+        if self._runner.busy:
+            return ""
+        if self._moving:
+            return self.tr("台面还在动 —— 等它停稳再开始轨迹")
+        return ""
+
+    pathHint = Property(str, _get_path_hint, notify=pathChanged)
+
+    def _path_send_move(self, x: float, y: float) -> bool:
+        """序列器发一段（**不录制**，并用轨迹自己的速度）。
+
+        `note=""` 是故意的：一条 63 段的圆如果每段都在诊断日志里打一行
+        "xxx 完成"，日志就没法看了。协议框里那 63 行 `→ move ...` 仍然保留 ——
+        那是排查时的原始事实，不能省。
+        """
+        rpm, acc = self._path_speed
+        return self._issue_move(x, y, rpm=rpm, acc=acc, record=False, note="")
+
+    def _on_path_state(self, state: str, reason: str):
+        self.pathChanged.emit()
+
+    def _on_path_progress(self, done: int, total: int):
+        self.pathChanged.emit()
+
+    def _on_dwell_timeout(self):
+        cb = self._dwell_cb
+        self._dwell_cb = None
+        if cb is not None:
+            cb()
+
+    def _arm_dwell(self, ms: int, cb):
+        """序列器的"到点停留"钩子（二期到点拍照就用它）。"""
+        self._dwell_cb = cb
+        self._dwell_timer.start(max(1, int(ms)))
+
+    def _abort_path(self, reason: str) -> bool:
+        """中止在跑的轨迹（急停/断线/回零/重新立基准/失能时都要调）。
+
+        ⚠ 返回"是不是真的中止了"，方便调用方决定还要不要做别的收尾。
+        """
+        self._dwell_timer.stop()
+        self._dwell_cb = None
+        return self._runner.abort(reason)
+
+    @Slot(int, result=bool)
+    def runPath(self, index: int) -> bool:
+        if not self.connected:
+            self._set_error(self.tr("未连接平台"))
+            return False
+        if self._recording:
+            self._set_error(self.tr("正在录制中 —— 先结束录制再执行轨迹"
+                                    "（否则录制里会混进轨迹自己的移动）"))
+            return False
+        if self._runner.busy:
+            self._set_error(self.tr("轨迹已经在跑了 —— 要打断按「停止」"))
+            return False
+        if not self._datum:
+            self._gate_error("datum", self.tr("还没有基准：先「设为原点」或自动回零"))
+            return False
+        if not self._travel_set:
+            self._gate_error("travel", self.tr("还没设置工作区，绝对移动会被固件拒绝"))
+            return False
+        if self._moving:
+            self._set_error(self.tr("台面还在动 —— 等它停稳再开始轨迹"
+                                    "（否则第一段的增量会从运动中的瞬时位置算出来）"))
+            return False
+
+        paths = self._load_paths()
+        if index < 0 or index >= len(paths):
+            self._set_error(self.tr("轨迹不存在"))
+            return False
+        p = paths[index]
+        pts = self._sample_params(p)
+        if not pts:
+            self._set_error(self.tr("这条轨迹算不出落点 —— 打开它检查参数"))
+            return False
+        # 起点就在脚下：省掉一次"移动到原地"。那一次要白等一整个到位周期，
+        # 而且 `move` 会用 counts=0 去动一下电机（虽然不会真走）。
+        if len(pts) > 1 and math.dist(pts[0], (self._pos_x, self._pos_y)) <= PATH_SKIP_START_MM:
+            pts = pts[1:]
+
+        self._path_speed = (max(1, min(MAX_RPM, _inum(p.get("rpm"), self._rpm))),
+                            max(1, min(MAX_ACC, _inum(p.get("acc"), self._acc))))
+        self._selected_path = index
+        self.pathChanged.emit()
+        return self._runner.start(pts, self._tel_seq)
+
+    @Slot(result=bool)
+    def pausePath(self) -> bool:
+        r = self._runner.pause()
+        if r:
+            self.pathChanged.emit()
+        return r
+
+    @Slot(result=bool)
+    def resumePath(self) -> bool:
+        r = self._runner.resume()
+        if r:
+            self.pathChanged.emit()
+        return r
+
+    @Slot(result=bool)
+    def stopPath(self) -> bool:
+        """用户点「停止轨迹」：只中止序列器，**不动电机**。
+
+        为什么要和急停分开：轨迹中止时台面本来就会停在当前段的目标点上
+        （段末速度为零），所以不需要刹车。真要立刻停下用「停止」（急停）。
+        """
+        r = self._abort_path(self.tr("用户停止"))
+        if r:
+            self.pathChanged.emit()
+        return r
+
+    @Slot()
+    def clearPathState(self):
+        self._runner.reset()
+        self.pathChanged.emit()
+
+    def _get_path_dwell(self) -> int:
+        return self._runner.dwell_ms
+
+    pathDwellMs = Property(int, _get_path_dwell, notify=pathChanged)
+
+    @Slot(int)
+    def setPathDwell(self, ms: int):
+        """到点停留（ms）。一期仅"停一下"，二期它就是到点拍照的曝光窗口。"""
+        self._runner.set_dwell(ms)
+        self.pathChanged.emit()
+
+    # ── 录制（把手动操作记成一条轨迹）───────────────────────
+    def _get_recording(self) -> bool:
+        return self._recording
+
+    recording = Property(bool, _get_recording, notify=recordChanged)
+
+    def _get_record_count(self) -> int:
+        return len(self._rec_points)
+
+    recordCount = Property(int, _get_record_count, notify=recordChanged)
+
+    @Slot(result=bool)
+    def startRecording(self) -> bool:
+        if not self.connected:
+            self._set_error(self.tr("未连接平台"))
+            return False
+        if self._runner.busy:
+            self._set_error(self.tr("轨迹正在运行 —— 先停下来再开始录制"))
+            return False
+        if self._recording:
+            return True
+        self._recording = True
+        # 先把**起点**记下来：重放时才知道"我是在哪儿开始这一套动作的"
+        self._rec_points = [(self._pos_x, self._pos_y)]
+        self.recordChanged.emit()
+        self._log(self.tr("开始录制：之后的十字点动 / 绝对定位 / 网格点选 / 预设前往都会被记下来"))
+        return True
+
+    @Slot()
+    def cancelRecording(self):
+        if not self._recording:
+            return
+        self._recording = False
+        self._rec_points = []
+        self.recordChanged.emit()
+        self._log(self.tr("已放弃这次录制"))
+
+    @Slot(str, result=bool)
+    def stopRecording(self, name: str) -> bool:
+        if not self._recording:
+            return False
+        raw = list(self._rec_points)
+        self._recording = False
+        self._rec_points = []
+        self.recordChanged.emit()
+
+        # 抽稀：按住十字键连发一秒能产生 6~7 个点，不压的话重放会慢十倍。
+        pts = stage_traj.simplify(stage_traj.dedupe(raw), REC_SIMPLIFY_TOL_MM)
+        if len(pts) < 2:
+            self._set_error(self.tr("这次录制只记到了不到两个不同的位置，没有存成轨迹"))
+            return False
+        name = (name or "").strip()
+        if not name:
+            # 名字带时间戳，用 tr("录制") 拼前缀，避免把中文拼进 format 模板
+            import datetime
+            name = self.tr("录制") + datetime.datetime.now().strftime("-%m%d-%H%M")
+
+        entry = {"name": name, "kind": "recorded",
+                 "params": {"points": [[round(x, 3), round(y, 3)] for x, y in pts]},
+                 "rpm": self._rpm, "acc": self._acc}
+        paths = self._load_paths()
+        for i, p in enumerate(paths):
+            if p.get("name") == name:
+                paths[i] = entry
+                self._selected_path = i
+                self._save_paths(paths)
+                self._log(self.tr('录制已更新轨迹「{}」（原始 {} 点 → 压缩成 {} 段）').format(
+                    name, len(raw), len(pts)))
+                return True
+        paths.append(entry)
+        self._selected_path = len(paths) - 1
+        self._save_paths(paths)
+        self._log(self.tr('录制已存成轨迹「{}」（原始 {} 点 → 压缩成 {} 段）').format(
+            name, len(raw), len(pts)))
+        return True
 
     # ============================================================
     # 预设位置（存 QSettings；只在"本次上电立过基准"之后才有意义）

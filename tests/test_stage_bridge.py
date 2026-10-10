@@ -18,6 +18,7 @@
 """
 
 import json
+import math
 import socket
 import sys
 import tempfile
@@ -75,6 +76,15 @@ class FakeBoard:
         self.homing = 0
         self.homing_polls = 0        # 再被轮询几次才宣布"回零完成"
         self.homing_polls_needed = 2 # 调大就能让"回零中"一直挂着（测急停用）
+        # ── 轨迹序列器要钉住的两件事（见 docs/17「轨迹与网格」）──
+        # ① 真实的固件**允许**"台面还在走的时候再发一条 move"，并静默覆盖目标
+        #    （s_motion_lock 只覆盖命令自身那 45~50ms，不看 PEND_RUNNING）。
+        #    所以替身也要接受它 —— 但记一个数，让测试能断言**序列器从不这么干**。
+        self.moves_while_moving = 0
+        # ② "板子报停但没走到目标"：对应固件 pend_poll 超时后只打标记、
+        #    **不发刹车**（console_cmds.c:506-530）。置真之后 move 记录命令
+        #    但不改位置，于是 json 会一直报"不在动、位置没变"。
+        self.ignore_move = False
 
     def json_line(self):
         return json.dumps({
@@ -119,6 +129,13 @@ class FakeBoard:
             if h == "move":
                 if not self.datum or not self.travel:
                     return ["MOVE 拒绝: 缺基准或缺行程（未发运动指令）"], False
+                if self.moving:
+                    # 真固件会接受并覆盖 —— 替身照做（这个数就是给断言看的）
+                    self.moves_while_moving += 1
+                if self.ignore_move:
+                    # "命令收下了，但台面没走到"：位置不动、moving 立刻归 0
+                    return ["MOVE (%.3f,%.3f)" % (float(a[1]), float(a[2])),
+                            "  (非阻塞: 用 'json' 轮询到位)"], True
                 self.xdeg, self.ydeg = float(a[1]), float(a[2])
                 self.moving = 1
                 self.last = "none"
@@ -693,6 +710,179 @@ def main():
             f"state={b._sock.state()}")
     r.check("connected 为 False", not b.connected)
     r.check("断开后拒绝下发命令", b.moveTo(1, 1) is False)
+
+    print("=== 18) 轨迹与网格（网格点选 / 图形轨迹 / 录制重放）===")
+    # 一台"已连上 + 已立基准 + 已设工作区"的桥 —— 轨迹的三个前提
+    b6 = make_bridge()
+    b6.connectDevice("127.0.0.1", server.port, TOKEN)
+    r.check("18a) 连上", r.wait_for(lambda: b6.connected))
+    server.board.datum = 1
+    b6.setWorkspace(0, 0, 100, 100)
+    r.check("18a) 工作区已生效", r.wait_for(lambda: b6.travelSet), f"travelSet={b6.travelSet}")
+    server.board.xdeg = server.board.ydeg = 0.0
+    r.pump(0.3)
+
+    # ── 18b) 网格吸附：屏幕比例 → mm 的唯一换算 ──
+    b6.setGrid(20, 20)
+    sx, sy = b6.snapToGrid(0.0, 0.0)
+    r.check("18b) 左下角 = 第 1 格格心",
+            abs(sx - 2.5) < 1e-6 and abs(sy - 2.5) < 1e-6, f"({sx},{sy})")
+    sx, sy = b6.snapToGrid(1.0, 1.0)
+    r.check("18b) 右上角 = 最后一格格心",
+            abs(sx - 97.5) < 1e-6 and abs(sy - 97.5) < 1e-6, f"({sx},{sy})")
+    r.check("18b) 越界比例被夹住",
+            b6.snapToGrid(-3.0, 9.0) == [2.5, 97.5], str(b6.snapToGrid(-3.0, 9.0)))
+    r.check("18b) 网格分辨率存下来了", b6.gridRows == 20 and b6.gridCols == 20)
+
+    # ── 18c) 保存参数化轨迹 ──
+    ok = b6.savePath("圆R20", "circle",
+                     json.dumps({"cx": 50, "cy": 50, "r": 20, "step": 20}), 1200, 30)
+    r.check("18c) 保存圆轨迹", ok is True)
+    r.check("18c) 轨迹列表 +1", len(b6.paths) == 1 and b6.paths[0]["name"] == "圆R20",
+            str(b6.paths))
+    pts = b6.pathPoints(0)
+    # 段数 = ceil(周长/段长)，但源码里有个下限 8：少于 8 个点的"圆"是个多边形。
+    expect = max(8, math.ceil(2 * math.pi * 20 / 20))
+    r.check("18c) 落点段数按弦长算（含最少 8 点的下限）", len(pts) == expect,
+            f"{len(pts)} vs {expect}")
+    r.check("18c) 选中后预览点跟着变",
+            b6.previewPoints == [] or len(b6.previewPoints) >= 0)
+    b6.selectPath(0)
+    r.check("18c) 选中后预览点非空", len(b6.previewPoints) == expect,
+            str(len(b6.previewPoints)))
+    r.check("18c) 预计耗时 > 0", b6.pathEstimateS > 0, f"{b6.pathEstimateS:.2f}s")
+
+    # ── 18d) 参数校验：坏参数必须在**保存时**就报，而不是等点了执行 ──
+    r.check("18d) 非法 JSON 被拒", b6.savePath("x", "circle", "{bad", 1200, 30) is False)
+    r.check("18d) 不支持的类型被拒", b6.savePath("x", "spiral", "{}", 1200, 30) is False)
+    r.check("18d) 算不出落点时被拒",
+            b6.savePath("x", "polyline", json.dumps({"points": []}), 1200, 30) is False)
+    r.check("18d) 没名字被拒", b6.savePath("", "circle", json.dumps({"r": 5}), 1200, 30) is False)
+    r.check("18d) 上面几次被拒之后列表没变", len(b6.paths) == 1, str(len(b6.paths)))
+
+    # ── 18e) 跑一条轨迹（这是本节的正面主角）──
+    server.board.moves_while_moving = 0
+    r.check("18e) 运行前 pathCanRun 为真", b6.pathCanRun is True, b6.pathHint)
+    r.check("18e) 启动轨迹", b6.runPath(0) is True)
+    r.check("18e) 轨迹跑完", r.wait_for(lambda: b6.pathState == "done", 30),
+            f"state={b6.pathState} {b6.pathDone}/{b6.pathTotal}")
+    r.check("18e) 进度走到终点",
+            b6.pathDone == b6.pathTotal and b6.pathTotal == expect,
+            f"{b6.pathDone}/{b6.pathTotal}")
+    r.check("18e) 跑完不再是 busy", b6.pathBusy is False)
+    # 本节真正要钉死的一条：序列器**从不**在台面还在动时发下一条 move。
+    # （真固件会接受并静默覆盖目标，所以这个数必须恒为 0。）
+    r.check("18e) 序列器从不并发发 move", server.board.moves_while_moving == 0,
+            f"替身记到 {server.board.moves_while_moving} 次覆盖")
+    moves = [c for c in server.board.commands if c.startswith("move ")]
+    r.check("18e) 轨迹的 move 带的是轨迹自己的 rpm/acc（acc=30，不是手动的 1）",
+            all(c.endswith(" 1200 30") for c in moves[-expect:]),
+            str(moves[-2:]))
+
+    # ── 18f) 运行期间拒绝手动移动 / 拒绝再启一条 / 可停止 ──
+    b6.clearPathState()
+    b6.savePath("方", "rect",
+                json.dumps({"x0": 0, "y0": 0, "x1": 60, "y1": 60, "step": 30}), 1200, 30)
+    idx_rect = len(b6.paths) - 1
+    r.check("18f) 启动矩形轨迹", b6.runPath(idx_rect) is True)
+    r.check("18f) 确实在跑", r.wait_for(lambda: b6.pathBusy, 3))
+    r.check("18f) 运行中拒绝手动移动",
+            b6.moveTo(10, 10) is False and "轨迹" in b6.lastError, b6.lastError)
+    r.check("18f) 运行中拒绝再启一条", b6.runPath(0) is False)
+    r.check("18f) 停止轨迹", b6.stopPath() is True)
+    r.check("18f) 停止后状态 aborted",
+            r.wait_for(lambda: b6.pathState == "aborted", 3), b6.pathState)
+    n_move = len([c for c in server.board.commands if c.startswith("move ")])
+    r.pump(0.6)
+    r.check("18f) 停止后不再补发 move",
+            len([c for c in server.board.commands if c.startswith("move ")]) == n_move,
+            f"{n_move} → {len([c for c in server.board.commands if c.startswith('move ')])}")
+
+    # ── 18g) 急停必须**同时**掐掉轨迹（否则台面会自己又动起来）──
+    b6.clearPathState()
+    r.check("18g) 启动", b6.runPath(idx_rect) is True)
+    r.check("18g) 确实在跑", r.wait_for(lambda: b6.pathBusy, 3))
+    r.check("18g) 急停", b6.stopNow() is True)
+    r.check("18g) 急停后轨迹直接变 aborted", b6.pathState == "aborted", b6.pathState)
+    r.check("18g) 急停后 pathBusy 为假", b6.pathBusy is False)
+    n_move = len([c for c in server.board.commands if c.startswith("move ")])
+    r.pump(0.6)
+    r.check("18g) 急停后不再补发 move",
+            len([c for c in server.board.commands if c.startswith("move ")]) == n_move)
+    r.check("18g) 急停命令确实发出去了",
+            any(c == "stop all" for c in server.board.commands))
+
+    # ── 18h) "板子报停但没到位" → 必须中止，绝不能当成到位 ──
+    print("--- 18h) 板子报停但没走到 → 中止（不是把没走完当到位）---")
+    b6.clearPathState()
+    server.board.ignore_move = True
+    r.check("18h) 启动", b6.runPath(idx_rect) is True)
+    r.check("18h) 序列器中止", r.wait_for(lambda: b6.pathState == "aborted", 10),
+            f"state={b6.pathState} reason={b6.pathAbortReason}")
+    r.check("18h) 原因说清是'没走完'", "没有走完" in b6.pathAbortReason,
+            b6.pathAbortReason[:60])
+    server.board.ignore_move = False
+
+    # ── 18i) 录制：手动操作 → 一条轨迹 ──
+    print("--- 18i) 录制手动操作并重放 ---")
+    b6.clearPathState()
+    b6.setWorkspace(0, 0, 200, 200)
+    r.pump(0.3)
+    r.check("18i) 开始录制", b6.startRecording() is True)
+    r.check("18i) 录制中标志为真", b6.recording is True)
+    r.check("18i) 录制中拒绝跑轨迹",
+            b6.runPath(0) is False and "录制" in b6.lastError, b6.lastError)
+    for x, y in [(10, 0), (10, 10), (20, 10), (20, 20), (30, 20)]:
+        b6.moveTo(x, y)
+        r.pump(0.35)
+    r.check("18i) 录到了点（起点 + 5 次移动）", b6.recordCount >= 6, str(b6.recordCount))
+    n_before = len(b6.paths)
+    ok = b6.stopRecording("我的手感")
+    r.check("18i) 存成轨迹", ok is True)
+    r.check("18i) 轨迹列表 +1", len(b6.paths) == n_before + 1, str(len(b6.paths)))
+    rec = b6.paths[-1]
+    r.check("18i) 类型是 recorded", rec.get("kind") == "recorded", str(rec.get("kind")))
+    r.check("18i) 录制标志清掉了", b6.recording is False)
+    n_pts = len(rec["params"]["points"])
+    r.check("18i) 点被压缩过（共线点不留）", 2 <= n_pts <= 8, f"{n_pts} 点")
+    r.check("18i) 起点被记下来了（重放才知道从哪儿开始）",
+            rec["params"]["points"][0] is not None)
+    r.check("18i) 录制轨迹能画出来", len(b6.pathPoints(len(b6.paths) - 1)) == n_pts)
+    # 重放刚录的这条。⚠ 必须先等台面停稳：刚录完那几下 moveTo 还在队列里，
+    #   而 runPath 会（正确地）拒绝"台面还在动的时候开轨迹"。
+    r.check("18i) 等台面停稳", r.wait_for(lambda: not b6.moving, 8), f"moving={b6.moving}")
+    r.check("18i) 重放录制的轨迹",
+            b6.runPath(len(b6.paths) - 1) is True, b6.lastError)
+    r.check("18i) 重放跑完", r.wait_for(lambda: b6.pathState == "done", 20),
+            f"state={b6.pathState} {b6.pathDone}/{b6.pathTotal}")
+
+    # ── 18j) 重新立基准 → 录制作废（坐标含义变了）──
+    b6.clearPathState()
+    b6.startRecording()
+    r.check("18j) 又在录制", b6.recording is True)
+    b6.zeroAll()
+    r.check("18j) 立基准后录制被取消", b6.recording is False)
+
+    # ── 18k) 列表的增删改 ──
+    n0 = len(b6.paths)
+    r.check("18k) 改名", b6.renamePath(0, "改名了") is True
+            and b6.paths[0]["name"] == "改名了")
+    r.check("18k) 重名被拒", b6.renamePath(1, "改名了") is False)
+    r.check("18k) 删除", b6.deletePath(0) is True and len(b6.paths) == n0 - 1,
+            str(len(b6.paths)))
+
+    # ── 18l) 没有基准 / 没连上时不许跑 ──
+    # ⚠ 18j 的 `zero all` 会把假板子的 datum 又置回 1，所以先等那条命令落地
+    #   再改 datum，否则改完立刻被命令覆盖回去（"datum 变 0"会永远等不到）。
+    r.pump(0.5)
+    server.board.datum = 0
+    r.check("18l) 遥测里 datum 变 0", r.wait_for(lambda: b6.datum is False, 4),
+            f"datum={b6.datum}")
+    r.check("18l) pathCanRun 为假", b6.pathCanRun is False, str(b6.pathCanRun))
+    r.check("18l) 提示说得清缺什么", "基准" in b6.pathHint, b6.pathHint)
+    r.check("18l) runPath 被拒", b6.runPath(0) is False, b6.lastError)
+    server.board.datum = 1
+    b6.disconnectDevice()
 
     server.close()
     print()
