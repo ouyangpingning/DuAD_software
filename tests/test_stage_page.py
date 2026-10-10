@@ -1354,9 +1354,15 @@ def main():
         # ── 几何：网格场比例 + 不许溢出 ──
         _fld = find("trajField")
         _mb = find("trajMap")
-        r.check("12g) 网格场保持工作区比例（360×360 → 正方形）",
+        # ⚠ 工作区默认 360×420（2026-10-10）——**不再要求正方形**，
+        #   要的是"台面保持工作区的**比例**"（_fit 两轴共用一个缩放系数）
+        _ws_ratio = (float(stage.wsXMax) - float(stage.wsXMin)) / max(
+            1e-6, float(stage.wsYMax) - float(stage.wsYMin))
+        _fld_ratio = (float(_fld.property("width")) / max(1e-6, float(_fld.property("height")))
+                      if _fld is not None else 0.0)
+        r.check("12g) 网格场保持工作区比例（360×420 → 0.857，且不再要求正方形）",
                 _fld is not None and _mb is not None
-                and abs(float(_fld.property("width")) - float(_fld.property("height"))) < 1.0,
+                and abs(_fld_ratio - _ws_ratio) < 0.01,
                 f"{_fld.property('width') if _fld else None}×"
                 f"{_fld.property('height') if _fld else None}")
         r.check("12g) 场不超出网格框（不会画到卡外）",
@@ -1419,9 +1425,16 @@ def main():
                              QPoint(int(_pt.x()), int(_pt.y())))
             r.pump(0.4)
             _mv2 = [c for c in server.board.commands if c.startswith("move ")]
-            r.check("12g) ★在台面正中真点一下 → 走到工作区中心（px→mm 换算正确）",
-                    len(_mv2) == 1 and _mv2[0].startswith(_exp),
-                    f"{_mv2} 期望 {_exp}")
+            # ⚠ 用**毫米容差**比，不用字面前缀比：QTest 的点击坐标是整数像素
+            #   （`int(_pt.x())` 截断），而 1px 对应多少 mm 取决于台面在屏上的大小 ——
+            #   工作区 360×420 之后 X 成了短边，窄窗口下 1px ≈ 1.9mm，
+            #   半像素的取整就能差出 1mm。这条断言要钉的是"换算对不对"，
+            #   不是"点击能不能分毫不差"（那受限于像素分辨率，卡里的提示也写了 ±1mm）。
+            _got = ([float(q) / DEG_PER_MM for q in _mv2[0].split()[1:3]] if _mv2 else [])
+            r.check("12g) ★在台面正中真点一下 → 走到工作区中心（px→mm 换算正确，容差 2.5mm）",
+                    len(_mv2) == 1 and len(_got) == 2
+                    and abs(_got[0] - _wm) <= 2.5 and abs(_got[1] - _hm) <= 2.5,
+                    f"{_mv2} 期望 ≈({_wm},{_hm})mm")
 
         # ── ★★ 折线锚点回归守卫（2026-10-10"一地乱线"的根因）──
         # 原因：SegLine 原来锚在**包围盒左上角**并绕左中点旋转，于是"起点落在包围盒

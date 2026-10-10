@@ -30,7 +30,7 @@ Item {
     property real wsXMin: 0
     property real wsYMin: 0
     property real wsXMax: 360
-    property real wsYMax: 360
+    property real wsYMax: 420
     property bool live: true        // false = 数据不可信（未连接），整体变灰
     // 无卡片模式（2026-09-28）：不画自己的圆角背景、也不留 16px 内边距。
     property bool flat: false

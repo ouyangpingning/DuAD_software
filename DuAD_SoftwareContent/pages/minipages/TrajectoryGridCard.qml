@@ -109,7 +109,7 @@ Item {
     property real wsXMin: 0
     property real wsYMin: 0
     property real wsXMax: 360
-    property real wsYMax: 360
+    property real wsYMax: 420
 
     // ── Z 轴高度条（2026-10-10 新增；2026-10-10 当天又按用户要求改成**可点**）──
     // 原来只读，用户实测后说"Z 轴好像没法直接控制" → 现在点/拖条上任意高度

@@ -29,7 +29,7 @@ Item {
     property real wsXMin: 0
     property real wsYMin: 0
     property real wsXMax: 360
-    property real wsYMax: 360
+    property real wsYMax: 420
 
     // 速度（手动点动/绝对定位）
     property int rpm: 1200

@@ -357,8 +357,21 @@ def main():
     r.check(f"夹到 ({b.wsXMax:.0f},0) 且不越界",
             r.wait_for(lambda: abs(b.posX - b.wsXMax) < 0.01 and abs(b.posY) < 0.01),
             f"({b.posX:.2f},{b.posY:.2f}) X{b.wsXMin}..{b.wsXMax} Y{b.wsYMin}..{b.wsYMax}")
-    r.check("默认工作区是 360×360（2026-09-13 用户实测值）",
-            b.wsXMax == 360.0 and b.wsYMax == 360.0, f"X{b.wsXMax} Y{b.wsYMax}")
+    # 2026-10-10：Y 默认从 360 改成 420（用户要求），X 仍是 360
+    r.check("默认工作区是 X360 × Y420（X 是实测值，Y 是 2026-10-10 用户要求）",
+            b.wsXMax == 360.0 and b.wsYMax == 420.0, f"X{b.wsXMax} Y{b.wsYMax}")
+    # ⚠ 迁移：老用户 settings 里存着 360 时，必须**按没设过处理**并迁到 420，
+    #   否则"改了默认值对他完全无效"（本项目踩过：§19 的量程/上限那条）
+    _s2 = QSettings(str(ROOT / "_ws_migrate.ini"), QSettings.IniFormat)
+    _s2.clear(); _s2.setValue("stage/ws_ymax", 360); _s2.sync()
+    _bm = StageBridge(settings=_s2)
+    r.check("老用户存的 ws_ymax=360 会被迁到 420（改过别的值的不动）",
+            _bm.wsYMax == 420.0, f"Y{_bm.wsYMax}")
+    _s2.setValue("stage/ws_ymax", 250); _s2.sync()
+    _bm2 = StageBridge(settings=_s2)
+    r.check("用户自己填过的 ws_ymax=250 不被迁移碰掉",
+            _bm2.wsYMax == 250.0, f"Y{_bm2.wsYMax}")
+    _s2.clear(); _s2.sync()
 
     print("=== 10) 工作区再设置（含角点反填）===")
     b.setWorkspace(200.0, 50.0, 20.0, 10.0)      # 故意反着填

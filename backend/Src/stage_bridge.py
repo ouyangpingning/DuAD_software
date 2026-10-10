@@ -122,9 +122,15 @@ DEFAULT_ACC = 1          # 最柔和的起步/停车。⚠ 固件里 0 = 不加�
 OLD_DEFAULT_RPM = 300
 OLD_DEFAULT_ACC = 100
 
-# 工作区（台面行程）默认值。360 是用户 2026-09-13 给的实测值（原默认 300）。
+# 工作区（台面行程）默认值。
+#   X = 360（2026-09-13 用户给的实测值，原默认 300）
+#   Y = 420（2026-10-10 用户要求；此前两轴都是 360）
+# ⚠ 两轴的"旧默认值"**不一样**：X 要认 300（老老用户），Y 要认 360（上一版默认）。
+#   值恰好等于旧默认值时按"没设过"处理并迁到新默认 —— 自己量过并填了别的值的人不受影响。
 DEFAULT_WS = 360
 OLD_DEFAULT_WS = 300
+DEFAULT_WS_Y = 420
+OLD_DEFAULT_WS_Y = 360
 
 # ── 轨迹与网格（网格点选 / 圆 / 矩形 / 多段线 / 录制重放）────────────
 # 走轨迹时的轮询节奏。**必须**比 POLL_MOVING_MS 快：
@@ -253,7 +259,8 @@ class StageBridge(QObject):
         self._ws_xmin = _fnum(self._settings.value("stage/ws_xmin", 0.0))
         self._ws_ymin = _fnum(self._settings.value("stage/ws_ymin", 0.0))
         self._ws_xmax = float(self._migrating_setting("stage/ws_xmax", OLD_DEFAULT_WS, DEFAULT_WS))
-        self._ws_ymax = float(self._migrating_setting("stage/ws_ymax", OLD_DEFAULT_WS, DEFAULT_WS))
+        self._ws_ymax = float(self._migrating_setting("stage/ws_ymax",
+                                                   OLD_DEFAULT_WS_Y, DEFAULT_WS_Y))
 
         # ── 「退出时回到零点」+「上次停在哪儿」（2026-09-13，用户提的方案）──
         #   思路：别人只用上位机 → 退出时把台面开回零点角 → 下次开机先核对
@@ -369,7 +376,7 @@ class StageBridge(QObject):
         v = _inum(self._settings.value(key, new_default), new_default)
         if v == old_default and old_default != new_default:
             self._settings.setValue(key, new_default)
-            self._log(self.tr('速度默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）').format(key.split('/')[-1], old_default, new_default))
+            self._log(self.tr('默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）').format(key.split('/')[-1], old_default, new_default))
             return new_default
         return v
 
