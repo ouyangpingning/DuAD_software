@@ -42,6 +42,10 @@ models/
 # 只锚定根目录，images/_backup_*/、**/__init__.py 这类不受影响。
 /_*
 
+# drawio 导出的 PNG 设计稿不入库：设计原件是根目录的 `UI绘图.drawio.xml`，
+# 导出图随时能重导一份（2026-10-10 那张「轨迹与网格」手绘稿就是这类）。
+/guiji.drawio.png
+
 # Windows 侧的 venv：与 pyqml/ 同源，由 setup_env.sh 重建。
 # ⚠ 原来只忽略了 pyqml/ —— pyqml_win/ 之所以"看起来被忽略"，只是因为 venv 自带一个
 #   内容是 `*` 的 .gitignore；那份文件一旦没了（重建/清理），几百 MB 的 venv 就会被误提交。
