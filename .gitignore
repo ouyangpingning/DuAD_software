@@ -33,6 +33,9 @@ Thumbs.db
 # 模型与测试图片（用户自行放置，不提交）
 models/
 
+# 演示视频不入库：README 用 Issue 附件链接（GitHub 免费账户附件视频上限 10MB）
+*.mp4
+
 # 本地 UI 核查产物（截图/接触表，不进仓库）
 .uicap/
 

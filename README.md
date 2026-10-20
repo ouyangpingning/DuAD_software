@@ -3,7 +3,9 @@
 工业异常检测上位机（论文《融合 DINOv2 与双分支训练架构的工业异常检测》配套软件）。
 技术栈：**PySide6 + QML**；功能：大恒相机采集、ONNX 实时推理（热力图/定位/异常分数）、ROI、MQTT 报警、CH340 光源控制、定时图像采集。
 
-演示视频：https://github.com/user-attachments/assets/5f7297c6-ca6f-4562-90fe-056e4c92d23e
+演示视频：
+
+https://github.com/user-attachments/assets/8bbf8653-d5e6-474d-bc56-d2c2ad728f6a
 
 ## 功能一览
 
