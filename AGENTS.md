@@ -1,240 +1,144 @@
 # AGENTS.md
 
-你的身份：
+你是 10 年经验的 UI 设计工程师 + 上位机开发工程师 + 算法工程师。
 
-你是一个具有10年工作经验的UI设计工程师兼上位机开发工程师，同时还是一名精通AI的算法工程师
-
-我的项目：                                                    
-
-PySide6 + QML 工业异常检测上位机（论文《融合Dinov2与双分支训练架构的工业异常检测》配套软件）。
-完整架构树见 `CLAUDE.md`（注意其「当前状态」一节已过时）；**踩坑实录见 `docs/19-踩坑实录与设计规矩.md`**（本文只留一句话结论 + 指针，编号与该文一致）。
+项目：PySide6 + QML 工业异常检测上位机（论文《融合Dinov2与双分支训练架构的工业异常检测》配套软件）。
+架构入口见 `docs/00-目录.md`、`docs/01-项目总览与运行.md`；**踩坑与设计规矩见 `docs/19-踩坑实录与设计规矩.md`**（编号沿用该文，本文只留结论 + 指针）。
 
 ## 运行
-
-Linux（开发机）:
 
 ```bash
 source DuAD_SoftwareContent/pyqml/bin/activate
 python DuAD_SoftwareContent/main.py
 ```
 
-Windows: `pyqml_win\Scripts\python.exe -u main.py`；Jetson: `bash run_jetson.sh`（部署见 `docs/Jetson部署.md`，问题见 `docs/16-Jetson问题与修复.md`）。
+Windows：`pyqml_win\Scripts\python.exe -u main.py`；Jetson：`bash run_jetson.sh`（部署/问题见 `docs/Jetson部署.md`、`docs/16`）。
 
-- ⚠ **不要绕过 main.py 启动时的解释器自检**：非 venv 会自动 execv 切到 venv（Linux→`pyqml/bin/python`，Windows→`pyqml_win/Scripts/python.exe`，两个 venv 可共存、各自平台各自建）。判断是否走 GPU：看启动日志 `模型预热完成（['CUDAExecutionProvider', ...]）`。系统 python3 也能跑通但推理走 CPU。
-- 依赖仅 PySide6（6.11.1，Python 3.14）+ onnxruntime-gpu。**无** requirements.txt / pyproject / README / 测试 CI。
-- **Windows 的 onnxruntime-gpu 不自带 CUDA 运行库**：需另装 `nvidia-cublas-cu13`/`nvidia-cudnn-cu13`/`nvidia-cuda-runtime` pip 包，缺失则**静默回退 CPU**（main.py 与 onnx_infer.py 已把 nvidia bin 目录注入 PATH）；**CUDA 13 要求驱动 ≥585**。**TRT 库 Windows 无 pip 包**：手动装 TensorRT 10.16.x，用用户环境变量 `TENSORRT_LIB_DIR` 指定（或拷入 `backend/libs_win_tensorrt/bin`）。详见 `docs/15`。
-- `pyside6-lupdate`/`lrelease` 的 shebang 指向改名前旧路径，**直接运行必报 bad interpreter** —— 用 `DuAD_SoftwareContent/pyqml/lib/python3.14/site-packages/PySide6/` 里的原生二进制。
-- git 仓库根在上级 `研究生论文/`，跟踪论文文档；**本代码目录是一个独立的 git 仓库**（`git rev-parse --show-toplevel` 就落在 `DuAD_Software/`，文件是被跟踪的；旧文档里"未被跟踪"那句已过时）。
+- 依赖在 `requirements.txt` / `requirements-cpu.txt` / `requirements-gpu.txt`；有 `README.md` 与 GitHub Actions release；**没有** `pyproject.toml` / pytest CI。
+- ⚠ 不要绕过 main.py 启动自检：非 venv 会 execv 切到 `pyqml/bin/python`（Windows 为 `pyqml_win/Scripts/python.exe`），两个 venv 可共存。判断 GPU：看日志 `模型预热完成（['CUDAExecutionProvider', ...]）`；系统 python3 能跑但走 CPU。
+- Windows onnxruntime-gpu **不自带 CUDA 库**：装 `nvidia-cublas-cu13` / `nvidia-cudnn-cu13` / `nvidia-cuda-runtime`，缺失静默回退 CPU；CUDA 13 要求驱动 ≥585。TRT 无 Windows pip 包：装 TensorRT 10.16.x，用 `TENSORRT_LIB_DIR` 指定（开发机也可自建 `backend/libs_win_tensorrt/bin`）。详见 `docs/15`。
+- `pyside6-lupdate` / `lrelease` 的 wrapper 是绝对路径，项目搬移/换机后必报 bad interpreter；用 `DuAD_SoftwareContent/pyqml/lib/python3.14/site-packages/PySide6/` 里的原生二进制。
+- 本代码目录是独立 git 仓库（根在 `DuAD_Software/`）；上级 `研究生论文/` 是论文文档仓库。
 
 ## 布局
 
-- `DuAD_SoftwareContent/` — 入口 `main.py` + 全部 QML：`pages/`（7 个页面）、`pages/components/`、`pages/minipages/`。`DuAD_Software/DuAD_Software/` 是 QML 模块（`qmldir` 声明 `singleton Colors/Constants`），**模块目录名必须与 module 名一致**。
-- `backend/Src/` — 相机/光源/平台/云/算法各桥（要点见下）。`backend/gxipy/` 大恒 SDK wrapper（本地 libs 优先加载）；`backend/libs*` — SDK 动态库。
-- ⚠ **相机 SDK 缺失不崩溃**：`camera.py` 对 SDK import 包 try/except（含 `KeyError`），降级 stub、程序仍可启动。**不要回退这两处异常捕获**。
-- ⚠ **`.cti` 传输层文件必须齐全**（`libs/`、`libs_win/GenTL/`、`libs_arm64/`）：缺它 gx_init_lib 返回 -1、枚举 0 台。Linux 大分辨率采集失败（-1010）根因是内核 `usbfs_memory_mb` 默认 16MB：跑 `sudo bash scripts/set_usbfs.sh`。相机 SDK 按架构选库（aarch64→`libs_arm64/`）。
-- ⚠ **加载前提**：`pyqml/bin/activate` 已注入 `LD_LIBRARY_PATH=backend/libs`（运行时设置无效）；activate 里 VIRTUAL_ENV 是改名前旧路径，不要依赖。
-- **训练/导出/标定代码不在本仓库**（已删，用算法仓库 https://github.com/ouyangpingning/DuAD ）。
+- `DuAD_SoftwareContent/` — `main.py` + 全部 QML：`pages/`（7 页）、`pages/components/`、`pages/minipages/`。QML 模块是 **`DuAD_SoftwareContent/DuAD_Software/`**（`qmldir` 声明 `singleton Colors/Constants`），模块目录名必须与 module 名一致。
+- `backend/Src/` — 相机/光源/平台/云/算法各桥。`backend/gxipy/` 是大恒 SDK wrapper；`backend/libs*` 是 SDK 动态库。
+- ⚠ 相机 SDK 缺失不崩溃：`camera.py` 的 SDK import 用 try/except（含 `KeyError`）降级 stub，**不要回退**。
+- ⚠ `.cti` 传输层必须齐全（`libs/`、`libs_win/GenTL/`、`libs_arm64/`）：缺它 `gx_init_lib` 返回 -1、枚举 0 台。Linux 大分辨率采集 -1010 先跑 `sudo bash scripts/set_usbfs.sh`。aarch64 用 `libs_arm64/`。
+- ⚠ `pyqml/bin/activate` 已注入 `LD_LIBRARY_PATH=backend/libs`（运行时设置无效）；activate 里 `VIRTUAL_ENV` 是旧路径，不要依赖。
+- 训练/导出/标定代码不在本仓库：https://github.com/ouyangpingning/DuAD 。
 
-### 各桥要点（按文件）
+## 各桥要点
 
-- `camera_bridge.py` — QML 相机桥：search/connect/feature 读写/startGather/applyRoi；每帧写 `frameProvider` 并发 `rawFrameReady`。特征写入：bool 要字符串 `"true"/"false"`；`GX_FLOAT_GAMMA_PARAM` 在 MER2 固件只读（界面只读显示）。**Bayer 转换按 `GX_ENUM_PIXEL_COLOR_FILTER`（寄存器读出）选排列，读不到才按 pixel_format 查表；Windows 的 DxImageProc 与 Linux 语义相反（R/B 互换），`os.name=='nt'` 时做 `_SWAP_RB_BAYER`——不要移除**。低帧率先查曝光，再查吞吐量（`DeviceLinkThroughputLimit` 采集前关掉），最后查 USB2 口/线。
-- `light_bridge.py` — RS-232 光源控制器：**波特率必须 19200**（8N1 半双工；实测其它波特率一个字都不回，而 `serial.Serial()` 永远打开成功 → 静默"已连接没反应"）。三条**不要动**：① `connectSerial` 后必须 `$RD=9999#` 校验链路；② `_read_reply` 收到半截不许缩短等待（长应答分片跨 161ms）；③ 发指令前 `_drain()`。QML 波特率读 `LightBridge.defaultBaud`；自动选口用 `pickDefaultPort`（优先 /dev/ttyUSB*，别用 ports[0]）。
-- `stage_bridge.py` — X/Y 平台（WiFi/TCP，异步走事件循环，行协议与 USB 控制台一致，连上交口令→`#OK/#ERR`）。⚠ **本文件是唯一换算边界**：界面 mm ↔ 固件度，`1mm = 11.25°`、`1600 counts/mm`。移动一律**非阻塞 `move`**（绝不用 `g0`）；急停 `_enqueue(front=True)` 且永不禁用；回零 `home corner … nowait`；连接期只发只读命令（参数登记走 `hcfg` 只写 RAM）；预设位置存 `QSettings("DuAD","DuADSoftware")`（测试必须注入隔离 settings，见 docs/19 §1）。量程只从 `uiMaxRpm/uiMaxAcc` 读（§19）。新增**轨迹与网格**：`paths`（存**参数**不存点列表）、`runPath/pausePath/resumePath/stopPath`、录制；**所有绝对移动收敛到 `_issue_move()` 一个出口**（录制就守这一个口子）。⚠ `pathCanRun`/`pathHint` 用**单独的 `pathEnableChanged`** 通知（复用 `pathChanged` 会"平台已连上、卡底还写着未连接"）。⚠ **2026-10-10 删除** `gridRows/gridCols/setGrid/snapToGrid` 与 `stage_traj.snap_to_cell`：台面背景改成只有刻度标尺、点选不再吸附格心，这一组没有消费者了（`sample_grid` 保留）。
-- `ble_provision.py` — **BLE 只做配网，不做运动**（docs/20）。板卡名固定（XY=`DuAD-XY-55C6`；Z 用 `DuAD-Z-` 前缀），界面**不再有板卡下拉**；刷新 → 自动连 → 自动 `wifi scan` → 列表点选 → 密码弹窗。上位机 `QtBleLink` 连 GATT（service `d0ad0001-...`，RX `d0ad0002` / TX `d0ad0003`），第一条交 token，之后复用控制台行协议（`wifi status/scan/set/rollback`）。⚠ 配网前必须**断 TCP + 暂停 json 轮询**（`bleScan()` 已做，运动中/回零中直接拒绝）；成功后用新 IP 改 `host` 并自动重连。固件侧 `components/ble_prov` 只放行 wifi/net/ver/help，凭据用 `wifi_bak` 备份，25s 没 IP 自动回滚；`wifi scan` 按行输出（nets_start/net/nets_end），不受 512B 截断。
-- `stage_traj.py` — 轨迹几何（纯函数）+ **点列序列器 `PathRunner`**，**刻意不碰 Qt**（只调注入的闭包与时钟），所以能用假时钟毫秒级单测。⚠ 序列器必须"发一段 → 等板子报到位 → 再发下一段"：固件的 `0xF3` 是完整梯形曲线（末尾必到 0），而且**在途时再发 `move` 会被静默覆盖目标**。三条时序设计（陈旧帧闸门 / 报停没到位必须中止 / 急停前先掐序列器）见 docs/17 §14.4。
-- `zstage_bridge.py` — Z 轴平台，**另一块板子**、独立 IP/口令/连接。**零换算**（固件就是 mm，别抄 11.25）。连接期只发只读（`json` + `zsign`）；量程读 `uiMaxRpm(1200)/uiMaxAcc(200)/uiMinAcc(1)`（**加速档 0=直接启动，界面必须排除**）。⚠ `@` 开头的驱动器帧行**必须**在 `_handle_line` 第一分支丢掉（板子 `trace` 可能还开着，混进 `_resp_lines` 会让命令判定错位，§20）；协议框/`trace` 开关 2026-10-10 已删除。
-  · **无限位回零参数**（2026-09-29）：`setHomeParams(rpm, ma, tmo)` → `zset home`，范围 `uiHomeRpmMin/Max`、`uiHomeMaMin/Max`、`uiHomeTmoMin/Max`、经验区 `uiHomeMaSweetLo/Hi`(60/300，推荐 100) 全从桥里读；板子实际值走 json `hma/hrpm/htmo`（新字段）→ `homeMa/homeRpm/homeTmo`。方向 `setHomeDir("up"/"down")` → `zhome <dir> nowait`，**只存本机**；`setAutohome()` 因此**不带方向**（带 `down` 会顺手改掉板子里的方向）。
-  · **`stop` 有专门的超时档**（`SLOW_CMD_TIMEOUT_MS["stop"] = 8000`）：固件的打断路径最坏 ~2.5s，原来是默认 3000ms —— 迟到的 `#OK` 会与下一条命令配对错位。⚠ 板子 TCP 任务是串行的，桥抢先写进去救不了急停（docs/18 §7.7）。
-- `algorithm_bridge.py` — 测试推理桥：模型默认 null（DetectPage 自选 .onnx）；**阈值优先级 = ONNX metadata > `*.threshold.json` > 1.7**；`maskReady` 先于 `inferenceReady` 发；热力图固定尺度（`<模型>.scale.json`：模型旁 → `backend/model_scales/`）；**切换模型内存三件套**：`enable_cpu_mem_arena=False` + `del old` + `gc.collect()` + `malloc_trim(0)`；`predict_frame` 供实时管线（`_infer_lock`/`_build_lock` 防并发双 session）；`unloadModel()` 卸载。
-- `onnx_infer.py` — 无 torch 推理：预处理（Resize+CenterCrop+ImageNet 归一化）在客户端；**后处理（上采样+高斯平滑）已内化进新 ONNX 图**（旧 patch 级模型向后兼容走 `_gaussian_blur`）。**分数为判别器负输出的 patch max——带符号、无界、未归一化**（正常 ≈ -1~1.5、异常 > 2），**不要 clamp/min-max 到 0~1**。target_size 默认 518 须与导出一致。
-- `mqtt_bridge.py` / `stage`/`zstage` 各自的回归测试见下。
+- `camera_bridge.py` — 相机桥：search/connect/feature/startGather/applyRoi；每帧写 `frameProvider` 并发 `rawFrameReady`。bool 特征写字符串 `"true"/"false"`；`GX_FLOAT_GAMMA_PARAM` 在 MER2 只读。**Bayer 排列按 `GX_ENUM_PIXEL_COLOR_FILTER` 选，读不到才查 pixel_format；Windows DxImageProc 的 R/B 与 Linux 相反，`os.name=='nt'` 的 `_SWAP_RB_BAYER` 不要移除**。低帧率先查曝光，再关吞吐量限制，最后查 USB2 口/线。
+- `light_bridge.py` — RS-232 光源：**波特率必须 19200**（其它波特率控制器一个字都不回，而 `serial.Serial()` 永远打开成功 → 静默“已连接没反应”）。三条不要动：① `connectSerial` 后发 `$RD=9999#` 校验；② `_read_reply` 收到半截不要缩短等待（长应答跨 161ms）；③ 发指令前 `_drain()`。QML 波特率读 `LightBridge.defaultBaud`；自动选口用 `pickDefaultPort`（优先 `/dev/ttyUSB*`，别用 `ports[0]`）。
+- `stage_bridge.py` — X/Y 平台（WiFi/TCP，行协议与 USB 控制台一致，口令→`#OK/#ERR`）。**唯一换算边界**：`1mm = 11.25°`、`1600 counts/mm`。移动一律非阻塞 `move`（绝不用 `g0`）；急停 `_enqueue(front=True)` 永不禁用；回零 `home corner … nowait`；连接期只发只读命令（`hcfg` 只写 RAM）；预设/轨迹存 `QSettings("DuAD","DuADSoftware")`（测试注入隔离 settings，docs/19 §1）。轨迹存**参数**不存点列表，所有绝对移动收敛到 `_issue_move()`；`pathCanRun/pathHint` 用单独的 `pathEnableChanged`。`gridRows/gridCols/setGrid/snapToGrid`、`stage_traj.snap_to_cell` 已删除（`sample_grid` 保留）。
+- `ble_provision.py` — **BLE 只做配网，不做运动**（docs/20）。板卡名固定：XY=`DuAD-XY-55C6`，Z 用 `DuAD-Z-` 前缀；界面没有板卡下拉。刷新→自动连→自动 `wifi status`+`wifi scan`→列表点选→密码弹窗。GATT：service `d0ad0001-...`、RX `d0ad0002`、TX `d0ad0003`；第一条交 token，之后复用 `wifi status/scan/set/rollback`。⚠ 配网前先断 TCP + 暂停 `json` 轮询（`bleScan()` 已做，运动/回零中拒绝）；成功后用新 IP 改 `host` 自动重连。固件 `ble_prov` 只放行 wifi/net/ver/help；`wifi_bak` 备份，25s 没 IP 自动回滚；`wifi scan` 按行输出（`nets_start`/`net`/`nets_end`）。
+- `stage_traj.py` — 轨迹几何（纯函数）+ `PathRunner` 序列器，**刻意不碰 Qt**（注入闭包/时钟，可假时钟单测）。⚠ 必须“发一段→等板子报到位→再发下一段”：固件 `0xF3` 是完整梯形曲线，且在途再发 `move` 会被静默覆盖目标；时序三规则见 docs/17 §14.4。
+- `zstage_bridge.py` — Z 轴，**另一块板子**、独立 IP/口令。**零换算**（固件就是 mm）。连接期只发只读（`json`+`zsign`）；量程读 `uiMaxRpm(1200)/uiMaxAcc(200)/uiMinAcc(1)`（加速档 0=直接启动，界面必须排除）。⚠ `@` 开头的驱动器帧行必须在 `_handle_line` 第一分支丢掉（`trace` 可能开着，混入会让命令判定错位）。回零参数：`setHomeParams(rpm,ma,tmo)`→`zset home`，范围和经验区（60/300，推荐 100）全从桥里读；板子实际值走 json `hma/hrpm/htmo`。`setHomeDir("up"/"down")`→`zhome <dir> nowait` 只存本机；`setAutohome()` 不带方向。`SLOW_CMD_TIMEOUT_MS["stop"]=8000`（固件打断最坏 ~2.5s；板子 TCP 任务串行，桥抢先写救不了急停，docs/18 §7.7）。
+- `algorithm_bridge.py` — 测试推理：模型默认 null（DetectPage 自选 .onnx）；阈值优先级 = ONNX metadata > `*.threshold.json` > 1.7；`maskReady` 先于 `inferenceReady`；热力图尺度 `<模型>.scale.json`（模型旁→`backend/model_scales/`）；切换模型内存三件套 `enable_cpu_mem_arena=False` + `del old` + `gc.collect()` + `malloc_trim(0)`；`predict_frame` 供实时管线（`_infer_lock`/`_build_lock` 防双 session）；`unloadModel()` 卸载。
+- `onnx_infer.py` — 无 torch：预处理（Resize+CenterCrop+ImageNet 归一化）在客户端；后处理（上采样+高斯平滑）已内化进新 ONNX 图（旧 patch 模型走 `_gaussian_blur`）。**分数 = 判别器负输出的 patch max，带符号、无界、未归一化**（正常≈-1~1.5，异常>2），**不要 clamp/min-max 到 0~1**。`target_size` 默认 518 须与导出一致。
+- 回归测试见 `tests/`；不再有单独的 mqtt_bridge 测试，MQTT 走 CommPage 手工联调。
 
-## 关键约定（高危"不要动"清单）
+## 关键约定（高危“不要动”）
 
-- **main.py venv 自检 execv**：不要绕过；打包版 frozen 分支的 `Path("Scripts","python.exe")` 写法不要改回 str/str 相除。
-- **两处 Fusion 强制**：`QT_QUICK_CONTROLS_STYLE=Fusion`（main.py `__main__` 块，QGuiApplication 创建前）——KDE Breeze 与 Qt 6.11 QML 控件不兼容（ComboBox 下拉空白）；Windows 打包无它则控件空白。**不要移除**。
-- **颜色唯一来源** `DuAD_Software/Colors.qml`：`setTheme/setPreset` 运行时切换，全部颜色走 ColorAnimation（`animDuration`）。禁止硬编码 `#rrggbb`。卡片层级另有一组令牌：`cardBg / cardBorderStrong / cardShadow / accentSoft / textOnAccent / cardDangerBorder`。**实色强调**（2026-10-08）：`accent / accentHover / accentPressed / accentContent / accentText` —— 淡色（`accentSoft`/`interactive*`）铺大面积，实色只点睛（主按钮、选中 chip、导航指示条、开关/滑块/焦点）；强调底上的字用 `accentContent`（暗色主题是深字），**不是** `textOnAccent`（急停红上的白）。⚠ 属性名别用 `onXxx`（QML 当信号处理器）。对比度下限由 `tests/test_design_tokens.py` 按每套配色×亮/暗钉住，新增/改配色必跑。
-- **卡片/按钮的底色与"浮起"一律用 `pages/components/CardSurface.qml` / `ThemedButton.qml`**（白底 + 1px 描边 + **普通矩形**硬阴影，不用 shader 特效 —— 更简单且已在页面里验证过）。按钮里"图标+文字"用 `pages/components/IconText.qml`（纯锚点居中），**不许拿 `⏻ ⌂ ■ ▲` 这类 Unicode 字形当图标**（依赖字体收录、大小不齐、不能单独染色）。
-- **别拿探针脚本的"不渲染"当结论**：探针能证明"能"、很难证明"不能"，要否定一件事得在**真实页面渲染**（`render_page.py`/`render_pages.py`）里否定。我曾据探针误判"offscreen 下图标从来是空的"，把规矩写错了 —— 详见 docs/19 §32（**已更正**）。
-- **图标路径的正确性靠断言兜底**（路径写错会**静默不画**）：`tests/test_ui_theme.py` 会逐个解析每个页面的 `IconImage.source` 查文件存在，`test_stage_page.py` 12e 同理。改图标或搬文件后必须回跑。
-- **URL 解析**：main.py 设 `QML_COMPAT_RESOLVE_URLS_ON_ASSIGNMENT=1`，`pages/` 引 `images/` 必须写 `../images/`；**测试与渲染脚本同样要设**（否则图标静默消失，§22.1-3）。跨平台 URL 转换用 `_toFileUrl()/_fromFileUrl()`（DetectPage 已内置，新增 FileDialog 照抄）。
-- **`.ui.qml` 仅供 Qt Design Studio**；StackLayout 子项顺序必须与 `navGroup.buttons` 一致（有静态校验钉着）。
-- **ComboRow 的 model 用稳定 key（不翻译）**，显示文本走 `displayFunc`；**ComboBox 下拉高度用 `combo.count * 32 + 4` 同步计算**（异步 contentHeight 有 0 高死循环），改 delegate 高度同步改公式。
-- **SliderRow 的滚轮只在 Ctrl/Shift 时生效**（否则冒泡给页面滚，§19-31）；**label 列固定 72px、数值列 80px**；**重量级操作挂 `released` 信号**（松开才发）；曝光 UI 单位 ms，写相机换算 μs；相机重置目标 = 曝光 20000μs / 增益 0dB / 帧率 1.0。
-- **AppBridge 是跨页状态中枢**：`collectingOwner`（`""`/"collect"/"detect"/"stage"，后按者抢占，main.py `COLLECTING_OWNERS` 仲裁）。**新增持有者必须同时改三处**：元组、仲裁分支、页面申请/释放（漏一处 = 静默丢弃，完整说明见 docs/19 §5）；页面离开时必须释放（StackLayout 不销毁页面）。Python 侧对象必须保持引用防 GC。
+- **main.py venv 自检 execv** 不要绕过；frozen 分支 `Path("Scripts","python.exe")` 写法不要改回 str/str 相除。
+- **Fusion 强制**：`os.environ.setdefault("QT_QUICK_CONTROLS_STYLE","Fusion")`（main.py，QGuiApplication 创建前；全仓库就这一处）。移除会导致 KDE/Windows 控件空白。
+- **颜色唯一来源** `DuAD_Software/Colors.qml`：`setTheme/setPreset` 运行时切换，全部走 ColorAnimation；禁止硬编码 `#rrggbb`。卡片令牌：`cardBg/cardBorderStrong/cardShadow/accentSoft/textOnAccent/cardDangerBorder`。实色强调：`accent/accentHover/accentPressed/accentContent/accentText`——淡色铺大面积，实色只点睛；强调底上的字用 `accentContent`（暗色主题是深字），**不是** `textOnAccent`。属性名别用 `onXxx`。对比度由 `tests/test_design_tokens.py` 钉住，改配色必跑。
+- **卡片/按钮**一律 `CardSurface.qml` / `ThemedButton.qml`（白底 + 1px 描边 + 普通矩形硬阴影，不用 shader）。按钮“图标+文字”用 `IconText.qml`；**不许拿 `⏻ ⌂ ■ ▲` 等 Unicode 字形当图标**。
+- **别拿探针的“不渲染”当结论**：探针能证“能”，很难证“不能”；否定要在真实页面渲染（`render_page.py`/`render_pages.py`）里做（docs/19 §32）。
+- **图标路径靠断言兜底**（写错会静默不画）：`tests/test_ui_theme.py` 逐个解析 `IconImage.source`，`test_stage_page.py` 12e 同理；改图标/搬文件必须回跑。
+- **URL 解析**：main.py 设 `QML_COMPAT_RESOLVE_URLS_ON_ASSIGNMENT=1`；相对当前 QML 文件：`pages/` 用 `../images/`，`pages/components/`、`pages/minipages/` 用 `../../images/`；测试/渲染脚本也要设。跨平台 URL 用 `_toFileUrl()/_fromFileUrl()`。
+- **`.ui.qml` 仅供 Qt Design Studio**；StackLayout 子项顺序必须与 `navGroup.buttons` 一致（有静态校验）。
+- **ComboRow** model 用稳定 key，显示走 `displayFunc`；ComboBox 下拉高度用 `combo.count * 32 + 4` 同步计算（异步 contentHeight 会 0 高死循环），改 delegate 高度同步改公式。
+- **SliderRow** 滚轮仅 Ctrl/Shift 生效（否则冒泡滚页，§19-31）；label 列 72px、数值列 80px；重量级操作挂 `released`；曝光 UI 用 ms，写相机换算 μs；相机重置目标=曝光 20000μs/增益 0dB/帧率 1.0。
+- **AppBridge 跨页状态**：`collectingOwner`（`""`/`collect`/`detect`/`stage`，后按者抢占）。新增持有者必须同时改三处：`COLLECTING_OWNERS`、仲裁分支、页面申请/释放（漏一处=静默丢弃，docs/19 §5）；页面离开必须释放（StackLayout 不销毁页面）；Python 侧对象保持引用防 GC。
 - **QML 绑定里不要调函数**（无依赖追踪），用带 notify 的 Property（§6）。
-- **进了 `Layout` 的项尺寸一律写 `Layout.preferredWidth/Height`**：写 `width:`/`height:` 会被布局
-  覆盖成 `implicitWidth`（`IconImage` 是 **24**），**不报错也不警告**，只有量出来才发现（§19-35）。
-  在 `Item`/`Rectangle` 里用 `anchors.centerIn` 的那种不受影响。
-- **`IconImage` 想改尺寸，必须连 `implicitWidth/implicitHeight` 一起给**（创建时就定死）：
-  它染色走 `ColorOverlay`，创建后被布局改尺寸会画不出东西（用户实测："图标直接消失了"，§19-35）。
-  颜色也**别改成浅色**：全站语言是"图标深(`iconColor`)、标签灰"。
-- **嵌套布局的 `Layout.alignment`/`Layout.preferredWidth` 不可靠**：外面包普通 `Item` 承接，内部布局 `width: parent.width`；折叠状态放外层 Item；**嵌套 RowLayout 的 implicitWidth 是最小宽度**，窄列里先算好（§26-5、§29）。
-- **多列宽度三条约束一起夹**（比例 / 上限 / 保中列下限），窄屏先保中间那列；并排卡片用 `GridLayout` + 动态 `columns`（§19-30）。**控件不许一律 fillWidth**（动作按钮用 implicitContentWidth+留白+行尾弹簧）（§19-26）。
-- **相机 ROI**：写入前 stopGather、写完读回校验、延迟 200ms 自动 startGather（失败重试 2 次，main.py 1.5s 兜底）；分辨率切换走 **BINNING**（视野不变），**不要**用 OFFSET+WIDTH 窗口裁剪（会放大画面丢视野）。
+- **进了 Layout 的项尺寸写 `Layout.preferredWidth/Height`**：写 `width/height` 会被覆盖成 implicit（`IconImage` 是 24），不报错不警告（§19-35）。在 `Item/Rectangle` 里 `anchors.centerIn` 的不受影响。
+- **`IconImage` 改尺寸要连 `implicitWidth/implicitHeight` 一起给**（创建时定死）；创建后被布局改尺寸可能画不出。10px 级箭头改用普通 `Image`（见 v4.6），颜色别改成浅色（全站“图标深、标签灰”）。
+- **嵌套布局的 `Layout.alignment/preferredWidth` 不可靠**：外套普通 `Item`，内部布局 `width: parent.width`；折叠状态放外层 Item；嵌套 RowLayout 的 implicitWidth 是最小宽度（§26-5、§29）。
+- **多列宽度三条约束一起夹**（比例/上限/保中列下限），窄屏先保中列；并排卡片用 `GridLayout` + 动态 `columns`（§19-30）。控件不许一律 fillWidth（动作按钮用 implicitContentWidth+留白+行尾弹簧，§19-26）。
+- **相机 ROI**：写入前 stopGather、写完读回校验、延迟 200ms 自动 startGather（失败重试 2 次，main.py 1.5s 兜底）；分辨率切换走 **BINNING**（视野不变），不要 OFFSET+WIDTH 裁剪。
 - **实时采集优先于测试推理**（DetectPage 自增 `_testSession` 作废在途结果）。
 - **相机连接中文案居中**是卡片级覆盖层（CameraCard/LightControllerCard/CloudServerCard 模式，照抄别放 RowLayout）。
 - 全局字体 `fonts/wqy-microhei.ttc` 由 main.py 注册，QML 无需指定 family。
 
-## i18n（新增 qsTr 必做，否则英文/繁体缺翻译）
+## i18n（新增 qsTr 必做）
 
-源文本 = 简体中文；`LANG_FILES`：0=en / 1=zh_CN(源) / 2=zh_TW。**必须从仓库根目录运行**：
+源文本=简体中文；`LANG_FILES`：0=en / 1=zh_CN(源) / 2=zh_TW。**从仓库根目录运行**：
 
 ```bash
 LUPDATE=DuAD_SoftwareContent/pyqml/lib/python3.14/site-packages/PySide6/lupdate
 LRELEASE=DuAD_SoftwareContent/pyqml/lib/python3.14/site-packages/PySide6/lrelease
 "$LUPDATE" -no-obsolete DuAD_SoftwareContent/App.qml DuAD_SoftwareContent/MainuiRoot.qml DuAD_SoftwareContent/MainWindow.ui.qml DuAD_SoftwareContent/pages backend/Src/*.py DuAD_SoftwareContent/main.py -ts translations/app_en.ts
-python scripts/gen_translations.py      # 新字符串要同时进 EN 和 TW 两个 dict
+python scripts/gen_translations.py
 "$LRELEASE" translations/app_en.ts translations/app_zh_TW.ts
 ```
 
-- ⚠ **跑 lupdate 必须连 stderr 一起看**：QML 语法错误只打一行 `error:` 到 stderr（stdout 照样报 Found N），**该文件全部字符串会从 .ts 里静默消失**。
-- ⚠ **Python 侧要逐个文件列出来**（`backend/Src/*.py`）：给 lupdate 一个**目录**时它不认 `.py`（只扫 .qml/.cpp/.ui），目录写法会**静默漏掉**桥接层那句文案 —— 于是英文界面里突然冒出一句中文，而 gen_translations 一声不吭。改完记得看 lupdate 的 "Found N source text(s)" 有没有涨。
-- 桥接层的界面文案写 `self.tr("…")`（**在方法里**，不要在模块级 dict 里 —— 模块级 dict 在 import 时就求值，那时翻译器还没装，字符串会永久停在中文；错误码/故障码这类查表文案改成"查表时翻译"的方法）。⚠ **别以为"日志就不用翻"**：`_log()` 不只 print —— StageBridge/ZStageBridge 的 `logMessage`/`logLines` 画在「诊断」面板的日志列表里、MqttBridge 的画在「消息日志」里，`_enqueue(note=…)` 画在（已删除的）协议框的"命令名"列，**都是用户可见文案**（2026-10-08 补翻 100 处）。真正不用翻的只有两种：**纯 `print()` 的终端日志**，以及**板子自己吐的原文帧**（`→ json` / `← {...}` / `@TX …`，排障要对照原文）。
-- 改写脚本类批量操作的两个坑（都踩过）：① 一条语句里**既有外层 f-string 又有内层中文字面量**时，一次性改写会因编辑区间重叠把内层 `tr()` 覆盖掉 —— 要**多轮"只改最内层"**，每轮重新解析；② `ast` 的 `col_offset/end_col_offset` 是 **UTF-8 字节**偏移，必须在 `bytes` 上拼接，按字符切会把含中文的行切歪。
-- `gen_translations.py` 两条守卫任一不满足 `exit 1`：① EN/TW dict 逐条对齐（改文案两边一起改，否则繁体显示英文）；② 生成结果不许有空翻译。
-- 语言持久化 `QSettings("DuAD","DuADSoftware")`，切换走 `AppBridge.setLanguage()`。
-- 改完 i18n 的自检办法（比肉眼看靠谱）：临时把 `AppBridge.setLanguage(0)` 跑一遍，遍历可视树里所有 Text/TextField 的 `text`/`placeholderText` 找中文（2026-10-08 用它查出 343 个文本控件里唯一漏的那句来自 `ZStageBridge.datumHint`）。
+- ⚠ 跑 lupdate 必须连 stderr 一起看：QML 语法错误只打一行 `error:`，该文件全部字符串会从 .ts 静默消失。
+- ⚠ Python 侧必须逐个列 `.py`：给目录时 lupdate 不扫 `.py`，会静默漏掉桥接层文案。改完看 “Found N source text(s)” 是否增长。
+- 桥接层界面文案写 `self.tr("…")`（在方法里，不要模块级 dict）；`_log()`/`logMessage`/`logLines` 等画在诊断面板的也是用户可见文案，要翻。纯 `print()` 终端日志、板子原始帧（`→ json`/`← {...}`/`@TX …`）不翻。
+- 批量改写脚本两个坑：f-string 内外层中文互覆盖（多轮只改最内层）；`ast` 的 col_offset 是 UTF-8 字节偏移（在 bytes 上拼接）。
+- `gen_translations.py` 两条守卫：EN/TW dict 逐条对齐；生成结果不许空翻译。语言持久化 `QSettings("DuAD","DuADSoftware")`，切换走 `AppBridge.setLanguage()`。
+- 自检：临时 `AppBridge.setLanguage(0)`，遍历可视树 Text/TextField 的 `text`/`placeholderText` 找中文（2026-10-08 用它查出唯一漏项来自 `ZStageBridge.datumHint`）。
 
-## 冒烟测试（offscreen，不需要真硬件）
+## 冒烟测试（offscreen，无需硬件）
 
 ```bash
 source DuAD_SoftwareContent/pyqml/bin/activate
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_page.py      # StagePage 端到端 + 导航三处同步 + 几何守卫
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_zstage_page.py     # Z 半边端到端 + 几何守卫
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_bridge.py    # StageBridge 协议（含 14f4 连接序列反向断言）
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_zstage_bridge.py   # ZStageBridge 23 组 + 子组
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_light_bridge.py    # 假光源控制器（只认 19200 + 长应答分片）
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_ui_theme.py      # **全站**守卫：七页 + 主窗口的按钮主题化 + 图标路径存在
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_design_tokens.py # 颜色令牌 WCAG 对比度（每套配色 × 亮/暗）
-QT_QPA_PLATFORM=offscreen python3 -u tests/test_detect_page.py   # 检测结论卡三态（待机/正常/异常）
-QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1680 1700 both --dump   # 平台页渲染 + 量几何（改版面必看）
-python3 tests/render_pages.py camera /tmp/camera.png 1440 980     # 渲染任意页面目检（camera/light/comm/collect/settings/detect/stage/main=整个主窗口）
-python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图标**本身**的形状/粗细，见 §32）
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_page.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_zstage_page.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_bridge.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_zstage_bridge.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_light_bridge.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_traj.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_ble_provision.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_ui_theme.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_design_tokens.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_detect_page.py
+QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1680 1700 both --dump
+python3 tests/render_pages.py camera /tmp/camera.png 1440 980
+python3 tests/render_icons.py /tmp/icons.png
 ```
 
-平台相关测试自带**进程内假板子**（严格按固件行为建模；替身的诚实度决定测试能发现什么，§11）。改版面/组件后先跑两个 page 测试再 render_page 目检。
+平台测试自带进程内假板子（严格按固件建模；替身诚实度决定能发现什么，§11）。改版面/组件后先跑两个 page 测试再 render_page 目检。
 
-通用坑：**必须 `python -u`**；交互优先 `btn.clicked.emit()`（`MouseArea.clicked` 带 MouseEvent 参数 emit 不了，要 `QTest.mouseClick`，且是窗口坐标、点前先滚进视口，§28）；找控件用 **objectName**（className 是 `Button_QMLTYPE_*` 不稳定）；**Repeater delegate 不在 QObject 树**，走可视树 `childItems()`；FakeBridge 必须存变量防 GC；**`engine.rootObjects()[0]` 也必须存进变量再用**（不存的话 PySide 的 wrapper 会被回收，之后遍历子项报 `Internal C++ object already deleted`）；offscreen 屏幕 800×800 会裁窗口宽，而且**加载后还会把 QML 里写的 width/height 改掉** —— 断言/截图前一律 `win.setProperty("width", …)` 再设一次（§25）；进程末尾的 `TypeError ... of null` 多是退出噪音，看加载完成那一刻的 warnings；`image://camera/...` 无 provider 属预期噪音。
+通用坑：必须 `python -u`；交互优先 `btn.clicked.emit()`（`MouseArea.clicked` 带 MouseEvent，要 `QTest.mouseClick` 且是窗口坐标、先滚进视口，§28）；找控件用 objectName（className 不稳定）；Repeater delegate 不在 QObject 树，走 `childItems()`；FakeBridge/`engine.rootObjects()[0]` 必须存变量防 GC；offscreen 800×800 会裁窗口，加载后还会改 QML 里的 width/height，断言/截图前用 `win.setProperty("width",…)` 再设一次（§25）；退出时的 `TypeError ... of null` 多是噪音；`image://camera/...` 无 provider 属预期。
 
-**临时产物一律丢在仓库根、文件名以 `_` 开头**（`.gitignore` 里 `/_*` 兜住）：探针脚本 `_probe_*.py`、渲染图 `_render_*.png`、中间译文 `_keys*.txt` 都按这个来 —— 否则这些 PNG/脚本会留在 `git status` 里，一旦 `git add -A` 就被提交。要长期看的截图放 `.uicap/`（同样已忽略）。**跑完测试/探针记得删掉自己的 `_*`**：`git status --short` 干净才算收工。
+临时产物丢仓库根、文件名以 `_` 开头（`.gitignore` 的 `/_*` 兜住）：`_probe_*.py`、`_render_*.png`、`_keys*.txt`；长期截图放 `.uicap/`。跑完删掉自己的 `_*`：`git status --short` 干净才算收工。
 
-## 「平台控制」页（v4.6，2026-11：设置面板内部再分折叠区）
+## 「平台控制」页（当前：v4.6）
 
-用户反馈「二轴相机平台控制的页面太长了」：**「平台设置」折叠节内部**的
-「Wi-Fi 连接 / 网络 / 工作区 / 速度 / 轨迹速度 / 关机行为」（Z 轴同理：
-「Wi-Fi / 网络 / 速度 / 软限位 / 自动回零参数 / 上电行为」）现在各自可折叠。
+- **设置面板内部按功能分区折叠**（`pages/components/CollapsibleHeader.qml`）：二轴 = Wi-Fi/网络/工作区/速度/轨迹速度/关机行为；Z = Wi-Fi/网络/速度/软限位/自动回零参数/上电行为。默认只展开 Wi-Fi，「应用设置」始终在底部。
+- 箭头用普通 `Image`（`images/折叠箭头.svg`，中灰），**不要换回 `IconImage`**（10px ColorOverlay 在此上下文不渲染）。
+- 分区标题要有 objectName（`xyNetFold`/`zHomeFold`…）；测试用 `toggled.emit()` 验展开/收起。
+- Z 的限位电流/超时警告在「自动回零参数」里；测试断言 visible 前先 `zSetupPanel.homeOpen = true`。
 
-- 组件 `pages/components/CollapsibleHeader.qml`：箭头 + 标题 + 点击切换；
-  ⚠ 箭头用普通 `Image`（`images/折叠箭头.svg`，中灰），**不要换回 `IconImage`** ——
-  10px 的 ColorOverlay 在这个上下文里实测不渲染；中灰在明/暗主题都看得见。
-- 每个分区 = `CollapsibleHeader` + 一层 `ColumnLayout { visible: root.xxxOpen }`；
-  默认**只展开 Wi-Fi**，其余收起；「应用设置」始终在面板底部可见。
-- ⚠ 分区标题要有 `objectName`（`xyNetFold` / `zHomeFold`…），`test_stage_page.py`
-  用 `toggled.emit()` 验展开/收起；没有 objectName 的测试会变成"找不到 → 跳过"。
-- ⚠ 警告文案（Z 轴超时/限位电流）现在住在「自动回零参数」分区里；
-  测试断言 `visible` 前必须先 `zSetupPanel.homeOpen = true`
-  （`test_zstage_page.py` 已按这个改，别删那两行）。
+### 轨迹与网格（v4.5 要点）
 
-## 「平台控制」页（v4.5，2026-10-10 第二版「轨迹与网格」：标尺 + 立体感 + Z 高度条）
+- `TrajectoryGridCard` 五模式：点选/网格/圆/矩形/多段线，录制按钮在右上角；卡可折叠（`trajFold`/`trajBody`），默认展开。
+- **背景只有标尺、没有格线**；`_niceStep()` 取 1/2/5×10ⁿ，首末刻度落工作区边界。点选不吸附格心，mm 由 `_mmOf()` 算；`sample_grid()` 保留（网格模式生成点阵）。
+- **只有点选模式会因单击移动**；网格/圆/矩形/多段线只画+预览，提交走「存为轨迹」→「执行」。
+- 预览一律从参数推导（`pCx/pCy/pR`、`rectA/rectB`、`draft`），不从上次拖拽点；拖动实时写参数、松手 `_syncInputs()`。三个圆参数框必须显式 `id`，不写 `text:` 绑定（否则 Binding loop，§37）。
+- 圆半径夹到“圆心到四边最小距离”；Z 高度条点/拖只画预览，**松手才下发一条** `moveTo`，闸门用 `canMove`，原因用 `datumHint`；绝不能在拖动中连发。
+- 卡与两张手动控制卡用 `flat: true` 住进 `FoldHeader`+`FoldBody`；`flat` 只置空底板 `color/borderColor/shadowed`，**绝不能写 `visible: !flat`**（`mainCol` 会整卡空白）。两张手动卡默认展开（12a2 首屏保证靠它）。
+- 台面纹理 `images/台面_哑光喷砂.jpg`（`scripts/make_texture.py` 生成，中性灰 0.5、四边淡出、512²），要内缩 `radius` 放；`test_stage_page.py` 12g 钉住文件存在。
+- 轨迹 rpm/acc 在「平台设置 → 轨迹速度」（`setPathSpeed`，存 `stage/path_rpm|path_acc`）；手动 acc 默认 1，轨迹默认 1200/30，刻意分开。录制中折叠头 badge 显示「录制中」。
+- `MouseArea` 加 `preventStealing: true`（否则外层 Flickable 抢拖动，§38）；折线锚在段起点（`x:_px(x1), y:_py(y1)-lineWidth/2`，§39）；整张卡不用 `Canvas`，标尺/折线用 Rectangle/Text。
+- 版面上下堆叠（台面+Z 条→chips→提示→参数→名称/存为轨迹→速度+录制→列表→执行）；台面组 `GridLayout{Layout.fillWidth:false; Layout.alignment:Qt.AlignHCenter}`；`ColumnLayout` 里成对 `InputRow` 竖排；`InputRow` 宽度用外层普通 Item 定宽。
+- 网格点选替代不了十字点动（1px≈1.1~1.9mm），精调仍用 0.1mm 档；12a 首屏超出量基线 2.0 倍（实测 1.84），`render_page.py ... card` 目检；详见 docs/17 §14。
 
-**`TrajectoryGridCard`**（中列、两张手动控制卡**下面**，默认展开）第二版按用户重画的 UI 改了：
-**五个模式**（点选 / 网格 / 圆 / 矩形 / 多段线，chips 带图标）；录制按钮在**右上角**（按需）。
-几条硬规矩：
+### 版面（v4.2 三列，现行）
 
-- ⚠ **背景只有标尺、没有格线**（用户原话"背景不要网格，只留刻度标尺，这个标尺和初始化的
-  工作区大小有关系"）：左=Y 标尺、下=X 标尺，`_niceStep()` 选 1/2/5×10ⁿ 步长，
-  **首末刻度必定落在工作区边界**（12g 有断言）。因此**点选不再吸附格心**，
-  桥侧 `gridRows/gridCols/setGrid/snapToGrid` 与 `stage_traj.snap_to_cell` **已删除**；
-  点选的 mm 由卡里的 `_mmOf()` 算（本文件唯一的坐标变换），信号是 `mapPicked(xmm, ymm)`。
-  ⚠ `sample_grid()` **保留** —— 那是「网格」模式生成巡检点阵用的，与"背景格线"无关。
-- ⚠ **只有「点选」模式会因单击而移动**；网格/圆/矩形/多段线只负责"画 + 预览"，
-  提交一律走「存为轨迹」→「执行」。（以前网格模式也响应单击，用户以为是 bug。）
-- ⚠ **预览一律从参数推导**（`pCx/pCy/pR`、`rectA/rectB`、`draft`），不从"上次拖拽点"推导：
-  否则"在输入框里改半径，图上不变"。拖拽只是**连续写参数**的一种方式；
-  拖动中实时写参数、松手 `_syncInputs()` 回写输入框。⚠ 那三个圆参数框**必须显式声明 `id`**
-  （只写 objectName 会 `ReferenceError`，见 docs/19 §37），且**不写 `text:` 绑定**
-  （回写 + 绑定 = `Binding loop detected`）。
-- ⚠ **圆的半径夹到"圆心到四边的最小距离"**（拖动与手输都夹）：桥在保存/执行时会把每个点
-  夹进工作区，不夹的话"图上看到的"和"实际会走的"不是一个东西（用户报过"圆画到台面外"）。
-- ⚠ **Z 高度条可点/可拖**（2026-10-10 用户说"Z 轴好像没法直接控制"）：点或拖到某个高度 →
-  **松手才下发一条** `moveTo`（拖动中只画预览线），闸门直接用桥的 `canMove`、
-  失败原因用 `datumHint`。**绝不能在拖动中连发**（固件在途时会静默覆盖目标）。
-- ⚠ **这张卡是可折叠的**（2026-10-10 用户要求"像平台状态/平台设置那样"）：
-  页面的 `FoldHeader`（objectName `trajFold`）+ `FoldBody`（`trajBody`）包住它，
-  卡用 **`flat: true`** 住进去（不画白卡片底、不画自己的表头）。
-  ⚠⚠ `flat` 只许把底板的 `color/borderColor/shadowed` 置空，**绝不能写
-  `visible: !flat`** —— `mainCol` 是底板的子项，一藏就整卡空白（渲染图抓到过）。
-  默认展开（`_trajOpen: true`），想默认收起改初值即可。
-- ⚠ **这张卡与两张手动控制卡都可折叠**：`二轴手动控制`（`xyJogFold`/`xyJogBody`）+
-  `Z 轴手动控制`（`zJogFold`/`zJogBody`）也用 `FoldHeader`+`FoldBody` 包住，
-  两张面板 `flat: true` 住进去（面板自己的标题行在 flat 下不画，标题由折叠头负责——
-  别一个名字说两遍）。⚠ **默认都展开**：12a2「点动/急停/设原点必须在首屏内」
-  这条硬保证靠它成立（收起来的话那些控件 visible=False，断言会变成假通过）。
-- ⚠ **台面纹理**：卡里 `plateTexture` 指向 `../../images/台面_哑光喷砂.jpg`（空串 = 纯色板），
-  图由 **`scripts/make_texture.py`** 生成（无缝、**中性灰 0.5**、四边淡出、512²、41~75KB）。
-  ⚠ 脚本一次生成三张候选（哑光喷砂/拉丝铝/磨砂玻璃），**默认只保留哑光喷砂**，
-  另两张是候选（用户 2026-10-10 已删；要换跑一次脚本再改 `plateTexture` 即可）。
-  ⚠ 为什么是中性灰：台面 = 纹理 + `Colors.panelBg` 半透明覆盖，而 panelBg
-  **暗色主题下是 `#2a2a2a`** —— 一张中性灰图在明/暗两套主题下都成立（近白色的图
-  在暗色下会被冲成灰白）。⚠ 图要**内缩 `radius`** 放（`Image` 只能画矩形，
-  内缩后方角落在圆角以内）+ 图自带边缘淡出，否则圆角板里会冒出一个方块状纹理。
-  改纹理 = 改那一个字符串；`test_stage_page.py` 12g 钉住"文件真的存在"（普通
-  `Image` 不被 `test_ui_theme` 兜底，路径写错会静默不画）。
-- ⚠ **轨迹速度（rpm/acc）不在卡里**：2026-10-10 用户要求"直接在设置界面改"，
-  已搬到「二轴相机平台设置」里的**「轨迹速度」**一档（`pathRpmSliderRow` /
-  `pathAccSliderRow` → `StageBridge.setPathSpeed`，存 `stage/path_rpm|path_acc`）。
-  ⚠ 与手动点动那对**刻意分开**：手动 acc 默认 **1**，而轨迹每段都是一条完整梯形曲线，
-  用 acc=1 会让 5mm 的小段全程在爬坡 —— 整条轨迹慢到没法用（轨迹默认 1200/30）。
-  ⚠ 录制按钮的记录状态文字（`recordStatus`）跟着按钮走，卡的表头在 flat 下不画，
-  所以录制中用**折叠头的 badge**（"录制中"）提示。
-
-- ⚠ **`preventStealing: true`**：台面与 Z 条的 MouseArea 都要加，否则外层页面 Flickable
-  会把拖动抢走 —— 表现是"拖一下页面就滚"且"圆拖到一半卡住不变大"（docs/19 §38）。
-- ⚠ **折线锚在段起点**（`x: _px(x1), y: _py(y1) - lineWidth/2`，绕左中点旋转）：
-  锚在"包围盒左上角"会让朝右上的那些段整体平移一个段长 —— 用户看到的"一地乱线"根因
-  （docs/19 §39）。12g 有专门的回归守卫（造 (0,0)→(360,360) 的对角线量旋转原点）。
-- ⚠ **整张卡不用 `Canvas`**（换主题不重绘、测试也看不见它画了什么）：标尺/折线都用
-  `Rectangle`/`Text`；台面"立体感"用卡内 `component StagePlate`（照 `CardSurface`
-  的 panel 配方：上亮下暗渐变 + 顶边高光 + 底边压深 + 下方软投影，颜色全由令牌推导）。
-- ⚠ **版面是上下堆叠**（台面+Z 条 → chips → 提示 → 当前模式参数 → 名称/存为轨迹 → 轨迹速度+录制
-  → 列表 → 进度/执行 → 提示），所以**参数不再挤在窄列里**。台面组的居中靠
-  `GridLayout{ Layout.fillWidth: false; Layout.alignment: Qt.AlignHCenter }`（写 `fillWidth: true`
-  会撑满卡片、把台面顶到最左边）。名称框用"外面包普通 `Item` 定宽"（直接给 `InputRow` 写
-  `Layout.preferredWidth` 会被它的隐式宽度顶开，实测 524px）。
-- ⚠ **`ColumnLayout` 里成对的 `InputRow` 竖排**（不并排）：两个的 label 列各 72px + 输入框，
-  窄列里会把整行顶宽（渲染图抓到过 chips 被挤出卡右边界）。
-- ⚠ **网格点选替代不了十字点动**（台面 330px 上下 / 工作区 360–420mm →
-  **1px ≈ 1.1~1.9mm**，窄窗口更粗），它管粗定位、精调仍归左侧十字键的 0.1mm 档。
-- ⚠ `tests/test_stage_page.py` 12a 的首屏超出量基线 **2.0 倍**（实测 1.84；`12a2`
-  「点动/急停/设原点必须在首屏」没动）。渲染目检用 `render_page.py ... card`
-  （会滚到这张卡并切到网格模式）。详见 `docs/17` §14。
-
-## 「平台控制」页（v4.4，2026-10-08 新增中列「轨迹与网格」卡）
-
-（第一版：六模式 = 点选 / 网格 / 圆 / 矩形 / 多段线 / 录制；背景画格线 + 点选吸附格心。
-2026-10-10 已被上面的 v4.5 取代 —— 格线与吸附都已删除，录制不再算一个模式。
-保留此节只为记住演进：⚠ 当时把"成对的 `InputRow` 并排"和"`fillWidth: true` 的台面组"
-当成正常做法，两处都在渲染图里出过问题。）
-
-
-## 「平台控制」页（v4.3，2026-09-28 美化：图标接线 + 卡片质感）
-
-**卡片一律用 `pages/components/CardSurface.qml`**（白底 `cardBg` + 1px `cardBorderStrong` + 2px 矩形硬阴影），内嵌块（折叠头/图标 chip）用 `accentSoft`，页面底保持白 —— 层次 = 页面 → 卡片 → 内嵌块。**已连接卡片的描边是 `cardDangerBorder`（淡红），不要用 `statusDisconnected` 正红**（1px 正红围一圈像故障告警，而"已连接"是好状态）。**按钮一律走 `pages/components/ThemedButton.qml`**（`tone: primary|neutral|soft|danger|dangerSoft|success`；`primary` = 每张卡**唯一**的主操作；checkable 选中态自动画实色）—— **使能按钮的颜色就是状态**（2026-09-29 用户要求）：**未使能 = `success` 淡绿**（电机松着可手推，安全侧）、**已使能 = `dangerSoft` 淡红**（抱死带电，危险侧）、未连接回中性白（状态未知不许画成绿色）；**别用实心红 `danger`**（会和「停止」撞脸）。文字仍是**动作**（使能/失能），X/Y 与 Z 两张卡用同一套—— 本页曾有一批 Button 没写 `background`，吃的是 **Fusion 默认灰**、完全不吃 `Colors`（§19-33）；它的 contentItem 内部用 `IconText`，不许回退到 `⏻ ⌂ ■ ▲` 字形。**禁用态换颜色（`Colors.textPlaceholder`），不许压透明度**（实心图标会淡成浅影）。折叠头 = `FoldHeader`（**分节标题**：静止无底色 + 底部细线、悬停出淡底 —— 2026-10-08 起不再是 accentSoft 整条，那比卡片还抢眼；+ `下单箭头.svg` 旋转 0/−90 表示展开/收起 + 红色 pill badge）；**折叠体里的面板 `showTitle: false`**（标题由折叠头负责，别一个名字说两遍）。连接卡状态行分层：`● 已连接`（加粗、状态色）→ 闸门红项 → 地址 11px 灰 → `闪电/信号格` 图标 + 数值；**未连接时 `gates` 传 `[]`**（"未连接"由状态词说，别再出红字）。遥测拆成 `voltage`/`rssi` 独立属性（窄列 `width<300` 时整组让位）。**预设位置在左列「二轴相机平台状态」折叠节里**（`showTitle: true`，2026-09-28 用户要求从「高级」搬来）。⚠ **「高级（协议显示框）」2026-10-10 整节已删除**（用户：“不太需要这个”，确认整套删干净），所以本页**没有** `ProtoHub`/`ProtoPanel` 了。Z 轴「向上/向下」不 fillWidth（188 居中）；「移动到该位置」居中 + `tone: soft`。`StagePresetPanel` 要能在 164px 内容宽下活：边距 12、坐标文本 `width>=230` 才显示、「名称+记录」用 `GridLayout` 动态列数（宽了并排、窄了竖排）。
-
-## 「平台控制」页（v4.2，2026-09-28 第二张手绘稿：三列）
-
-**状态只在连接卡里**（`StageControllerCard.gates`，只画红项，§19-26/30）；**页面滚动条占 14px 且贴在窗口外缘**；
-**两张控制卡 `AlignHCenter | AlignTop`**（只写 HCenter 时矮的那张会垂直居中、顶边错开）。
-**三列宽度三条约束一起夹**（§19-30）：`_effSide = max(160, min(420, 页宽×0.24, (页宽−2×间距−380)/2))`，
-中列吃满剩余 —— 宽屏看比例（手绘稿 24%:52%:24%：1680→403/850）、窄屏先保中列（730→163/380）。
-⚠ v4.1 的"21% + 上限 340"全屏时给出 340/976：连接卡副标题被裁、预览被拉成大黑框（详见 §19-30）。左右列内容：连接卡(紧凑) → 状态行 → 红色提示/错误条 → 「…状态」折叠节(默认收) → 「…设置」折叠节(默认收，内含网络/工作区/速度表单)。中列：实时预览（卡片占满中列宽，画面 2448×2048 等比、**允许黑边**，高度上限 0.45×页高/560——防吃掉首屏操作区）→ 二轴/Z轴手动控制卡并排（各半、封顶 480、居中）→ 「轨迹与网格」卡。**整页一条滚动条**。折叠节组件 = 页内 `FoldHeader` + `FoldBody`（visible 放外层 Item）；齿轮/提示条 = `_openFold()`（展开+滚过去，断言 contentY）。真机联调注意（Z 板）：json 字段名、点动 rpm/acc 与固件实际值。
+- 状态只在连接卡 `StageControllerCard.gates`（只画红项，§19-26/30）；页面滚动条 14px。
+- 三列：`_effSide = max(160, min(420, 页宽×0.24, (页宽-2×间距-380)/2))`，中列吃满剩余；宽屏约 24:52:24，窄屏先保中列。两张手动卡 `AlignHCenter|AlignTop`，中列控制卡并排、封顶 480。整页一条滚动条；外折叠用页内 `FoldHeader`+`FoldBody`，齿轮/提示用 `_openFold()`（展开+滚过去）。
 
 ## 页面状态
 
-- **已联调**：Camera（搜索/连接/参数读写，MER2-501-79U3C-L 2448×2048）、Light（RS-232，2026-09-22 真机：19200、`$L{n}={v}#`）、Comm（MQTT，含 TLS/用户名密码）、Collect（定时保存，与 Detect 互斥）、Settings、Detect（实时采集+ROI+ONNX 实时推理热力图/分数/定位）。
-- **Stage**：✅ 页面+桥完成，测试全过，真机已联调（2026-09-13）。⚠ 0x91 方向字节未定（Byte1/Byte2，见 docs/17 §11.2）。Z 板**真机未联调**（协议层假板子已验）。
-- 后端细节与设计取舍见 `docs/17`（二轴）、`docs/18`（Z 轴）、`docs/19`（踩坑）；推理链路见 `docs/10~13`；打包见 `docs/14/15`、`docs/Jetson部署.md`。
+- **已联调**：Camera（MER2-501-79U3C-L 2448×2048）、Light（RS-232 19200、`$L{n}={v}#`）、Comm（MQTT/TLS）、Collect（定时保存，与 Detect 互斥）、Settings、Detect（实时采集+ROI+ONNX 热力图/分数/定位）。
+- **Stage**：X/Y 与 **Z 轴均已真机联调**（Z 板状态已由用户确认，2026-11）；BLE 配网 XY 已真机跑通。协议细节见 docs/17/18。
+- 推理链路 `docs/10~13`；打包 `docs/14/15`、`docs/Jetson部署.md`。
 
 ## Windows 打包（PyInstaller onedir）
 
@@ -242,15 +146,10 @@ python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图�
 DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.0
 ```
 
-要点（详见 `docs/15`）：GPU 库不打包（excludes nvidia*/tensorrt*，无库回退 CPU）；frozen 路径 `_content_dir()/_backend_root()/_translations_root()` 返回 `sys._MEIPASS`（改布局三处同步）；`console=False` 时 stdout/stderr 重定向 `%USERPROFILE%\DuAD_app.log`（**buffering=1 行缓冲**，否则强杀丢日志）；**必须强制 Fusion**；spec 用 `Path(SPECPATH).parent`；图标 `favicon.ico`。测试 exe：`QT_QPA_PLATFORM=offscreen` 启动看日志有 `[INFO] 启动成功` 且无 `QML ERROR`。
+要点（详见 docs/15）：GPU 库不打包（excludes nvidia*/tensorrt*，无库回退 CPU）；frozen 路径 `_content_dir()/_backend_root()/_translations_root()` 返回 `sys._MEIPASS`（改布局三处同步）；`console=False` 时 stdout/stderr 重定向 `%USERPROFILE%\DuAD_app.log`（buffering=1）；必须强制 Fusion；spec 用 `Path(SPECPATH).parent`；图标 `favicon.ico`。验收：`QT_QPA_PLATFORM=offscreen` 启动看日志有 `[INFO] 启动成功` 且无 `QML ERROR`。
 
 ## Jetson（aarch64）
 
-环境 `~/micromamba/envs/duad`（conda-forge PySide6 + NVIDIA 索引 onnxruntime；`pyqml/` 目录不要建）。JP7.2 是 CUDA 13：需补装 cu12 的 nvidia-* pip 包并把 `site-packages/nvidia/*/lib` 注入 LD_LIBRARY_PATH（main.py 已自动）。TRT 数值正确性依 JetPack 版本（JP6.2 勿用 TRT；JP7.2+ 可用，`DUAD_PREFER_TRT=1`/`DUAD_TRT_FP16=1` 已在 run_jetson.sh 默认开，引擎缓存分目录）。arm64 无 DxImageProc：Bayer 走自编 `libbayer_demosaic.so`（改 .c 必须重编译）。udev 规则必须装且重新插拔。详见 `docs/Jetson部署.md`、`docs/16`。
+环境 `~/micromamba/envs/duad`（conda-forge PySide6 + NVIDIA 索引 onnxruntime；Jetson 目标机上不要建 `pyqml/`）。JP7.2 是 CUDA 13：补装 cu12 的 nvidia-* pip 包并把 `site-packages/nvidia/*/lib` 注入 `LD_LIBRARY_PATH`（main.py 已自动）。TRT 数值正确性依 JetPack（JP6.2 勿用；JP7.2+ 可用，`DUAD_PREFER_TRT=1`/`DUAD_TRT_FP16=1` 已在 run_jetson.sh 默认开，引擎缓存分目录）。arm64 无 DxImageProc：Bayer 走自编 `libbayer_demosaic.so`（改 .c 必须重编译）。udev 规则必须装且重新插拔。详见 `docs/Jetson部署.md`、`docs/16`。
 
-
-
-最后：
-
-1. 在每次完成一个重要的任务节点的时候（你可以询问我是否提交），进行一次git的commit操作，并根据任务节点的内容在提交的时候进行描述。
-2. 我希望最后你告诉我的结果包括两个部分，第一个就是告诉我你干了什么，可以通过通俗的语言来解释。第二个是你修改了哪些文件。第三个是结果怎么样。
+最后：重要节点按内容提交 git（可先询问）；汇报固定三段 = 做了什么 / 改了哪些文件 / 结果怎么样。
