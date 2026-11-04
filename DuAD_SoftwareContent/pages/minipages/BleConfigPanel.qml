@@ -56,6 +56,18 @@ Item {
         width: parent.width
         spacing: 8
 
+        // 扫描结果回来时，把第一项（默认选中项）直接填进「Wi-Fi 名称」。
+        // ComboBox 自动选中第一项不会发 activated，所以不能只靠 onActivated。
+        Connections {
+            target: root.bridge
+            function onBleNetsChanged() {
+                if (!root.bridge || root.bridge.bleNetSsids.length === 0)
+                    return
+                netCombo.currentIndex = 0
+                ssidField.text = root.bridge.bleNetSsids[0]
+            }
+        }
+
         SectionHeader { text: qsTr("Wi-Fi 连接（蓝牙配网）") }
 
         RowLayout {
@@ -126,7 +138,7 @@ Item {
             objectName: "bleDeviceCombo"
             Layout.fillWidth: true
             label: qsTr("板卡")
-            comboWidth: Math.max(150, root.width - 90)
+            comboWidth: Math.max(170, root.width - 70)
             model: root.bridge ? root.bridge.bleDeviceLabels : []
             enabled: root.bridge && !root.bridge.bleBusy
                      && root.bridge.bleDevices.length > 0
@@ -146,10 +158,11 @@ Item {
         }
 
         ComboRow {
+            id: netCombo
             objectName: "bleNetCombo"
             Layout.fillWidth: true
             label: qsTr("网络")
-            comboWidth: Math.max(150, root.width - 90)
+            comboWidth: Math.max(170, root.width - 70)
             model: root.bridge ? root.bridge.bleNetLabels : []
             enabled: root.bridge && root.bridge.bleNets.length > 0
             onActivated: function (index) {

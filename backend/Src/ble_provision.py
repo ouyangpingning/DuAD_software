@@ -396,6 +396,7 @@ class BleProvisioner(QObject):
         self._poll_timer.timeout.connect(self._poll_status)
         self._poll_started = 0
         self._poll_count = 0
+        self._scan_retry = False
 
         self._cmd_timeout = QTimer(self)
         self._cmd_timeout.setSingleShot(True)
@@ -486,13 +487,26 @@ class BleProvisioner(QObject):
 
     @Slot()
     def scan_wifi(self) -> None:
+        if self._state == "scanning_wifi":
+            return
         if self._state != "reading":
             self._fail(self.tr("请先连接板卡并完成口令认证"))
+            return
+        # 刚认证完时 wifi status 可能还在途；不要立刻报“上一条没完成”，
+        # 等它结束再自动重试（用户点了“扫描 Wi-Fi”就应该扫）。
+        if self._pending is not None:
+            if not self._scan_retry:
+                self._scan_retry = True
+                QTimer.singleShot(200, self._retry_scan_wifi)
             return
         self._nets.clear()
         self.netsChanged.emit()
         self._set_state("scanning_wifi")
         self._send("wifi scan", self._on_scan_wifi_ok, timeout_ms=12000)
+
+    def _retry_scan_wifi(self) -> None:
+        self._scan_retry = False
+        self.scan_wifi()
 
     @Slot(str, str)
     def apply_wifi(self, ssid: str, password: str) -> None:
@@ -629,11 +643,13 @@ class BleProvisioner(QObject):
         self._send(self._token, self._on_auth_ok, timeout_ms=5000)
 
     def _on_auth_ok(self) -> None:
-        self._set_state("reading")
+        # 先读一次状态；读完之前保持 authenticating（busy），
+        # 避免“扫描 Wi-Fi”在 status 还在途时被点到而报“上一条没完成”。
         self._send("wifi status", self._on_status_ok, timeout_ms=5000)
 
     def _on_status_ok(self) -> None:
         self._apply_status(self._last_json)
+        self._set_state("reading")
 
     def _apply_status(self, obj: dict) -> None:
         self._saved_ssid = str(obj.get("ssid", "") or "")
