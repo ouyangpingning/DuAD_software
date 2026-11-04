@@ -19,7 +19,7 @@
 |---|---|
 | 芯片 | ESP32-WROOM-32UE（BLE 4.2 + Wi-Fi） |
 | BLE 栈 | NimBLE（`CONFIG_BT_NIMBLE_ENABLED=y`） |
-| 广播名 | `DuAD-XY-<MAC 后 4 位>` / `DuAD-Z-<MAC 后 4 位>` |
+| 广播名 | `DuAD-XY-55C6`（固定）；Z 板用固定前缀 `DuAD-Z-`（后缀按实物，不需要用户在界面选） |
 | 广播 | 500~600ms 间隔，可连接；不带 128-bit UUID（31 字节装不下） |
 | Service | `d0ad0001-9a1b-4c2d-8e3f-1a2b3c4d5e6f` |
 | RX（主机→板） | `d0ad0002-9a1b-4c2d-8e3f-1a2b3c4d5e6f`（Write / WriteNoRsp） |
@@ -31,27 +31,31 @@ RX/TX 是**按行文本**，和 USB/TCP 控制台完全同构；上位机按 `\n
 ## 3 配网流程
 
 ```text
-1. 点「搜索板卡」→ QtBluetooth 扫 DuAD-XY-* / DuAD-Z-*
-2. 只有一台自动连；多台在「板卡」下拉选
+1. 点面板右上角刷新 → QtBluetooth 只找固定名字（XY = DuAD-XY-55C6；Z = DuAD-Z- 前缀）
+2. 扫到第一台就自动连（不再有板卡下拉/选择步骤）
 3. GATT 连接成功 → 第一条必须发连接口令：
       <token>
    ← #OK auth
-4. 读状态 / 扫描：
+4. 自动读状态 + 自动扫描 Wi-Fi（用户不需要再点「扫描 Wi-Fi」）：
       wifi status
    ← {"configured":1,"connected":0,"state":"connecting","ssid":"","ip":"","rssi":0}
-   ← #OK
       wifi scan
-   ← {"nets":[{"ssid":"Lab-2.4G","rssi":-45,"auth":3}]}
+   ← {"nets_start":8}
+   ← {"net":{"ssid":"313","rssi":-20,"auth":3}}
+   ← {"net":{"ssid":"110","rssi":-45,"auth":3}}
+   ← ...
+   ← {"nets_end":8}
+5. 面板列出全部 Wi-Fi（按 RSSI 强→弱）；点某一项弹出密码框
+6. 密码为空时「连接」禁用；输入后：
+      wifi set {"ssid":"313","pass":"secret"}
    ← #OK
-5. 下发（JSON 保留 SSID/密码里的空格、引号、中文）：
-      wifi set {"ssid":"Lab-2.4G","pass":"secret"}
-   ← wifi: 已保存并开始连接 "Lab-2.4G"
-   ← #OK
-6. 上位机每 1s 轮询 wifi status，最多约 30s：
-      connected=1 → 成功，自动用新 IP 连 TCP
-      state=failed → 显示原因（auth/no_ap/timeout/dhcp），并回滚
-7. BLE 断开；板子继续慢速广播
+   每 1s 轮询 wifi status，最多约 30s
+7. 成功：状态「已连接 Wi-Fi」，自动用新 IP 连 TCP；弹窗显示 IP 后自动关闭
+8. 失败：弹窗显示原因（auth/no_ap/timeout/dhcp），板子自动回滚
 ```
+
+「忘记网络」只对**板子当前保存的 SSID** 生效：清除板子 NVS 里的凭据并断开；
+如果点的是别的网络，弹窗会提示“该网络不是板子当前保存的网络”。
 
 失败时：
 
@@ -125,4 +129,5 @@ wifi rollback     ← #OK
 - 当前 GATT 未启用 LE Secure Connections，口令在 BLE 链路上是明文（局域网实验环境可接受）；
   量产建议开 bonding + NVS 加密。
 - `wifi scan` 同步执行，BLE 任务已独立（6KB 栈），不会堵住 TCP/控制台；
-- 扫描结果最多 6 条（`console_io` 单次 512 字节限制），按 RSSI 从强到弱。
+- 扫描结果按行输出（`{"nets_start":N}` / 每行一个 `{"net":{...}}` / `{"nets_end":N}`），
+  不再受 `console_io` 单次 512 字节限制；最多列 24 条，按 RSSI 从强到弱。

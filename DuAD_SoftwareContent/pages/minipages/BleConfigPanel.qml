@@ -5,17 +5,17 @@ import DuAD_Software
 import "../components"
 
 /*
-    BLE 配网面板（二轴 / Z 轴共用）。
+    BLE 配网面板（二轴 / Z 轴共用）—— 固定板卡、自动扫描、列表点选弹窗。
 
-    只做一件事：通过 BLE 把 Wi-Fi 名称/密码交给板子，板子自己连路由器并持久化。
-    运动控制仍然走 TCP —— 这里不出现任何 move/stop 按钮。
+    流程（与 docs/20 一致）：
+      1. 右上角刷新 → 搜固定名字的板卡（XY = DuAD-XY-55C6；Z = DuAD-Z- 前缀）
+      2. 搜到就自动连；连上后自动 `wifi status` + `wifi scan`
+      3. 列表列出板子扫到的全部 Wi-Fi（2.4GHz）
+      4. 点某一项 → 弹窗输入密码 → 连接；失败留在弹窗显示原因
+      5. 弹窗里的「忘记网络」只对板子当前保存的 SSID 生效
 
-    ⚠ 板子一直慢速广播，所以“搜索板卡”随时可用；搜到一台会自动连接，
-      多台时在「板卡」下拉里选。口令取本面板外面的「口令」输入框（USB 控制台敲 net 可见），
-      因为 BLE 侧也要先认证才允许改 Wi-Fi。
-
-    折叠：标题是 CollapsibleHeader；`expanded=false` 时只留标题，
-    由「平台设置」面板决定默认展开还是收起。
+    ⚠ 不再有「板卡下拉」「Wi-Fi下拉」「Wi-Fi名称/密码输入框」——
+      这些都在流程里自动完成或收进弹窗。
 */
 Item {
     id: root
@@ -29,19 +29,12 @@ Item {
     implicitWidth: 460
     implicitHeight: layout.implicitHeight
 
-    function _connectDevice(index) {
-        if (!root.bridge || index < 0 || index >= root.bridge.bleDevices.length)
-            return
-        var d = root.bridge.bleDevices[index]
-        root.bridge.bleSetToken(root.token)
-        root.bridge.bleConnect(d.address)
-    }
-
-    function _pickSsid(index) {
-        if (!root.bridge || index < 0 || index >= root.bridge.bleNetSsids.length)
-            return
-        ssidField.text = root.bridge.bleNetSsids[index]
-    }
+    readonly property bool busy: root.bridge
+                                 && (root.bridge.bleState === "scanning"
+                                     || root.bridge.bleState === "connecting"
+                                     || root.bridge.bleState === "authenticating"
+                                     || root.bridge.bleState === "scanning_wifi"
+                                     || root.bridge.bleState === "provisioning")
 
     function _statusColor() {
         if (!root.bridge)
@@ -50,9 +43,18 @@ Item {
             return Colors.statusConnected
         if (root.bridge.bleState === "failed")
             return Colors.statusDisconnected
-        if (root.bridge.bleBusy)
+        if (root.busy)
             return Colors.accent
         return Colors.textPlaceholder
+    }
+
+    function _openWifi(net) {
+        if (!root.bridge || !net)
+            return
+        wifiDialog.ssid = String(net.ssid || "")
+        wifiDialog.rssi = Math.round(Number(net.rssi || 0))
+        wifiDialog.message = ""
+        wifiDialog.open()
     }
 
     ColumnLayout {
@@ -60,183 +62,322 @@ Item {
         width: parent.width
         spacing: 8
 
-        // 扫描结果回来时，把第一项（默认选中项）直接填进「Wi-Fi 名称」。
-        // ComboBox 自动选中第一项不会发 activated，所以不能只靠 onActivated。
-        Connections {
-            target: root.bridge
-            function onBleNetsChanged() {
-                if (!root.bridge || root.bridge.bleNetSsids.length === 0)
-                    return
-                netCombo.currentIndex = 0
-                ssidField.text = root.bridge.bleNetSsids[0]
-            }
-        }
-
-        CollapsibleHeader {
+        RowLayout {
             Layout.fillWidth: true
-            title: qsTr("Wi-Fi 连接（蓝牙配网）")
-            expanded: root.expanded
-            onToggled: root.expanded = !root.expanded
-        }
+            spacing: 6
 
-        ColumnLayout {
-            id: body
-            Layout.fillWidth: true
-            visible: root.expanded
-            spacing: 8
-
-            RowLayout {
+            CollapsibleHeader {
                 Layout.fillWidth: true
-                spacing: 6
-
-                Rectangle {
-                    Layout.alignment: Qt.AlignVCenter
-                    implicitWidth: 8
-                    implicitHeight: 8
-                    radius: 4
-                    color: root._statusColor()
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: root.bridge ? root.bridge.bleStateText : ""
-                    font.pixelSize: 12
-                    color: Colors.textPrimary
-                    wrapMode: Text.Wrap
-                }
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.bridge && root.bridge.bleState === "connected"
-                text: qsTr("当前：%1    IP：%2    信号 %3 dBm")
-                      .arg(root.bridge ? root.bridge.bleSavedSsid : "")
-                      .arg(root.bridge ? root.bridge.bleIp : "")
-                      .arg(root.bridge ? root.bridge.bleRssi : 0)
-                font.pixelSize: 11
-                color: Colors.textSecondary
-                wrapMode: Text.Wrap
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.bridge && root.bridge.bleError.length > 0
-                text: root.bridge ? root.bridge.bleError : ""
-                font.pixelSize: 11
-                color: Colors.statusDisconnected
-                wrapMode: Text.Wrap
-            }
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.bridge && root.bridge.bleSavedSsid.length > 0
-                         && root.bridge.bleState !== "connected"
-                text: qsTr("板子已保存：%1").arg(root.bridge ? root.bridge.bleSavedSsid : "")
-                font.pixelSize: 11
-                color: Colors.textPlaceholder
-                wrapMode: Text.Wrap
+                title: qsTr("Wi-Fi 连接（蓝牙配网）")
+                expanded: root.expanded
+                onToggled: root.expanded = !root.expanded
             }
 
             ThemedButton {
-                objectName: "bleScanButton"
-                Layout.fillWidth: true
-                implicitHeight: 34
-                tone: "soft"
-                text: qsTr("搜索板卡")
-                enabled: root.bridge && !root.bridge.bleBusy
+                objectName: "bleSearchButton"
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: 32
+                implicitHeight: 32
+                tone: "neutral"
+                raised: false
+                radius: 16
+                hPadding: 0
+                text: ""
+                enabled: root.bridge && !root.busy
+
+                contentItem: Image {
+                    anchors.centerIn: parent
+                    source: "../../images/refresh.svg"
+                    sourceSize.width: 14
+                    sourceSize.height: 14
+                    width: 14
+                    height: 14
+                    fillMode: Image.PreserveAspectFit
+                    opacity: parent.enabled ? 1.0 : 0.4
+                }
+
                 onClicked: {
                     root.bridge.bleSetToken(root.token)
                     root.bridge.bleScan()
                 }
             }
+        }
 
-            ComboRow {
-                objectName: "bleDeviceCombo"
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.expanded
+            spacing: 6
+
+            Rectangle {
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: 8
+                implicitHeight: 8
+                radius: 4
+                color: root._statusColor()
+            }
+            Text {
                 Layout.fillWidth: true
-                label: qsTr("板卡")
-                comboWidth: Math.max(170, root.width - 70)
-                model: root.bridge ? root.bridge.bleDeviceLabels : []
-                enabled: root.bridge && !root.bridge.bleBusy
-                         && root.bridge.bleDevices.length > 0
-                onActivated: function (index) {
-                    root._connectDevice(index)
+                text: root.bridge ? root.bridge.bleStateText : ""
+                font.pixelSize: 12
+                color: Colors.textPrimary
+                wrapMode: Text.Wrap
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            visible: root.expanded && root.bridge
+                     && root.bridge.bleSavedSsid.length > 0
+            text: qsTr("板子已保存：%1").arg(root.bridge ? root.bridge.bleSavedSsid : "")
+            font.pixelSize: 11
+            color: Colors.textPlaceholder
+            wrapMode: Text.Wrap
+        }
+
+        Text {
+            Layout.fillWidth: true
+            visible: root.expanded && root.bridge && root.bridge.bleError.length > 0
+            text: root.bridge ? root.bridge.bleError : ""
+            font.pixelSize: 11
+            color: Colors.statusDisconnected
+            wrapMode: Text.Wrap
+        }
+
+        ListView {
+            id: wifiList
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(220, contentHeight)
+            visible: root.expanded && root.bridge && root.bridge.bleNets.length > 0
+            clip: true
+            model: root.bridge ? root.bridge.bleNets : []
+
+            delegate: Item {
+                width: wifiList.width
+                height: 36
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: rowMa.containsMouse ? Colors.interactiveHover : "transparent"
+                    radius: 4
+                }
+
+                Text {
+                    anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                    text: modelData.ssid || ""
+                    font.pixelSize: 13
+                    color: Colors.textPrimary
+                    elide: Text.ElideRight
+                    width: parent.width - 90
+                }
+
+                Text {
+                    anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                    text: (modelData.rssi || 0) + " dBm"
+                    font.pixelSize: 10
+                    color: Colors.textPlaceholder
+                }
+
+                // 当前板子保存的网络打勾
+                Text {
+                    anchors { right: parent.right; rightMargin: 62; verticalCenter: parent.verticalCenter }
+                    visible: root.bridge && modelData.ssid === root.bridge.bleSavedSsid
+                    text: qsTr("已保存")
+                    font.pixelSize: 9
+                    color: Colors.statusConnected
+                }
+
+                MouseArea {
+                    id: rowMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root._openWifi(modelData)
                 }
             }
+        }
 
-            ThemedButton {
-                objectName: "bleScanWifiButton"
-                Layout.fillWidth: true
-                implicitHeight: 34
-                tone: "soft"
-                text: qsTr("扫描 Wi-Fi")
-                enabled: root.bridge && root.bridge.bleState === "reading"
-                onClicked: root.bridge.bleScanWifi()
-            }
+        Text {
+            Layout.fillWidth: true
+            visible: root.expanded && root.bridge
+                     && root.bridge.bleState === "reading"
+                     && root.bridge.bleNets.length === 0
+            text: qsTr("没有扫描到 Wi-Fi。请确认板子在 2.4GHz 路由器附近，点右上角刷新重试。")
+            font.pixelSize: 11
+            color: Colors.textPlaceholder
+            wrapMode: Text.Wrap
+        }
 
-            ComboRow {
-                id: netCombo
-                objectName: "bleNetCombo"
-                Layout.fillWidth: true
-                label: qsTr("网络")
-                comboWidth: Math.max(170, root.width - 70)
-                model: root.bridge ? root.bridge.bleNetLabels : []
-                enabled: root.bridge && root.bridge.bleNets.length > 0
-                onActivated: function (index) {
-                    root._pickSsid(index)
-                }
-            }
+        Text {
+            Layout.fillWidth: true
+            visible: root.expanded
+            text: qsTr("板子只支持 2.4GHz。配置时平台会短暂离线，请先停止运动；失败会自动回滚到原网络。")
+            font.pixelSize: 11
+            color: Colors.textPlaceholder
+            wrapMode: Text.Wrap
+        }
+    }
 
-            InputRow {
-                id: ssidField
-                objectName: "bleSsidField"
-                Layout.fillWidth: true
-                label: qsTr("Wi-Fi 名称")
-                placeholderText: qsTr("只能选 2.4GHz 网络")
-            }
+    // ── Wi-Fi 密码 / 连接 / 忘记 ───────────────────────────
+    Popup {
+        id: wifiDialog
+        objectName: "bleWifiDialog"
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape
+        width: Math.min(360, root.width - 24)
+        x: (root.width - width) / 2
+        y: 40
+        padding: 14
 
-            InputRow {
-                id: passField
-                objectName: "blePassField"
-                Layout.fillWidth: true
-                label: qsTr("Wi-Fi 密码")
-                password: true
-                placeholderText: qsTr("开放网络留空")
-            }
+        property string ssid: ""
+        property int rssi: 0
+        property string message: ""
+        property bool forgetPending: false
 
-            ThemedButton {
-                objectName: "bleApplyButton"
-                Layout.fillWidth: true
-                implicitHeight: 38
-                tone: "primary"
-                text: qsTr("连接并保存")
-                enabled: root.bridge && !root.bridge.bleBusy
-                         && root.bridge.bleState === "reading"
-                         && ssidField.text.trim().length > 0
-                onClicked: {
-                    root.bridge.bleSetToken(root.token)
-                    root.bridge.bleApplyWifi(ssidField.text.trim(), passField.text)
-                }
-            }
+        background: Rectangle {
+            color: Colors.cardBg
+            radius: 10
+            border { width: 1; color: Colors.cardBorderStrong }
+        }
 
-            ThemedButton {
-                objectName: "bleForgetButton"
+        contentItem: ColumnLayout {
+            spacing: 10
+
+            Text {
                 Layout.fillWidth: true
-                implicitHeight: 32
-                tone: "dangerSoft"
-                text: qsTr("忘记网络")
-                enabled: root.bridge && !root.bridge.bleBusy
-                         && (root.bridge.bleState === "reading"
-                             || root.bridge.bleState === "connected")
-                onClicked: root.bridge.bleForgetWifi()
+                text: wifiDialog.ssid
+                font.pixelSize: 14
+                font.bold: true
+                color: Colors.textPrimary
+                elide: Text.ElideRight
             }
 
             Text {
                 Layout.fillWidth: true
-                text: qsTr("板子只支持 2.4GHz。配置时平台会短暂离线，请先停止运动；"
-                           + "失败会自动回滚到原网络。")
+                text: qsTr("信号 %1 dBm").arg(wifiDialog.rssi)
                 font.pixelSize: 11
+                color: Colors.textPlaceholder
+            }
+
+            TextField {
+                id: passwordField
+                objectName: "bleWifiPasswordField"
+                Layout.fillWidth: true
+                placeholderText: qsTr("Wi-Fi 密码（必填）")
+                echoMode: TextField.Password
+                font.pixelSize: 13
+                color: Colors.textPrimary
+                onAccepted: {
+                    if (connectButton.enabled)
+                        connectButton.clicked()
+                }
+                background: Rectangle {
+                    implicitHeight: 34
+                    radius: 4
+                    color: Colors.pageBg
+                    border {
+                        width: 1
+                        color: passwordField.activeFocus ? Colors.accent : Colors.fieldBorder
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: wifiDialog.message.length > 0
+                text: wifiDialog.message
+                font.pixelSize: 11
+                color: (root.bridge && root.bridge.bleState === "failed")
+                       ? Colors.statusDisconnected : Colors.textSecondary
+                wrapMode: Text.Wrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                ThemedButton {
+                    id: connectButton
+                    objectName: "bleWifiConnectButton"
+                    Layout.fillWidth: true
+                    implicitHeight: 36
+                    tone: "primary"
+                    text: qsTr("连接")
+                    enabled: passwordField.text.length > 0
+                             && root.bridge && !root.busy
+                    onClicked: {
+                        wifiDialog.message = qsTr("正在连接…")
+                        root.bridge.bleApplyWifi(wifiDialog.ssid, passwordField.text)
+                    }
+                }
+
+                ThemedButton {
+                    objectName: "bleWifiCancelButton"
+                    implicitHeight: 36
+                    tone: "neutral"
+                    text: qsTr("取消")
+                    onClicked: wifiDialog.close()
+                }
+            }
+
+            ThemedButton {
+                objectName: "bleWifiForgetButton"
+                Layout.fillWidth: true
+                implicitHeight: 32
+                tone: "dangerSoft"
+                text: qsTr("忘记网络")
+                enabled: root.bridge && !root.busy
+                         && root.bridge.bleSavedSsid === wifiDialog.ssid
+                onClicked: {
+                    wifiDialog.forgetPending = true
+                    root.bridge.bleForgetWifi()
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: root.bridge && root.bridge.bleSavedSsid !== wifiDialog.ssid
+                text: qsTr("该网络不是板子当前保存的网络，无需忘记。")
+                font.pixelSize: 10
                 color: Colors.textPlaceholder
                 wrapMode: Text.Wrap
             }
+        }
+
+        onOpened: {
+            passwordField.text = ""
+            passwordField.forceActiveFocus()
+            wifiDialog.message = ""
+        }
+
+        Connections {
+            target: root.bridge
+            ignoreUnknownSignals: true
+            function onBleStateChanged() {
+                if (!wifiDialog.visible || !root.bridge)
+                    return
+                if (wifiDialog.forgetPending
+                        && root.bridge.bleSavedSsid.length === 0) {
+                    wifiDialog.forgetPending = false
+                    wifiDialog.message = qsTr("已忘记网络：%1").arg(wifiDialog.ssid)
+                    closeTimer.start()
+                    return
+                }
+                if (root.bridge.bleState === "connected") {
+                    wifiDialog.message = qsTr("已连接：%1").arg(root.bridge.bleIp)
+                    closeTimer.start()
+                } else if (root.bridge.bleState === "failed") {
+                    wifiDialog.message = root.bridge.bleError
+                } else if (root.bridge.bleState === "provisioning") {
+                    wifiDialog.message = qsTr("正在连接 Wi-Fi…")
+                }
+            }
+        }
+
+        Timer {
+            id: closeTimer
+            interval: 1200
+            onTriggered: wifiDialog.close()
         }
     }
 }

@@ -865,6 +865,22 @@ def main():
                 bool(setup.property("netOpen")) is False,
                 f"netOpen={setup.property('netOpen')}")
 
+    # BLE 配网弹窗：密码空时连接按钮必须禁用（用户明确要求）
+    wifi_dlg = find("bleWifiDialog")
+    wifi_pwd = find("bleWifiPasswordField")
+    wifi_conn = find("bleWifiConnectButton")
+    r.check("有 Wi-Fi 密码弹窗", wifi_dlg is not None
+            and wifi_pwd is not None and wifi_conn is not None)
+    if wifi_pwd is not None and wifi_conn is not None:
+        wifi_pwd.setProperty("text", "")
+        r.pump(0.1)
+        r.check("密码为空 → 连接按钮禁用",
+                bool(wifi_conn.property("enabled")) is False)
+        wifi_pwd.setProperty("text", "12345678")
+        r.pump(0.1)
+        r.check("输入密码 → 连接按钮可用",
+                bool(wifi_conn.property("enabled")) is True)
+
     # 齿轮的契约：点一下必须"展开 + 滚到眼前"，否则用户看到的就是"点了没反应"。
     # 三列版面里齿轮指向**本列**的「平台设置」折叠节 —— 断言 _xySetupOpen 被置真
     # **且整页滚到了它的折叠头**。⚠ 只断言 expanded==True 是假断言（那正是

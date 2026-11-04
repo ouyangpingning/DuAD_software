@@ -183,6 +183,7 @@ class ZStageBridge(QObject):
     bleStatusChanged = Signal()
     bleDevicesChanged = Signal()
     bleNetsChanged = Signal()
+    bleForgotten = Signal(str)
 
     def __init__(self, parent=None, settings=None):
         """settings 可注入 —— **测试必须传一个文件隔离的 QSettings**。
@@ -214,6 +215,7 @@ class ZStageBridge(QObject):
         self._ble.statusChanged.connect(self.bleStatusChanged.emit)
         self._ble.devicesChanged.connect(self.bleDevicesChanged.emit)
         self._ble.netsChanged.connect(self.bleNetsChanged.emit)
+        self._ble.forgotten.connect(self.bleForgotten)
         self._ble.provisioned.connect(self._on_ble_provisioned)
         self._ble.failed.connect(self._on_ble_failed)
         # ⚠ 从 QSettings 读回来也要**夹取**：手改过 ini（或旧版本写下的值）可能是

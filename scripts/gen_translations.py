@@ -681,6 +681,21 @@ EN.update({
     "平台还在运动/回零 —— 先停止再配网":
         "The platform is still moving/homing — stop it before configuring Wi-Fi",
     "上电行为": "Power-on Behavior",
+    "没有扫描到 Wi-Fi。请确认板子在 2.4GHz 路由器附近，点右上角刷新重试。":
+        "No Wi-Fi found. Make sure the board is near a 2.4 GHz router, then tap refresh at the top-right.",
+    "信号 %1 dBm": "Signal %1 dBm",
+    "Wi-Fi 密码（必填）": "Wi-Fi Password (required)",
+    "连接": "Connect",
+    "正在连接…": "Connecting…",
+    "取消": "Cancel",
+    "该网络不是板子当前保存的网络，无需忘记。":
+        "This network is not the one currently saved on the board; nothing to forget.",
+    "已忘记网络：%1": "Forgot network: %1",
+    "已连接：%1": "Connected: %1",
+    "密码不能为空（当前界面不支持开放网络）":
+        "Password cannot be empty (open networks are not supported in this UI)",
+    "没有找到板卡 {}，请确认板子已上电并在广播范围内":
+        "Board {} not found; make sure it is powered on and within range",
 })
 
 TW = {
@@ -1351,6 +1366,21 @@ TW.update({
     "Wi-Fi 配网中，等待板子重新上线…": "Wi-Fi 配網中，等待板子重新上線…",
     "平台还在运动/回零 —— 先停止再配网": "平台還在運動/回零 —— 先停止再配網",
     "上电行为": "上電行為",
+    "没有扫描到 Wi-Fi。请确认板子在 2.4GHz 路由器附近，点右上角刷新重试。":
+        "沒有掃描到 Wi-Fi。請確認板子在 2.4GHz 路由器附近，點右上角重新整理重試。",
+    "信号 %1 dBm": "訊號 %1 dBm",
+    "Wi-Fi 密码（必填）": "Wi-Fi 密碼（必填）",
+    "连接": "連線",
+    "正在连接…": "正在連線…",
+    "取消": "取消",
+    "该网络不是板子当前保存的网络，无需忘记。":
+        "該網路不是板子目前儲存的網路，無需忘記。",
+    "已忘记网络：%1": "已忘記網路：%1",
+    "已连接：%1": "已連線：%1",
+    "密码不能为空（当前界面不支持开放网络）":
+        "密碼不能為空（目前介面不支援開放網路）",
+    "没有找到板卡 {}，请确认板子已上电并在广播范围内":
+        "沒有找到板卡 {}，請確認板子已上電且在廣播範圍內",
 })
 
 def fill(src_ts, out_ts, mapping):

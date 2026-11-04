@@ -35,10 +35,12 @@ def _status(**kw):
 def test_success():
     link = FakeBleLink(script={
         "tok": [OK + " auth"],
-        "wifi scan": [json.dumps({"nets": [
-            {"ssid": "Lab-2.4G", "rssi": -45, "auth": 3},
-            {"ssid": "Lab-5G", "rssi": -70, "auth": 3},
-        ]}), OK],
+        "wifi scan": [
+            '{"nets_start":2}',
+            '{"net":{"ssid":"Lab-2.4G","rssi":-45,"auth":3}}',
+            '{"net":{"ssid":"Lab-5G","rssi":-70,"auth":3}}',
+            '{"nets_end":2}', OK,
+        ],
         "wifi set": [OK],
         "wifi status": [_status(connected=1, state="connected",
                                 ssid="Lab-2.4G", ip="10.0.0.7", rssi=-58), OK],
@@ -68,6 +70,26 @@ def test_success():
     assert any(x.startswith("wifi set ") for x in link.sent)
     payload = [x for x in link.sent if x.startswith("wifi set ")][0][9:]
     assert json.loads(payload)["ssid"] == "Lab-2.4G"
+
+
+def test_auto_scan_after_auth():
+    link = FakeBleLink(script={
+        "tok": [OK + " auth"],
+        "wifi status": [_status(connected=1, state="connected",
+                                ssid="Lab", ip="10.0.0.9"), OK],
+        "wifi scan": [
+            '{"nets_start":1}',
+            '{"net":{"ssid":"313","rssi":-20,"auth":3}}',
+            '{"nets_end":1}', OK,
+        ],
+    })
+    p = BleProvisioner("xy", link)
+    p.set_token("tok")
+    p.scan()
+    app = QCoreApplication.instance()
+    QTimer.singleShot(500, app.quit)
+    app.exec()
+    assert [n["ssid"] for n in p.nets] == ["313"], p.nets
 
 
 def test_bad_auth():
@@ -103,6 +125,7 @@ def test_wifi_failure_rolls_back():
 def main():
     app = QCoreApplication.instance() or QCoreApplication(sys.argv[:1])
     test_success()
+    test_auto_scan_after_auth()
     test_bad_auth()
     test_wifi_failure_rolls_back()
     print("BLE 配网状态机测试全部通过（成功 / 认证失败 / Wi-Fi 失败回滚）")

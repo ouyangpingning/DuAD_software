@@ -206,6 +206,7 @@ class StageBridge(QObject):
     bleStatusChanged = Signal()           # SSID/IP/RSSI/错误
     bleDevicesChanged = Signal()
     bleNetsChanged = Signal()
+    bleForgotten = Signal(str)
 
     # ── 遥测（来自 json 轮询）─────────────────────────────
     telemetryChanged = Signal()
@@ -262,6 +263,7 @@ class StageBridge(QObject):
         self._ble.statusChanged.connect(self.bleStatusChanged.emit)
         self._ble.devicesChanged.connect(self.bleDevicesChanged.emit)
         self._ble.netsChanged.connect(self.bleNetsChanged.emit)
+        self._ble.forgotten.connect(self.bleForgotten)
         self._ble.provisioned.connect(self._on_ble_provisioned)
         self._ble.failed.connect(self._on_ble_failed)
         self._rpm = self._migrating_setting("stage/rpm", OLD_DEFAULT_RPM, DEFAULT_RPM)

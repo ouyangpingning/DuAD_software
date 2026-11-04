@@ -38,7 +38,10 @@ BLE_SERVICE_UUID = "d0ad0001-9a1b-4c2d-8e3f-1a2b3c4d5e6f"
 BLE_RX_UUID = "d0ad0002-9a1b-4c2d-8e3f-1a2b3c4d5e6f"   # 上位机 -> 板子（write）
 BLE_TX_UUID = "d0ad0003-9a1b-4c2d-8e3f-1a2b3c4d5e6f"   # 板子 -> 上位机（notify）
 
-NAME_PREFIX = {"xy": "DuAD-XY-", "z": "DuAD-Z-"}
+# 板卡广播名固定死（UI 不再提供选择）：
+#   XY 板实测为 DuAD-XY-55C6；
+#   Z 板的 MAC 后缀请按实物修改，默认用 DuAD-Z- 前缀自动匹配（仍不接受用户选择）。
+BOARD_NAMES = {"xy": "DuAD-XY-55C6", "z": "DuAD-Z-"}
 
 
 def _as_uuid(s: str) -> QBluetoothUuid:
@@ -166,7 +169,7 @@ class QtBleLink(BleLink):
 
     def _on_device(self, info: QBluetoothDeviceInfo, prefix: str) -> None:
         name = info.name() or ""
-        if not name.startswith(prefix):
+        if not name.lower().startswith(prefix.lower()):
             return
         if not (info.coreConfigurations()
                 & QBluetoothDeviceInfo.CoreConfiguration.LowEnergyCoreConfiguration):
@@ -362,6 +365,7 @@ class BleProvisioner(QObject):
     statusChanged = Signal()
     provisioned = Signal(str, str)      # ip, ssid
     failed = Signal(str)
+    forgotten = Signal(str)             # 被忘记的 SSID（空串=板上没有已保存网络）
 
     BUSY_STATES = ("scanning", "connecting", "authenticating",
                    "scanning_wifi", "provisioning")
@@ -369,7 +373,7 @@ class BleProvisioner(QObject):
     def __init__(self, role: str, link: Optional[BleLink] = None, parent=None):
         super().__init__(parent)
         self.role = role
-        self.prefix = NAME_PREFIX.get(role, "DuAD-")
+        self.board_name = BOARD_NAMES.get(role, "DuAD-")
         self._link = link or QtBleLink(self)
         self._link.connected.connect(self._on_link_connected)
         self._link.disconnected.connect(self._on_link_disconnected)
@@ -469,7 +473,8 @@ class BleProvisioner(QObject):
         # 重新扫描前先释放旧连接（否则部分平台会一直占着 GATT）
         self._link.disconnect_device()
         self._set_state("scanning")
-        self._link.start_scan(self.prefix)
+        # 固定板卡名：不显示列表、不让用户选；扫到就自动连。
+        self._link.start_scan(self.board_name)
 
     @Slot(str, str)
     def connect_device(self, address: str, token: str) -> None:
@@ -519,6 +524,9 @@ class BleProvisioner(QObject):
             return
         if len(ssid) > 32:
             self._fail(self.tr("Wi-Fi 名称最长 32 字节"))
+            return
+        if not password:
+            self._fail(self.tr("密码不能为空（当前界面不支持开放网络）"))
             return
         if len(password or "") > 64:
             self._fail(self.tr("Wi-Fi 密码最长 63 个字符"))
@@ -583,17 +591,20 @@ class BleProvisioner(QObject):
                 return
         self._devices.append(dev)
         self.devicesChanged.emit()
+        # 固定板卡名：第一台匹配的设备直接连，不再等扫描超时/不再让用户选。
+        if self._state == "scanning":
+            self._link.stop_scan()
+            self.connect_device(dev["address"], self._token)
 
     def _on_scan_finished(self) -> None:
         if self._state != "scanning":
             return
-        if not self._devices:
-            self._fail(self.tr("没有找到板卡，请确认板子已上电并在广播范围内"))
+        if self._devices:
+            best = max(self._devices, key=lambda d: int(d.get("rssi", -999) or -999))
+            self.connect_device(best["address"], self._token)
             return
-        self._set_state("idle")
-        # 只有一台时自动连；多台交给界面选
-        if len(self._devices) == 1:
-            self.connect_device(self._devices[0]["address"], self._token)
+        self._fail(self.tr("没有找到板卡 {}，请确认板子已上电并在广播范围内")
+                   .format(self.board_name))
 
     # ── 命令/应答 ────────────────────────────────────────
     def _send(self, cmd: str, on_ok: Callable, timeout_ms: int = 5000) -> None:
@@ -634,6 +645,17 @@ class BleProvisioner(QObject):
                 self._last_json = json.loads(line)
             except json.JSONDecodeError:
                 self._last_json = {}
+                return
+            obj = self._last_json
+            if "nets_start" in obj:
+                self._nets = []
+                self.netsChanged.emit()
+            elif "net" in obj and isinstance(obj["net"], dict):
+                self._nets.append(obj["net"])
+                self.netsChanged.emit()
+            elif "nets_end" in obj:
+                # 列表结束；保持 nets 给 _on_scan_wifi_ok 收尾
+                pass
             return
         # 其他文本行（例如 help / 诊断）先忽略，避免误判 #OK
 
@@ -650,6 +672,14 @@ class BleProvisioner(QObject):
     def _on_status_ok(self) -> None:
         self._apply_status(self._last_json)
         self._set_state("reading")
+        # 用户流程：BLE 连上后直接扫描 Wi-Fi，不再需要点「扫描 Wi-Fi」。
+        QTimer.singleShot(0, self._auto_scan_wifi)
+
+    def _auto_scan_wifi(self) -> None:
+        # 用户可能在 status 回来的瞬间已经点了某个网络（进入 provisioning），
+        # 这时不要再补一次扫描。
+        if self._state == "reading" and self._pending is None:
+            self.scan_wifi()
 
     def _apply_status(self, obj: dict) -> None:
         self._saved_ssid = str(obj.get("ssid", "") or "")
@@ -658,8 +688,9 @@ class BleProvisioner(QObject):
         self.statusChanged.emit()
 
     def _on_scan_wifi_ok(self) -> None:
-        nets = self._last_json.get("nets", [])
-        self._nets = list(nets) if isinstance(nets, list) else []
+        # 新固件逐条输出 {"net":{...}}，旧固件仍可能给 {"nets":[...]}。
+        if not self._nets and isinstance(self._last_json.get("nets"), list):
+            self._nets = list(self._last_json["nets"])
         self.netsChanged.emit()
         self._set_state("reading")
 
@@ -717,11 +748,13 @@ class BleProvisioner(QObject):
         self.failed.emit(why)
 
     def _on_forget_ok(self) -> None:
+        old = self._saved_ssid
         self._saved_ssid = ""
         self._ip = ""
         self._rssi = 0
         self.statusChanged.emit()
         self._set_state("reading")
+        self.forgotten.emit(old)
 
     def _on_rollback_ok(self) -> None:
         self._set_state("reading")
