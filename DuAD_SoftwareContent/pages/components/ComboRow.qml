@@ -5,6 +5,8 @@ import DuAD_Software
 
 // 下拉选择行
 RowLayout {
+    id: comboRow
+
     property string label: ""
     property alias model: combo.model
     property alias currentIndex: combo.currentIndex
@@ -14,6 +16,11 @@ RowLayout {
        传入时 model 应为稳定 key（不翻译），显示文本由函数实时求值，
        避免语言切换导致 ComboBox 模型重建、currentIndex 重置。 */
     property var displayFunc: null
+
+    /* 下拉框宽度。默认 150（旧行为）；窄面板里如果名字长，宿主可以调大。
+       注意不是 Layout.preferredWidth —— ComboBox 在 RowLayout 里已有自己的
+       implicitWidth，这里改的是它本身。 */
+    property int comboWidth: -1
 
     signal activated(int index)
 
@@ -35,6 +42,8 @@ RowLayout {
     ComboBox {
         id: combo
 
+        Layout.preferredWidth: comboRow.comboWidth > 0 ? comboRow.comboWidth : implicitWidth
+        Layout.maximumWidth: comboRow.comboWidth > 0 ? comboRow.comboWidth : implicitWidth
         font.pixelSize: 14
         onActivated: function(i) {
             parent.activated(i);
@@ -107,7 +116,7 @@ RowLayout {
         }
 
         background: Rectangle {
-            implicitWidth: 150
+            implicitWidth: comboRow.comboWidth > 0 ? comboRow.comboWidth : 150
             implicitHeight: 32
             color: combo.hovered ? Colors.interactiveHover : Colors.pageBg
             radius: 4

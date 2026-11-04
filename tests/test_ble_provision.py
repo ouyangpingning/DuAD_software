@@ -50,6 +50,7 @@ def test_success():
     p.set_token("tok")
     p.scan()
     assert p.state == "reading", p.state
+    assert not p.busy, "已连接板卡（reading）时 busy 必须为 False，否则“连接并保存”按钮会被禁用"
     assert [n["ssid"] for n in p.nets] == []      # 还没扫描
     p.scan_wifi()
     assert [n["ssid"] for n in p.nets] == ["Lab-2.4G", "Lab-5G"]

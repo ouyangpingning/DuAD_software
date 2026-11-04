@@ -363,7 +363,7 @@ class BleProvisioner(QObject):
     provisioned = Signal(str, str)      # ip, ssid
     failed = Signal(str)
 
-    BUSY_STATES = ("scanning", "connecting", "authenticating", "reading",
+    BUSY_STATES = ("scanning", "connecting", "authenticating",
                    "scanning_wifi", "provisioning")
 
     def __init__(self, role: str, link: Optional[BleLink] = None, parent=None):

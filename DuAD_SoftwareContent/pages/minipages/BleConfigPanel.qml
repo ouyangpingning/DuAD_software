@@ -126,6 +126,7 @@ Item {
             objectName: "bleDeviceCombo"
             Layout.fillWidth: true
             label: qsTr("板卡")
+            comboWidth: Math.max(150, root.width - 90)
             model: root.bridge ? root.bridge.bleDeviceLabels : []
             enabled: root.bridge && !root.bridge.bleBusy
                      && root.bridge.bleDevices.length > 0
@@ -148,6 +149,7 @@ Item {
             objectName: "bleNetCombo"
             Layout.fillWidth: true
             label: qsTr("网络")
+            comboWidth: Math.max(150, root.width - 90)
             model: root.bridge ? root.bridge.bleNetLabels : []
             enabled: root.bridge && root.bridge.bleNets.length > 0
             onActivated: function (index) {
@@ -179,7 +181,7 @@ Item {
             tone: "primary"
             text: qsTr("连接并保存")
             enabled: root.bridge && !root.bridge.bleBusy
-                     && root.bridge.bleState !== "provisioning"
+                     && root.bridge.bleState === "reading"
                      && ssidField.text.trim().length > 0
             onClicked: {
                 root.bridge.bleSetToken(root.token)
