@@ -35,6 +35,8 @@ from typing import Any, Dict, List, Optional
 from PySide6.QtCore import (QObject, QSettings, QTimer, Property, Signal, Slot)
 from PySide6.QtNetwork import QAbstractSocket, QTcpSocket
 
+from Src.ble_provision import BleProvisioner
+
 # ── 轮询节奏（与 stage_bridge 一致：空闲 1Hz、运动中 5Hz）────────────
 POLL_IDLE_MS = 1000
 POLL_MOVING_MS = 200
@@ -176,6 +178,12 @@ class ZStageBridge(QObject):
     # ── 诊断日志（每一条诊断文案）────────────────────────
     logChanged = Signal()
 
+    # ── BLE 配网（只配 Wi-Fi，不做运动控制）──────────────────
+    bleChanged = Signal()
+    bleStatusChanged = Signal()
+    bleDevicesChanged = Signal()
+    bleNetsChanged = Signal()
+
     def __init__(self, parent=None, settings=None):
         """settings 可注入 —— **测试必须传一个文件隔离的 QSettings**。
 
@@ -197,6 +205,17 @@ class ZStageBridge(QObject):
         self._host = str(self._settings.value("zstage/host", DEFAULT_HOST))
         self._port = _inum(self._settings.value("zstage/port", DEFAULT_PORT), DEFAULT_PORT)
         self._token = str(self._settings.value("zstage/token", DEFAULT_TOKEN))
+
+        # ── BLE 配网（与 TCP 运动控制完全解耦）────────────────
+        self._ble_token = self._token
+        self._ble = BleProvisioner("z", parent=self)
+        self._ble.set_token(self._ble_token)
+        self._ble.stateChanged.connect(self._on_ble_state)
+        self._ble.statusChanged.connect(self.bleStatusChanged.emit)
+        self._ble.devicesChanged.connect(self.bleDevicesChanged.emit)
+        self._ble.netsChanged.connect(self.bleNetsChanged.emit)
+        self._ble.provisioned.connect(self._on_ble_provisioned)
+        self._ble.failed.connect(self._on_ble_failed)
         # ⚠ 从 QSettings 读回来也要**夹取**：手改过 ini（或旧版本写下的值）可能是
         #   `acc=0` —— 手册里 0 是"直接启动、无斜坡"，界面明令排除，但它会原样进
         #   每一条运动命令（`_motion_cmd` 直接用 self._acc）。老用户的 ini 里可能就有。
@@ -359,6 +378,63 @@ class ZStageBridge(QObject):
     host = Property(str, lambda self: self._host, notify=telemetryChanged)
     port = Property(int, lambda self: self._port, notify=telemetryChanged)
     token = Property(str, lambda self: self._token, notify=telemetryChanged)
+
+    # ── BLE 配网（QML 只读；动作走下面的 Slot）─────────────
+    bleState = Property(str, lambda self: self._ble.state, notify=bleChanged)
+    bleStateText = Property(str, lambda self: self._ble.stateText, notify=bleChanged)
+    bleBusy = Property(bool, lambda self: self._ble.busy, notify=bleChanged)
+    bleDevices = Property("QVariantList", lambda self: self._ble.devices,
+                          notify=bleDevicesChanged)
+    bleDeviceLabels = Property("QVariantList", lambda self: [
+        self.tr("{}（{} dBm）").format(d.get("name", ""), d.get("rssi", 0))
+        for d in self._ble.devices], notify=bleDevicesChanged)
+    bleNets = Property("QVariantList", lambda self: self._ble.nets,
+                       notify=bleNetsChanged)
+    bleNetLabels = Property("QVariantList", lambda self: [
+        self.tr("{}（{} dBm）").format(n.get("ssid", ""), n.get("rssi", 0))
+        for n in self._ble.nets], notify=bleNetsChanged)
+    bleNetSsids = Property("QVariantList", lambda self: [
+        str(n.get("ssid", "")) for n in self._ble.nets], notify=bleNetsChanged)
+    bleSsid = Property(str, lambda self: self._ble.ssid, notify=bleStatusChanged)
+    bleSavedSsid = Property(str, lambda self: self._ble.savedSsid,
+                            notify=bleStatusChanged)
+    bleIp = Property(str, lambda self: self._ble.ip, notify=bleStatusChanged)
+    bleRssi = Property(int, lambda self: self._ble.rssi, notify=bleStatusChanged)
+    bleError = Property(str, lambda self: self._ble.error, notify=bleStatusChanged)
+
+    @Slot(str)
+    def bleSetToken(self, token: str):
+        self._ble_token = (token or "").strip()
+        self._ble.set_token(self._ble_token)
+
+    @Slot()
+    def bleScan(self):
+        if self._moving or self._homing:
+            self._set_error(self.tr("平台还在运动/回零 —— 先停止再配网"), kind="gate")
+            return
+        if self._get_connected() or self._connecting:
+            self.disconnectDevice()
+        self._ble.scan()
+
+    @Slot(str)
+    def bleConnect(self, address: str):
+        self._ble.connect_device(address, self._ble_token or self._token)
+
+    @Slot()
+    def bleScanWifi(self):
+        self._ble.scan_wifi()
+
+    @Slot(str, str)
+    def bleApplyWifi(self, ssid: str, password: str):
+        self._ble.apply_wifi(ssid, password)
+
+    @Slot()
+    def bleForgetWifi(self):
+        self._ble.forget_wifi()
+
+    @Slot()
+    def bleRollbackWifi(self):
+        self._ble.rollback_wifi()
     rpm = Property(int, lambda self: self._rpm, notify=telemetryChanged)
     acc = Property(int, lambda self: self._acc, notify=telemetryChanged)
     uiMaxRpm = Property(int, lambda self: UI_MAX_RPM, notify=telemetryChanged)
@@ -600,8 +676,10 @@ class ZStageBridge(QObject):
             self._moving = False
             self.movingChanged.emit()
         self.connectingChanged.emit()
-        if was:
+        if was and not self._ble.busy:
             self._set_error(self.tr("与板子的连接已断开"), kind="transient")
+        elif was:
+            self._log(self.tr("Wi-Fi 配网中，等待板子重新上线…"))
         # ⚠ 无论主动断开还是掉线，**基准与软限位状态一律作废**：
         #   `datum` 在固件的 RAM 里，链路一断就无从知道板子有没有重启过
         #   （重启 = 基准没了），继续显示"已立基准"会让用户以为绝对定位是安全的。
@@ -613,6 +691,30 @@ class ZStageBridge(QObject):
         self.telemetryChanged.emit()
         self.connectedChanged.emit()
         self._log(self.tr("连接已关闭"))
+
+    def _on_ble_state(self):
+        self.bleChanged.emit()
+        if self._ble.busy:
+            self._poll.stop()
+            self._cmd_timer.stop()
+
+    def _on_ble_provisioned(self, ip: str, ssid: str):
+        if not ip:
+            return
+        self._host = ip
+        self._settings.setValue("zstage/host", ip)
+        self.telemetryChanged.emit()
+        self._log(self.tr("BLE 配网成功：{} → {}").format(ssid or "?", ip))
+        if self._ble_token:
+            self._token = self._ble_token
+            self._settings.setValue("zstage/token", self._token)
+        if self._sock.state() != QAbstractSocket.SocketState.UnconnectedState:
+            self._sock.abort()
+        if self._token:
+            self.connectDevice(ip, self._port, self._token)
+
+    def _on_ble_failed(self, msg: str):
+        self._log(self.tr("BLE 配网失败：{}").format(msg))
 
     def _on_socket_error(self, err):
         if err == QAbstractSocket.SocketError.RemoteHostClosedError:

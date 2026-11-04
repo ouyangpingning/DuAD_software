@@ -604,6 +604,82 @@ EN = {
 }
 
 
+EN.update({
+    "板卡": "Board",
+    "板子返回错误": "The board returned an error",
+    "板子内部错误": "Internal board error",
+    "板子已保存：%1": "Board has saved: %1",
+    "板子只支持 2.4GHz。配置时平台会短暂离线，请先停止运动；失败会自动回滚到原网络。":
+        "The board supports 2.4 GHz only. The platform goes offline briefly during setup, so stop motion first; on failure it rolls back to the previous network.",
+    "超时未拿到 IP，已回滚到原网络":
+        "Timed out waiting for an IP; rolled back to the previous network",
+    "创建 BLE 连接失败：{}": "Failed to create BLE connection: {}",
+    "当前：%1    IP：%2    信号 %3 dBm": "Current: %1    IP: %2    Signal %3 dBm",
+    "当前系统不支持 BLE 扫描": "This system does not support BLE scanning",
+    "等待板子应答超时": "Timed out waiting for the board",
+    "开放网络留空": "Leave empty for an open network",
+    "蓝牙连接已断开，请重新搜索板卡":
+        "Bluetooth connection lost; search for the board again",
+    "连接并保存": "Connect and Save",
+    "连接超时": "Connection timed out",
+    "没有找到板卡，请确认板子已上电并在广播范围内":
+        "No board found; make sure it is powered on and within range",
+    "没有找到设备 {}，请重新扫描": "Device {} not found; scan again",
+    "密码错误或认证失败": "Wrong password or authentication failed",
+    "默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）":
+        "Default updated: {} {} -> {} (unchanged values follow the new default; customized values are kept)",
+    "配网失败": "Setup failed",
+    "请先连接板卡": "Connect to the board first",
+    "请先连接板卡并完成口令认证":
+        "Connect to the board and complete token authentication first",
+    "请先填写板子的连接口令（USB 控制台敲 net 能看到）":
+        "Enter the board token first (type net in its USB console to see it)",
+    "请先选择或输入 Wi-Fi 名称": "Select or enter a Wi-Fi name first",
+    "请先选择要配网的板卡": "Select the board to configure first",
+    "扫描 Wi-Fi": "Scan Wi-Fi",
+    "上一条命令还没完成，请稍候":
+        "The previous command is still running; please wait",
+    "设备没有 DuAD 配网服务，请确认固件版本":
+        "The device has no DuAD provisioning service; check the firmware version",
+    "{} 失败：{}": "{} failed: {}",
+    "搜索板卡": "Search for Board",
+    "忘记网络": "Forget Network",
+    "未开始": "Not started",
+    "未知原因": "Unknown reason",
+    "无法打开 BLE 配网服务": "Cannot open the BLE provisioning service",
+    "已连接板卡": "Connected to board",
+    "已连接 Wi-Fi": "Wi-Fi connected",
+    "已连上但没拿到 IP（检查路由器 DHCP）":
+        "Connected but no IP (check router DHCP)",
+    "找不到该 Wi-Fi（请确认是 2.4GHz）":
+        "Wi-Fi not found (make sure it is 2.4 GHz)",
+    "正在连接板卡…": "Connecting to board…",
+    "正在连接 Wi-Fi…": "Connecting to Wi-Fi…",
+    "正在扫描 Wi-Fi…": "Scanning Wi-Fi…",
+    "正在搜索板卡…": "Searching for board…",
+    "正在验证口令…": "Verifying token…",
+    "只能选 2.4GHz 网络": "2.4 GHz networks only",
+    "BLE 服务错误：{}": "BLE service error: {}",
+    "BLE 连接失败：{}": "BLE connection failed: {}",
+    "BLE 配网成功：{} → {}": "BLE provisioning succeeded: {} -> {}",
+    "BLE 配网失败：{}": "BLE provisioning failed: {}",
+    "BLE 扫描失败：{}": "BLE scan failed: {}",
+    "BLE 特征值不完整，请确认固件版本":
+        "BLE characteristics are incomplete; check the firmware version",
+    "BLE 通知未配置（缺少 CCCD）":
+        "BLE notifications are not configured (missing CCCD)",
+    "BLE 未连接": "BLE not connected",
+    "BLE 写入超时": "BLE write timed out",
+    "{}（{} dBm）": "{} ({} dBm)",
+    "Wi-Fi 连接（蓝牙配网）": "Wi-Fi Connection (BLE Setup)",
+    "Wi-Fi 密码": "Wi-Fi Password",
+    "Wi-Fi 密码最长 63 个字符": "Wi-Fi password must be at most 63 characters",
+    "Wi-Fi 名称": "Wi-Fi Name",
+    "Wi-Fi 名称最长 32 字节": "Wi-Fi name must be at most 32 bytes",
+    "Wi-Fi 配网中，等待板子重新上线…":
+        "Configuring Wi-Fi; waiting for the board to come back…",
+})
+
 TW = {
     "使用说明": "使用說明",
     "开始采集": "開始採集",
@@ -1203,6 +1279,74 @@ TW = {
 }
 
 
+
+TW.update({
+    "板卡": "板卡",
+    "板子返回错误": "板子回傳錯誤",
+    "板子内部错误": "板子內部錯誤",
+    "板子已保存：%1": "板子已儲存：%1",
+    "板子只支持 2.4GHz。配置时平台会短暂离线，请先停止运动；失败会自动回滚到原网络。":
+        "板子只支援 2.4GHz。設定時平台會短暫離線，請先停止運動；失敗會自動回復到原網路。",
+    "超时未拿到 IP，已回滚到原网络": "逾時未取得 IP，已回復到原網路",
+    "创建 BLE 连接失败：{}": "建立 BLE 連線失敗：{}",
+    "当前：%1    IP：%2    信号 %3 dBm": "目前：%1    IP：%2    訊號 %3 dBm",
+    "当前系统不支持 BLE 扫描": "目前系統不支援 BLE 掃描",
+    "等待板子应答超时": "等待板子回應逾時",
+    "开放网络留空": "開放網路請留空",
+    "蓝牙连接已断开，请重新搜索板卡": "藍牙連線已中斷，請重新搜尋板卡",
+    "连接并保存": "連線並儲存",
+    "连接超时": "連線逾時",
+    "没有找到板卡，请确认板子已上电并在广播范围内":
+        "沒有找到板卡，請確認板子已上電且在廣播範圍內",
+    "没有找到设备 {}，请重新扫描": "沒有找到裝置 {}，請重新掃描",
+    "密码错误或认证失败": "密碼錯誤或認證失敗",
+    "默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）":
+        "預設值更新：{} {} → {}（沒改過的話就跟著新預設走，改過的值不受影響）",
+    "配网失败": "配網失敗",
+    "请先连接板卡": "請先連線板卡",
+    "请先连接板卡并完成口令认证": "請先連線板卡並完成口令認證",
+    "请先填写板子的连接口令（USB 控制台敲 net 能看到）":
+        "請先填寫板子的連線口令（USB 主控台敲 net 就能看到）",
+    "请先选择或输入 Wi-Fi 名称": "請先選擇或輸入 Wi-Fi 名稱",
+    "请先选择要配网的板卡": "請先選擇要配網的板卡",
+    "扫描 Wi-Fi": "掃描 Wi-Fi",
+    "上一条命令还没完成，请稍候": "上一條命令還沒完成，請稍候",
+    "设备没有 DuAD 配网服务，请确认固件版本":
+        "裝置沒有 DuAD 配網服務，請確認韌體版本",
+    "{} 失败：{}": "{} 失敗：{}",
+    "搜索板卡": "搜尋板卡",
+    "忘记网络": "忘記網路",
+    "未开始": "未開始",
+    "未知原因": "未知原因",
+    "无法打开 BLE 配网服务": "無法開啟 BLE 配網服務",
+    "已连接板卡": "已連線板卡",
+    "已连接 Wi-Fi": "已連線 Wi-Fi",
+    "已连上但没拿到 IP（检查路由器 DHCP）":
+        "已連上但沒取得 IP（檢查路由器 DHCP）",
+    "找不到该 Wi-Fi（请确认是 2.4GHz）": "找不到該 Wi-Fi（請確認是 2.4GHz）",
+    "正在连接板卡…": "正在連線板卡…",
+    "正在连接 Wi-Fi…": "正在連線 Wi-Fi…",
+    "正在扫描 Wi-Fi…": "正在掃描 Wi-Fi…",
+    "正在搜索板卡…": "正在搜尋板卡…",
+    "正在验证口令…": "正在驗證口令…",
+    "只能选 2.4GHz 网络": "只能選 2.4GHz 網路",
+    "BLE 服务错误：{}": "BLE 服務錯誤：{}",
+    "BLE 连接失败：{}": "BLE 連線失敗：{}",
+    "BLE 配网成功：{} → {}": "BLE 配網成功：{} → {}",
+    "BLE 配网失败：{}": "BLE 配網失敗：{}",
+    "BLE 扫描失败：{}": "BLE 掃描失敗：{}",
+    "BLE 特征值不完整，请确认固件版本": "BLE 特徵值不完整，請確認韌體版本",
+    "BLE 通知未配置（缺少 CCCD）": "BLE 通知未設定（缺少 CCCD）",
+    "BLE 未连接": "BLE 未連線",
+    "BLE 写入超时": "BLE 寫入逾時",
+    "{}（{} dBm）": "{}（{} dBm）",
+    "Wi-Fi 连接（蓝牙配网）": "Wi-Fi 連線（藍牙配網）",
+    "Wi-Fi 密码": "Wi-Fi 密碼",
+    "Wi-Fi 密码最长 63 个字符": "Wi-Fi 密碼最長 63 個字元",
+    "Wi-Fi 名称": "Wi-Fi 名稱",
+    "Wi-Fi 名称最长 32 字节": "Wi-Fi 名稱最長 32 位元組",
+    "Wi-Fi 配网中，等待板子重新上线…": "Wi-Fi 配網中，等待板子重新上線…",
+})
 
 def fill(src_ts, out_ts, mapping):
     tree = ET.parse(src_ts)

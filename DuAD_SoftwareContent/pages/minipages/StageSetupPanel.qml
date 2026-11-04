@@ -110,6 +110,15 @@ Item {
                 Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder
             }
 
+            BleConfigPanel {
+                Layout.fillWidth: true
+                bridge: StageBridge
+                token: root.fieldToken.length > 0 ? root.fieldToken : StageBridge.token
+                roleLabel: "XY"
+            }
+
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
+
             SectionHeader { text: qsTr("网络") }
 
             InputRow {

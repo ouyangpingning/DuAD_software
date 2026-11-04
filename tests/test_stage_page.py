@@ -276,8 +276,51 @@ class FakeZStageBridge(QObject):
     signText = Property(str, lambda self: "", notify=changed)
     rssi = Property(int, lambda self: 0, notify=changed)
 
+    # ── BLE 配网（StageSetupPanel/ZStageSetupPanel 里的 BleConfigPanel 会读）──
+    bleState = Property(str, lambda self: "idle", notify=changed)
+    bleStateText = Property(str, lambda self: "未开始", notify=changed)
+    bleBusy = Property(bool, lambda self: False, notify=changed)
+    bleDevices = Property("QVariantList", lambda self: [], notify=changed)
+    bleDeviceLabels = Property("QVariantList", lambda self: [], notify=changed)
+    bleNets = Property("QVariantList", lambda self: [], notify=changed)
+    bleNetLabels = Property("QVariantList", lambda self: [], notify=changed)
+    bleNetSsids = Property("QVariantList", lambda self: [], notify=changed)
+    bleSsid = Property(str, lambda self: "", notify=changed)
+    bleSavedSsid = Property(str, lambda self: "", notify=changed)
+    bleIp = Property(str, lambda self: "", notify=changed)
+    bleRssi = Property(int, lambda self: 0, notify=changed)
+    bleError = Property(str, lambda self: "", notify=changed)
+
     def _rec(self, name, *args):
         self.calls.append((name,) + args)
+
+    @Slot(str)
+    def bleSetToken(self, token):
+        self._rec("bleSetToken", token)
+
+    @Slot()
+    def bleScan(self):
+        self._rec("bleScan")
+
+    @Slot(str)
+    def bleConnect(self, address):
+        self._rec("bleConnect", address)
+
+    @Slot()
+    def bleScanWifi(self):
+        self._rec("bleScanWifi")
+
+    @Slot(str, str)
+    def bleApplyWifi(self, ssid, password):
+        self._rec("bleApplyWifi", ssid, password)
+
+    @Slot()
+    def bleForgetWifi(self):
+        self._rec("bleForgetWifi")
+
+    @Slot()
+    def bleRollbackWifi(self):
+        self._rec("bleRollbackWifi")
 
     # ── 槽（签名与真桥一致；返回 bool 的照原样返回）──
     @Slot(str, int, str, result=bool)

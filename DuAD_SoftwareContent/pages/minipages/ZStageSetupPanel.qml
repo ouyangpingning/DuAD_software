@@ -145,6 +145,15 @@ Item {
                 Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder
             }
 
+            BleConfigPanel {
+                Layout.fillWidth: true
+                bridge: ZStageBridge
+                token: root.fieldToken.length > 0 ? root.fieldToken : ZStageBridge.token
+                roleLabel: "Z"
+            }
+
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
+
             // ── 网络（另一块板子）──────────────────────────
             SectionHeader { text: qsTr("网络（Z 轴这块板子）") }
 
