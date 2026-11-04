@@ -73,29 +73,13 @@ Item {
                 onToggled: root.expanded = !root.expanded
             }
 
-            ThemedButton {
+            AnimatedRefreshButton {
                 objectName: "bleSearchButton"
                 Layout.alignment: Qt.AlignVCenter
-                implicitWidth: 32
-                implicitHeight: 32
-                tone: "neutral"
-                raised: false
-                radius: 16
-                hPadding: 0
-                text: ""
+                size: 36
+                iconSource: "../../images/refresh.svg"
+                running: root.busy
                 enabled: root.bridge && !root.busy
-
-                contentItem: Image {
-                    anchors.centerIn: parent
-                    source: "../../images/refresh.svg"
-                    sourceSize.width: 14
-                    sourceSize.height: 14
-                    width: 14
-                    height: 14
-                    fillMode: Image.PreserveAspectFit
-                    opacity: parent.enabled ? 1.0 : 0.4
-                }
-
                 onClicked: {
                     root.bridge.bleSetToken(root.token)
                     root.bridge.bleScan()
@@ -143,55 +127,80 @@ Item {
             wrapMode: Text.Wrap
         }
 
-        ListView {
-            id: wifiList
+        // Wi-Fi 列表：带圆角边框的列表框（不是裸列表），行悬停/分隔线/已保存 pill
+        Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(220, contentHeight)
+            Layout.preferredHeight: Math.min(
+                240,
+                Math.max(36, (root.bridge ? root.bridge.bleNets.length : 0) * 38 + 10))
             visible: root.expanded && root.bridge && root.bridge.bleNets.length > 0
-            clip: true
-            model: root.bridge ? root.bridge.bleNets : []
+            radius: 8
+            color: Colors.pageBg
+            border { width: 1; color: Colors.fieldBorder }
 
-            delegate: Item {
-                width: wifiList.width
-                height: 36
+            ListView {
+                id: wifiList
+                anchors.fill: parent
+                anchors.margins: 5
+                clip: true
+                model: root.bridge ? root.bridge.bleNets : []
 
-                Rectangle {
-                    anchors.fill: parent
+                delegate: Rectangle {
+                    width: wifiList.width
+                    height: 38
+                    radius: 5
                     color: rowMa.containsMouse ? Colors.interactiveHover : "transparent"
-                    radius: 4
-                }
 
-                Text {
-                    anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
-                    text: modelData.ssid || ""
-                    font.pixelSize: 13
-                    color: Colors.textPrimary
-                    elide: Text.ElideRight
-                    width: parent.width - 90
-                }
+                    Rectangle {
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom
+                                  leftMargin: 8; rightMargin: 8 }
+                        height: 1
+                        color: Colors.panelBorder
+                        visible: index < wifiList.count - 1
+                    }
 
-                Text {
-                    anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                    text: (modelData.rssi || 0) + " dBm"
-                    font.pixelSize: 10
-                    color: Colors.textPlaceholder
-                }
+                    Text {
+                        anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                        text: modelData.ssid || ""
+                        font.pixelSize: 13
+                        color: Colors.textPrimary
+                        elide: Text.ElideRight
+                        width: parent.width - 110
+                    }
 
-                // 当前板子保存的网络打勾
-                Text {
-                    anchors { right: parent.right; rightMargin: 62; verticalCenter: parent.verticalCenter }
-                    visible: root.bridge && modelData.ssid === root.bridge.bleSavedSsid
-                    text: qsTr("已保存")
-                    font.pixelSize: 9
-                    color: Colors.statusConnected
-                }
+                    Text {
+                        anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                        text: (modelData.rssi || 0) + " dBm"
+                        font.pixelSize: 10
+                        color: Colors.textPlaceholder
+                    }
 
-                MouseArea {
-                    id: rowMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root._openWifi(modelData)
+                    // 当前板子保存的网络：绿色 pill
+                    Rectangle {
+                        anchors { right: parent.right; rightMargin: 62; verticalCenter: parent.verticalCenter }
+                        visible: root.bridge && modelData.ssid === root.bridge.bleSavedSsid
+                        implicitWidth: savedText.implicitWidth + 10
+                        implicitHeight: 16
+                        radius: 8
+                        color: Colors.successSoft
+                        border { width: 1; color: Colors.statusConnected }
+
+                        Text {
+                            id: savedText
+                            anchors.centerIn: parent
+                            text: qsTr("已保存")
+                            font.pixelSize: 9
+                            color: Colors.statusConnected
+                        }
+                    }
+
+                    MouseArea {
+                        id: rowMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root._openWifi(modelData)
+                    }
                 }
             }
         }
