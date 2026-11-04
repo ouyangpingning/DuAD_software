@@ -27,7 +27,6 @@ Type=Application
 Name=DuAD 异常检测上位机
 Comment=融合Dinov2与双分支训练架构的工业异常检测
 Exec="$RUN_SCRIPT"
-Path=$ROOT_DIR
 Icon=$ICON_NAME
 StartupWMClass=DuAD
 Terminal=false
