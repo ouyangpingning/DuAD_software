@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import sysconfig
 import platform
@@ -128,7 +129,7 @@ else:
                 ((";" + _path) if _path else "")
             print(f"[INFO] 注入 CUDA/TensorRT DLL 目录到 PATH（{_missing}）")
 
-from PySide6.QtGui import QGuiApplication, QFontDatabase, QFont
+from PySide6.QtGui import QGuiApplication, QFontDatabase, QFont, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import (Qt, QUrl, QObject, Slot, Property, Signal, QTranslator, QSettings,
                             QTimer, QCoreApplication)
@@ -309,36 +310,72 @@ if __name__ == "__main__":
     )
 
     app = QGuiApplication(sys.argv)
+    content_dir = _content_dir()
 
-    # ── Portal 集成（系统原生文件/目录对话框）────────────────────
-    # Qt 6 的 FileDialog（打开图片/选模型/保存路径）走 XDG Desktop Portal，
-    # 前提是应用在 portal registry 注册成功：需 setDesktopFileName + 系统里有
-    # 对应的 .desktop 文件（App info）。否则 portal 不可用，FileDialog 回退
-    # Qt 自绘（"银白、大字体、每行带 size"的老式表格对话框）。
-    # 这里自动把 desktop 文件安装到 ~/.local/share/applications/（若缺失），
-    # Exec 用当前解释器 + main.py 绝对路径，项目搬移不失效。
+    # ── 应用图标 + Portal 集成（系统原生文件/目录对话框）────────────
+    # 图标分两处，缺一不可：
+    #   ① 运行中的窗口/任务栏：X11 由 setWindowIcon 生效；Wayland 没有
+    #      窗口图标协议，只能靠 app_id + .desktop 的 Icon=。
+    #   ② 启动器（应用菜单/桌面快捷方式）：duad-software.desktop 的 Icon=，
+    #      指向下面安装进 hicolor 主题的 duad-software.png。
+    # 历史问题：这里只写了 .desktop 且没有 Icon=，也从未 setWindowIcon ——
+    # 于是从终端启动时任务栏是 Qt 默认图标，从菜单启动时是空白图标。
     _APP_ID = "duad-software"
+    _APP_NAME = "DuAD"
+    app.setApplicationName(_APP_NAME)
+    app.setApplicationDisplayName("DuAD 异常检测上位机")
+    # Portal 前提：setDesktopFileName + 系统里有对应 .desktop（App info）。
+    # 否则 FileDialog 会回退成 Qt 自绘的“银白、大字体、每行带 size”老式表格。
     app.setDesktopFileName(_APP_ID)
-    try:
-        _applications_dir = Path.home() / ".local" / "share" / "applications"
-        _desktop_file = _applications_dir / f"{_APP_ID}.desktop"
-        if not _desktop_file.exists():
+
+    # 应用图标（256×256，由 favicon.ico 导出；打包后位于 _internal/images/）
+    _icon_src = content_dir / "images" / "duad-software.png"
+    if _icon_src.exists():
+        app.setWindowIcon(QIcon(str(_icon_src)))
+        print(f"[INFO] 窗口图标: {_icon_src}")
+    else:
+        print(f"[WARN] 窗口图标缺失: {_icon_src}")
+
+    # 装进 hicolor 图标主题，.desktop 里只写主题名 Icon=duad-software。
+    # （写绝对路径在部分桌面环境/图标缓存下不稳定，主题名最稳。）
+    # 仅 Linux：Windows 没有 XDG 图标主题/desktop 条目，写过去只是垃圾文件。
+    if not _IS_WIN:
+        try:
+            _icon_dir = (Path.home() / ".local" / "share" / "icons"
+                         / "hicolor" / "256x256" / "apps")
+            _icon_dir.mkdir(parents=True, exist_ok=True)
+            if _icon_src.exists():
+                shutil.copyfile(_icon_src, _icon_dir / f"{_APP_ID}.png")
+        except Exception as e:
+            print(f"[WARN] 安装应用图标失败（启动器可能显示空白图标）: {e}")
+
+    # 桌面条目：Portal 用 + 启动器图标用。内容变了才重写 ——
+    # 旧版本生成的文件没有 Icon=，必须能自愈，否则用户永远看到空白图标。
+    if not _IS_WIN:
+        try:
+            _applications_dir = Path.home() / ".local" / "share" / "applications"
+            _desktop_file = _applications_dir / f"{_APP_ID}.desktop"
+            _desktop_text = (
+                "[Desktop Entry]\n"
+                "Type=Application\n"
+                "Name=DuAD 异常检测上位机\n"
+                "Comment=融合Dinov2与双分支训练架构的工业异常检测\n"
+                f'Exec="{sys.executable}" "{Path(__file__).resolve()}"\n'
+                f"Icon={_APP_ID}\n"
+                f"StartupWMClass={_APP_NAME}\n"
+                "Terminal=false\n"
+                "Categories=Utility;\n"
+            )
             _applications_dir.mkdir(parents=True, exist_ok=True)
-            _desktop_file.write_text(
-                f"[Desktop Entry]\n"
-                f"Type=Application\n"
-                f"Name=DuAD 异常检测上位机\n"
-                f"Comment=融合Dinov2与双分支训练架构的工业异常检测\n"
-                f"Exec={sys.executable} {Path(__file__).resolve()}\n"
-                f"Terminal=false\n"
-                f"Categories=Utility;\n",
-                encoding="utf-8")
-            print(f"[INFO] 已安装 portal 桌面条目: {_desktop_file}")
-    except Exception as e:
-        print(f"[WARN] 安装 portal 桌面条目失败（原生对话框将回退自绘）: {e}")
+            _old = (_desktop_file.read_text(encoding="utf-8")
+                    if _desktop_file.exists() else "")
+            if _old != _desktop_text:
+                _desktop_file.write_text(_desktop_text, encoding="utf-8")
+                print(f"[INFO] 已更新桌面条目: {_desktop_file}")
+        except Exception as e:
+            print(f"[WARN] 安装 portal 桌面条目失败（原生对话框将回退自绘）: {e}")
 
     # 全局注册自定义字体（文泉驿微米黑），QML 中可直接 font.family 引用
-    content_dir = _content_dir()
     font_file = content_dir / "fonts" / "wqy-microhei.ttc"
     font_id = QFontDatabase.addApplicationFont(str(font_file))
     if font_id >= 0:
