@@ -119,6 +119,23 @@ python3 tests/render_icons.py /tmp/icons.png      # 图标接触表（目检图�
 
 **临时产物一律丢在仓库根、文件名以 `_` 开头**（`.gitignore` 里 `/_*` 兜住）：探针脚本 `_probe_*.py`、渲染图 `_render_*.png`、中间译文 `_keys*.txt` 都按这个来 —— 否则这些 PNG/脚本会留在 `git status` 里，一旦 `git add -A` 就被提交。要长期看的截图放 `.uicap/`（同样已忽略）。**跑完测试/探针记得删掉自己的 `_*`**：`git status --short` 干净才算收工。
 
+## 「平台控制」页（v4.6，2026-11：设置面板内部再分折叠区）
+
+用户反馈「二轴相机平台控制的页面太长了」：**「平台设置」折叠节内部**的
+「Wi-Fi 连接 / 网络 / 工作区 / 速度 / 轨迹速度 / 关机行为」（Z 轴同理：
+「Wi-Fi / 网络 / 速度 / 软限位 / 自动回零参数 / 上电行为」）现在各自可折叠。
+
+- 组件 `pages/components/CollapsibleHeader.qml`：箭头 + 标题 + 点击切换；
+  ⚠ 箭头用普通 `Image`（`images/折叠箭头.svg`，中灰），**不要换回 `IconImage`** ——
+  10px 的 ColorOverlay 在这个上下文里实测不渲染；中灰在明/暗主题都看得见。
+- 每个分区 = `CollapsibleHeader` + 一层 `ColumnLayout { visible: root.xxxOpen }`；
+  默认**只展开 Wi-Fi**，其余收起；「应用设置」始终在面板底部可见。
+- ⚠ 分区标题要有 `objectName`（`xyNetFold` / `zHomeFold`…），`test_stage_page.py`
+  用 `toggled.emit()` 验展开/收起；没有 objectName 的测试会变成"找不到 → 跳过"。
+- ⚠ 警告文案（Z 轴超时/限位电流）现在住在「自动回零参数」分区里；
+  测试断言 `visible` 前必须先 `zSetupPanel.homeOpen = true`
+  （`test_zstage_page.py` 已按这个改，别删那两行）。
+
 ## 「平台控制」页（v4.5，2026-10-10 第二版「轨迹与网格」：标尺 + 立体感 + Z 高度条）
 
 **`TrajectoryGridCard`**（中列、两张手动控制卡**下面**，默认展开）第二版按用户重画的 UI 改了：

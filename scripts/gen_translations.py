@@ -678,6 +678,9 @@ EN.update({
     "Wi-Fi 名称最长 32 字节": "Wi-Fi name must be at most 32 bytes",
     "Wi-Fi 配网中，等待板子重新上线…":
         "Configuring Wi-Fi; waiting for the board to come back…",
+    "平台还在运动/回零 —— 先停止再配网":
+        "The platform is still moving/homing — stop it before configuring Wi-Fi",
+    "上电行为": "Power-on Behavior",
 })
 
 TW = {
@@ -1346,6 +1349,8 @@ TW.update({
     "Wi-Fi 名称": "Wi-Fi 名稱",
     "Wi-Fi 名称最长 32 字节": "Wi-Fi 名稱最長 32 位元組",
     "Wi-Fi 配网中，等待板子重新上线…": "Wi-Fi 配網中，等待板子重新上線…",
+    "平台还在运动/回零 —— 先停止再配网": "平台還在運動/回零 —— 先停止再配網",
+    "上电行为": "上電行為",
 })
 
 def fill(src_ts, out_ts, mapping):

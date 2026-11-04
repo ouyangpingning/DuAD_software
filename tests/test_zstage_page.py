@@ -663,6 +663,11 @@ def main():
     #   （父项不可见 ⇒ 子项的 visible 读出来也是 false），而这里量的是"警告该不该出现"。
     #   折叠着断言永远失败，而那不是 bug —— 这条踩过一次，别再删掉这两行。
     page.setProperty("_zSetupOpen", True)
+    # 2026-11：设置面板内部也改成可折叠分区了；警告在「自动回零参数」里，
+    # 必须先把该分区展开，否则父项不可见 → 子项 visible 读出来也是 false。
+    zpanel = find("zSetupPanel")
+    if zpanel is not None:
+        zpanel.setProperty("homeOpen", True)
     r.pump(0.4)
     r.check("100mA 在经验区 → 不显示警告",
             warn is not None and bool(warn.property("visible")) is False)

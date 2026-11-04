@@ -845,6 +845,26 @@ def main():
             page.property("_xySetupOpen") is False,
             f"xySetupOpen={page.property('_xySetupOpen')}")
 
+    # 设置面板内部的功能分区（2026-11）：默认除 Wi-Fi 外都收起，点标题才展开。
+    net_fold = find("xyNetFold")
+    r.check("设置面板有「网络」分区折叠头", net_fold is not None)
+    r.check("折叠箭头图标文件存在（普通 Image 路径写错会静默不画）",
+            (CONTENT / "images" / "折叠箭头.svg").exists())
+    if net_fold is not None and setup is not None:
+        r.check("「网络」分区默认收起",
+                bool(setup.property("netOpen")) is False,
+                f"netOpen={setup.property('netOpen')}")
+        net_fold.toggled.emit()
+        r.pump(0.2)
+        r.check("点「网络」标题 → 展开",
+                bool(setup.property("netOpen")) is True,
+                f"netOpen={setup.property('netOpen')}")
+        net_fold.toggled.emit()
+        r.pump(0.2)
+        r.check("再点一次 → 收起",
+                bool(setup.property("netOpen")) is False,
+                f"netOpen={setup.property('netOpen')}")
+
     # 齿轮的契约：点一下必须"展开 + 滚到眼前"，否则用户看到的就是"点了没反应"。
     # 三列版面里齿轮指向**本列**的「平台设置」折叠节 —— 断言 _xySetupOpen 被置真
     # **且整页滚到了它的折叠头**。⚠ 只断言 expanded==True 是假断言（那正是
