@@ -15,12 +15,31 @@ Item {
 
     property int themeIndex: 2      // 0=light 1=dark 2=system
     property int languageIndex: 1   // 0=en 1=zh_CN 2=zh_TW
-    property int presetIndex: 0     // 0=default 1=ocean 2=forest 3=sunset 4=system
+    property int presetIndex: 0     // 0=default 1=ocean 2=forest 3=sunset
 
     signal languageRequested(int index)
 
-    // 启动时恢复 Python 端保存的语言选择
-    Component.onCompleted: root.languageIndex = AppBridge.languageIndex
+    // 主题/配色的真实状态在 AppBridge（持久化 + 系统亮暗检测）；
+    // 这里只是下拉框的显示索引。切换后桥会发信号，再由下面同步回来。
+    function syncThemeIndex() {
+        themeIndex = Math.max(0, ["light", "dark", "system"].indexOf(AppBridge.themeMode))
+    }
+    function syncPresetIndex() {
+        presetIndex = Math.max(0, ["default", "ocean", "forest", "sunset"].indexOf(AppBridge.preset))
+    }
+
+    // 启动时恢复 Python 端保存的语言/主题/配色
+    Component.onCompleted: {
+        root.languageIndex = AppBridge.languageIndex
+        root.syncThemeIndex()
+        root.syncPresetIndex()
+    }
+
+    Connections {
+        target: AppBridge
+        function onThemeModeChanged() { root.syncThemeIndex() }
+        function onPresetChanged() { root.syncPresetIndex() }
+    }
 
     implicitWidth: 420
     implicitHeight: contentLayout.implicitHeight + 32
@@ -41,7 +60,6 @@ Item {
         if (key === "ocean")   return qsTr("海洋蓝")
         if (key === "forest")  return qsTr("森林绿")
         if (key === "sunset")  return qsTr("日落橙")
-        if (key === "system")  return qsTr("跟随系统")
         return qsTr("默认")
     }
 
@@ -61,9 +79,10 @@ Item {
                 model: ["light", "dark", "system"]
                 displayFunc: root.themeDisplay
                 currentIndex: root.themeIndex
-                onActivated: {
+                onActivated: function(index) {
                     root.themeIndex = index
-                    Colors.setTheme(model[index])
+                    // 只写桥：持久化 + 系统检测 + 推给 Colors 都在 AppBridge 里
+                    AppBridge.themeMode = ["light", "dark", "system"][index]
                 }
             }
 
@@ -72,7 +91,7 @@ Item {
                 model: ["en", "zh_CN", "zh_TW"]
                 displayFunc: root.langDisplay
                 currentIndex: root.languageIndex
-                onActivated: {
+                onActivated: function(index) {
                     root.languageIndex = index
                     root.languageRequested(index)
                 }
@@ -80,12 +99,12 @@ Item {
 
             ComboRow {
                 label: qsTr("配色")
-                model: ["default", "ocean", "forest", "sunset", "system"]
+                model: ["default", "ocean", "forest", "sunset"]
                 displayFunc: root.presetDisplay
                 currentIndex: root.presetIndex
-                onActivated: {
+                onActivated: function(index) {
                     root.presetIndex = index
-                    Colors.setPreset(model[index])
+                    AppBridge.preset = ["default", "ocean", "forest", "sunset"][index]
                 }
             }
 

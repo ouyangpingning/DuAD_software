@@ -38,7 +38,11 @@ QtObject {              // 非可视化对象容器
 
 ### 功能
 - 管理亮色/暗色主题 + 4 套配色（default/ocean/forest/sunset）
-- 运行时切换（设置页下拉框触发 `Colors.setTheme("dark")` / `setPreset("ocean")`）
+- 主题支持 **light / dark / system（跟随系统亮暗）**；system 由 AppBridge 检测
+  （Linux 优先 xdg-desktop-portal 的 `color-scheme`，再退
+  `QStyleHints.colorScheme()`，最后看调色板），系统切换时实时同步
+- 运行时切换（设置页下拉框只写 `AppBridge.themeMode` / `AppBridge.preset`）
+- 主题与配色都存 `QSettings`（键 `theme` / `preset`），重启恢复
 - **切换时有 250ms 渐变动画**（不是瞬间跳变）
 
 ### 实现方式
@@ -86,13 +90,49 @@ QtObject {
     }
 
     // ⑤ 切换入口
+    property string _themeMode: "light"   // 用户偏好 light/dark/system
+    property bool systemDark: false        // AppBridge 注入的系统亮暗
+    readonly property string _currentTheme:
+        _themeMode === "system" ? (systemDark ? "dark" : "light") : _themeMode
+
+    onSystemDarkChanged: {
+        if (_themeMode === "system") _apply()
+    }
+
     function setTheme(name) {
-        if (name === _currentTheme) return
-        _currentTheme = name
+        if (name !== "light" && name !== "dark" && name !== "system") return
+        _themeMode = name
         _apply()   // 重新计算全部颜色 → _tween 过渡
     }
 }
 ```
+
+### 「跟随系统」怎么工作
+
+1. **检测**：`AppBridge`（main.py）按三条路依次判定（详见 docs/19 §40）：
+   1. **Linux 先问 xdg-desktop-portal**：`org.freedesktop.appearance` 的
+      `color-scheme`（0=无偏好 / 1=暗 / 2=亮）。GNOME/KDE 都实现，**启动首帧
+      就准**；
+   2. 再读 Qt 6.5+ 的 `QGuiApplication.styleHints().colorScheme()`
+      （Windows / macOS 主要来源；Linux 没装平台主题插件时启动会误报 Light）；
+   3. 最后用 `QPalette.WindowText` 与 `Window` 的亮度兜底，仍判断不了按亮色。
+
+   实时跟随同时连 portal 的 `SettingChanged`、`colorSchemeChanged` 与
+   `paletteChanged`（三个来源都进同一个去重回调）。
+2. **状态**：AppBridge 持有 `themeMode`（light/dark/system）、`preset` 与只读的
+   `systemDark`；设置页只写前两个，持久化也在 AppBridge 里完成。
+3. **下发**：AppBridge 构造时（QML 加载**之前**）通过
+   `engine.singletonInstance("DuAD_Software", "Colors")` 拿单例，设 `systemDark`
+   后调 `setTheme()` / `setPreset()`；应用期间临时 `animDuration = 0`，避免启动
+   "白闪一下再变暗"。
+4. **联动**：系统亮暗变化 → AppBridge 更新 `Colors.systemDark` → Colors 在
+   `_themeMode === "system"` 时 `_apply()`；用户明确选 light/dark 时不受影响，
+   但 `systemDark` 仍保持最新，切回 system 立刻生效。
+5. ⚠ `_apply()` 内部**直接**用 `_themeMode + systemDark` 现算亮度，不要读
+   `_currentTheme`：`onSystemDarkChanged` 触发时，绑定到 `systemDark` 的 readonly
+   属性可能还没重新求值（信号处理器先于绑定），会拿到旧值。
+6. 配色下拉原有的「跟随系统」已删除（它从未实现，且系统强调色涉及另一套动态
+   取色/对比度规则）；`setPreset("system")` 仍保留为旧值兜底 → `default`。
 
 ### 为什么控件会自动渐变？
 

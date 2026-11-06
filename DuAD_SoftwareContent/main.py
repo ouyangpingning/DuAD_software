@@ -129,10 +129,19 @@ else:
                 ((";" + _path) if _path else "")
             print(f"[INFO] 注入 CUDA/TensorRT DLL 目录到 PATH（{_missing}）")
 
-from PySide6.QtGui import QGuiApplication, QFontDatabase, QFont, QIcon
+from PySide6.QtGui import QGuiApplication, QFontDatabase, QFont, QIcon, QPalette
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtCore import (Qt, QUrl, QObject, Slot, Property, Signal, QTranslator, QSettings,
                             QTimer, QCoreApplication)
+
+# ── D-Bus（仅 Linux 用来读 xdg-desktop-portal 的亮/暗偏好）──────────
+# 极简环境可能没有 QtDBus（Windows 的 PySide6 也是有这个模块的），
+# 缺失时降级为空值，后面的 QStyleHints/调色板兜底照常工作。
+try:
+    from PySide6.QtDBus import (QDBusConnection, QDBusInterface, QDBusMessage,
+                                QDBusVariant)
+except Exception:                                   # pragma: no cover
+    QDBusConnection = QDBusInterface = QDBusMessage = QDBusVariant = None
 # 语言代码 → .qm 文件名（"zh_CN" 用源文本，不加载翻译）
 LANG_FILES = {
     0: "app_en",       # English
@@ -153,9 +162,27 @@ LANG_FILES = {
 #    还有一条静态校验：页面里写到的每个 owner 都必须在这个元组里。
 COLLECTING_OWNERS = ("collect", "detect", "stage")
 
+# ── 主题偏好（与设置页下拉框的稳定 key 一致；中文只走 displayFunc）────────
+# theme 是用户偏好，system 表示跟随操作系统亮/暗；preset 只负责强调色。
+# 两者都存 QSettings（与语言一致），重启恢复。
+THEME_MODES = ("light", "dark", "system")
+THEME_PRESETS = ("default", "ocean", "forest", "sunset")
+
+# ── 系统亮/暗偏好（xdg-desktop-portal）──────────────────────────────
+# GNOME / KDE 都把「设置 → 外观」的亮暗偏好放在 org.freedesktop.appearance
+# 的 color-scheme 里（0=无偏好，1=偏好暗色，2=偏好亮色）。这是跨桌面环境
+# 的公共事实源，**必须优先于** QStyleHints.colorScheme()：
+# 后者在没有成对平台主题插件时（本机实测 Qt 6.11 + Wayland + GNOME
+# prefer-dark）启动瞬间返回 Light，只在系统**切换**时才纠正 —— 于是
+# “开着软件时切主题能跟随，关着软件时切了再启动还是亮色”。
+PORTAL_SERVICE = "org.freedesktop.portal.Desktop"
+PORTAL_PATH = "/org/freedesktop/portal/desktop"
+PORTAL_IFACE = "org.freedesktop.portal.Settings"
+PORTAL_APPEARANCE = "org.freedesktop.appearance"
+
 
 class AppBridge(QObject):
-    """QML 可调用的 Python 桥接层 — 语言切换等跨层操作。"""
+    """QML 可调用的 Python 桥接层 — 语言/主题切换等跨层操作。"""
 
     def getLanguageIndex(self) -> int:
         """当前语言索引，QML 读取以同步下拉框显示。"""
@@ -202,18 +229,40 @@ class AppBridge(QObject):
     collectingChanged = Signal()
     collectingOwnerChanged = Signal()
     algorithmEnabledChanged = Signal()
+    themeModeChanged = Signal()
+    presetChanged = Signal()
+    systemDarkChanged = Signal()
 
-    def __init__(self, app: QGuiApplication, engine: QQmlApplicationEngine):
+    def __init__(self, app: QGuiApplication, engine: QQmlApplicationEngine,
+                 settings: QSettings = None):
         super().__init__()
         self._app = app
         self._engine = engine
         self._translator = QTranslator()
-        self._settings = QSettings("DuAD", "DuADSoftware")
+        # settings 可注入 —— 测试必须传文件隔离的 QSettings，不能写用户真实配置
+        # （docs/19 §1；render_pages 也用它来固定渲染主题）。
+        self._settings = settings if settings is not None else QSettings("DuAD", "DuADSoftware")
         self._languageIndex = int(self._settings.value("language", 1))
         self._cameraConnected = False
         self._collecting = False
         self._collectingOwner = ""
         self._algorithmEnabled = False
+
+        # ── 主题偏好 + 系统亮/暗检测 ────────────────────────
+        self._themeMode = self._pick_setting(
+            self._settings.value("theme", "system"), THEME_MODES, "system")
+        self._preset = self._pick_setting(
+            self._settings.value("preset", "default"), THEME_PRESETS, "default")
+        self._portal = None          # 缓存的 Settings 接口（D-Bus 代理）
+        self._portal_tried = False
+        self._systemDark = self._detect_system_dark()
+        self._colors = None
+        self._bind_retries = 0
+
+        # 在 QML 加载前就把主题推给 Colors 单例：首帧就是正确颜色，
+        # 不会出现"先白后暗"的闪烁。模块尚未注册时会在事件循环里重试一次。
+        self._bind_colors()
+        self._watch_system_theme()
 
     def _getCameraConnected(self) -> bool:
         return self._cameraConnected
@@ -269,6 +318,238 @@ class AppBridge(QObject):
 
     algorithmEnabled = Property(bool, _getAlgorithmEnabled, _setAlgorithmEnabled,
                                 notify=algorithmEnabledChanged)
+
+    # ── 主题偏好 / 配色 / 系统亮暗 ──────────────────────────
+    # QML 设置页只写 themeMode / preset；持久化、系统检测、以及把结果推给
+    # Colors 单例都在 Python 侧完成（Colors 仍是唯一的颜色来源）。
+    @staticmethod
+    def _pick_setting(value, choices, fallback):
+        text = str(value) if value is not None else ""
+        return text if text in choices else fallback
+
+    def _portal_iface(self):
+        """xDG-desktop-portal 的 Settings 接口；Linux 上不可用时返回 None。
+
+        只在第一次调用时连会话总线 + 建代理（失败也记住，避免每次重试）。
+        timeout 压到 800ms：服务没装/没启动时不能让启动画面卡住。
+        """
+        if self._portal is not None:
+            return self._portal
+        if self._portal_tried:
+            return None
+        self._portal_tried = True
+        if _IS_WIN or sys.platform == "darwin" or QDBusConnection is None:
+            return None
+        try:
+            bus = QDBusConnection.sessionBus()
+            if not bus.isConnected():
+                return None
+            iface = QDBusInterface(PORTAL_SERVICE, PORTAL_PATH, PORTAL_IFACE, bus)
+            if not iface.isValid():
+                return None
+            iface.setTimeout(800)
+            self._portal = iface
+            return iface
+        except Exception as e:                       # 没有 D-Bus 的裸机
+            print(f"[AppBridge] portal 主题接口不可用（{e}），改用 Qt 检测")
+            return None
+
+    def _portal_color_scheme(self):
+        """读 portal 的 color-scheme：True=暗 / False=亮 / None=不知道。
+
+        PySide 把返回值包了两层 QDBusVariant（签名是 `v`），逐层拆开。
+        """
+        iface = self._portal_iface()
+        if iface is None:
+            return None
+        try:
+            reply = iface.call("Read", PORTAL_APPEARANCE, "color-scheme")
+            if reply.type() != QDBusMessage.MessageType.ReplyMessage:
+                return None
+            args = reply.arguments()
+            if not args:
+                return None
+            value = args[0]
+            depth = 0
+            while isinstance(value, QDBusVariant) and depth < 4:
+                value = value.variant()
+                depth += 1
+            value = int(value)
+            if value == 1:                           # prefer dark
+                return True
+            if value == 2:                           # prefer light
+                return False
+        except Exception as e:
+            print(f"[AppBridge] 读取 portal color-scheme 失败：{e}")
+        return None                                  # 0 = 无偏好，交给后面兜底
+
+    def _detect_system_dark(self) -> bool:
+        """操作系统当前是否为暗色。
+
+        检测顺序（2026-11 修正，原因见 PORTAL_* 注释）：
+          1. **Linux 先问 xdg-desktop-portal** —— GNOME/KDE 的亮暗偏好在
+             这里，启动首帧就准；
+          2. Qt 6.5+ 的 QStyleHints.colorScheme()（Windows/macOS 的主要
+             来源；Linux 上没有平台主题插件时启动会误报 Light）；
+          3. 调色板亮度兜底（暗色下 WindowText 比 Window 亮），仍判断
+             不了就按亮色。
+        """
+        portal = self._portal_color_scheme()
+        if portal is not None:
+            return portal
+
+        hints = getattr(self._app, "styleHints", lambda: None)()
+        scheme = None
+        if hints is not None and hasattr(hints, "colorScheme"):
+            try:
+                scheme = hints.colorScheme()
+            except Exception:
+                scheme = None
+
+        color_scheme = getattr(Qt, "ColorScheme", None)
+        if color_scheme is not None:
+            if scheme == color_scheme.Dark:
+                return True
+            if scheme == color_scheme.Light:
+                return False
+
+        palette = self._app.palette()
+        return (palette.color(QPalette.WindowText).lightness()
+                > palette.color(QPalette.Window).lightness())
+
+    def _watch_system_theme(self):
+        """监听系统亮/暗切换。
+
+        三个来源都回调 _on_system_theme_changed（内部按值去重）：
+          · portal SettingChanged —— Linux 上最可靠（GNOME/KDE 都实现）；
+          · colorSchemeChanged  —— Windows/macOS 的主信号；
+          · paletteChanged      —— Unknown 平台的兜底。
+        """
+        hints = getattr(self._app, "styleHints", lambda: None)()
+        if hints is not None and hasattr(hints, "colorSchemeChanged"):
+            hints.colorSchemeChanged.connect(self._on_system_theme_changed)
+        if hasattr(self._app, "paletteChanged"):
+            self._app.paletteChanged.connect(self._on_system_theme_changed)
+        self._watch_portal_theme()
+
+    def _watch_portal_theme(self):
+        """订阅 portal 的 SettingChanged（system 模式下系统切亮/暗实时跟随）。"""
+        if self._portal_iface() is None or QDBusConnection is None:
+            return
+        try:
+            # ⚠ slot 字符串必须以 "1" 开头：Qt 的 C++ 版 connect() 沿用
+            #   SLOT() 宏的约定，**无条件丢掉第一个字符**；不写 "1" 就会
+            #   去找 "nPortalSettingChanged(...)" 而静默返回 False。
+            ok = QDBusConnection.sessionBus().connect(
+                PORTAL_SERVICE, PORTAL_PATH, PORTAL_IFACE, "SettingChanged",
+                self, "1onPortalSettingChanged(QString,QString,QDBusVariant)")
+            if not ok:
+                print("[WARN] 订阅 portal SettingChanged 失败，"
+                      "系统主题实时跟随只能依赖 Qt 的 colorSchemeChanged")
+        except Exception as e:
+            print(f"[WARN] 订阅 portal SettingChanged 异常：{e}")
+
+    @Slot(str, str, QDBusVariant if QDBusVariant is not None else "QVariant")
+    def onPortalSettingChanged(self, namespace, key, _value):
+        """portal 里任何设置变化都会走到这里；只关心外观亮/暗。"""
+        if namespace != PORTAL_APPEARANCE or key != "color-scheme":
+            return
+        self._on_system_theme_changed()
+
+    def _on_system_theme_changed(self, *_):
+        dark = self._detect_system_dark()
+        if dark == self._systemDark:
+            return
+        self._systemDark = dark
+        print(f"[INFO] 系统主题切换为{'暗色' if dark else '亮色'}")
+        if self._colors is not None:
+            # Colors 自己判断 mode：只有"跟随系统"才重算颜色
+            self._colors.setProperty("systemDark", dark)
+        self.systemDarkChanged.emit()
+
+    def _bind_colors(self):
+        """把主题推给 QML 的 Colors 单例。
+
+        在 QML 加载**之前**调用（main.py 里 AppBridge 先于 engine.load 创建），
+        这样第一帧就是正确主题。若模块还没注册，等事件循环再试一次。
+        """
+        if self._colors is not None:
+            return
+        try:
+            colors = self._engine.singletonInstance("DuAD_Software", "Colors")
+        except Exception as e:                       # 引擎/模块尚未就绪
+            print(f"[AppBridge] 取 Colors 单例失败：{e}")
+            colors = None
+        if colors is None:
+            # 只重试有限次：模块真有问题时不能每 0ms 空转一次
+            self._bind_retries += 1
+            if self._bind_retries <= 3:
+                QTimer.singleShot(0, self._bind_colors)
+            else:
+                print("[WARN] Colors 单例加载失败，主题/配色将使用 QML 默认值")
+            return
+
+        self._colors = colors
+        self._bind_retries = 0
+        # 启动应用不要渐变（否则会看到"白 → 暗"的闪一下），之后恢复原时长
+        duration = colors.property("animDuration")
+        colors.setProperty("animDuration", 0)
+        colors.setProperty("systemDark", self._systemDark)
+        colors.setTheme(self._themeMode)
+        colors.setPreset(self._preset)
+        if duration is not None:
+            colors.setProperty("animDuration", duration)
+        print(f"[INFO] 主题: {self._themeMode}"
+              f"（系统当前{'暗色' if self._systemDark else '亮色'}），"
+              f"配色: {self._preset}")
+
+    def _getThemeMode(self) -> str:
+        return self._themeMode
+
+    def _setThemeMode(self, mode: str):
+        original = mode
+        mode = self._pick_setting(mode, THEME_MODES, "")
+        if not mode:
+            print(f"[AppBridge] 忽略未知主题 {original!r}；合法值只有 {THEME_MODES}")
+            return
+        if mode == self._themeMode:
+            return
+        self._themeMode = mode
+        self._settings.setValue("theme", mode)
+        if self._colors is None:
+            self._bind_colors()
+        if self._colors is not None:
+            self._colors.setTheme(mode)
+        self.themeModeChanged.emit()
+
+    themeMode = Property(str, _getThemeMode, _setThemeMode,
+                         notify=themeModeChanged)
+
+    def _getPreset(self) -> str:
+        return self._preset
+
+    def _setPreset(self, name: str):
+        original = name
+        name = self._pick_setting(name, THEME_PRESETS, "")
+        if not name:
+            print(f"[AppBridge] 忽略未知配色 {original!r}；合法值只有 {THEME_PRESETS}")
+            return
+        if name == self._preset:
+            return
+        self._preset = name
+        self._settings.setValue("preset", name)
+        if self._colors is None:
+            self._bind_colors()
+        if self._colors is not None:
+            self._colors.setPreset(name)
+        self.presetChanged.emit()
+
+    preset = Property(str, _getPreset, _setPreset, notify=presetChanged)
+
+    def _getSystemDark(self) -> bool:
+        return self._systemDark
+
+    systemDark = Property(bool, _getSystemDark, notify=systemDarkChanged)
 
     @Slot(int)
     def setLanguage(self, lang_index: int):

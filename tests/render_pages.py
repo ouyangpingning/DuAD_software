@@ -11,7 +11,9 @@
     source DuAD_SoftwareContent/pyqml/bin/activate
     python3 tests/render_pages.py camera  /tmp/camera.png  [宽 高]
     python3 tests/render_pages.py settings /tmp/settings.png 1280 900
+    python3 tests/render_pages.py settings /tmp/settings_dark.png 1280 900 --theme dark
 
+`--theme` 只影响渲染主题（light/dark，默认 light，保证截图可复现）。
 可选页面：camera / light / comm / collect / settings / detect / stage / main（整个主窗口）
 
 ⚠ 已知噪音（不是错误）：`image://camera/...` 没有注册 image provider，属预期。
@@ -72,8 +74,12 @@ Window {
 """
 
 
-def build_context(engine, app):
-    """注册真实桥。没有硬件时它们自己降级，页面照常渲染（全部显示"未连接"）。"""
+def build_context(engine, app, theme="light"):
+    """注册真实桥。没有硬件时它们自己降级，页面照常渲染（全部显示"未连接"）。
+
+    theme 只影响渲染出来的主题（light/dark）；测试统一用 light 保证截图可复现，
+    不复用开发者真实的 QSettings（docs/19 §1）。
+    """
     from PySide6.QtCore import QSettings
     from main import AppBridge
     from Src.camera_bridge import CameraBridge
@@ -91,8 +97,12 @@ def build_context(engine, app):
     sdir = Path(tempfile.mkdtemp(prefix="render_pages_"))
     autosave = QSettings(str(sdir / "auto.ini"), QSettings.Format.IniFormat)
 
-    # ⚠ AppBridge 要 (app, engine)：它自己管 QTranslator 与 QSettings
-    keep["AppBridge"] = AppBridge(app, engine)
+    # ⚠ AppBridge 要 (app, engine)：它自己管 QTranslator 与 QSettings。
+    #   主题/配色必须注入临时 QSettings，否则渲染会跟着开发者本机设置走。
+    app_settings = QSettings(str(sdir / "app.ini"), QSettings.Format.IniFormat)
+    app_settings.setValue("theme", theme)
+    app_settings.setValue("preset", "default")
+    keep["AppBridge"] = AppBridge(app, engine, settings=app_settings)
     keep["CameraBridge"] = CameraBridge()
     keep["LightBridge"] = LightBridge()
     keep["MqttBridge"] = MqttBridge()
@@ -118,6 +128,8 @@ def main():
     ap.add_argument("out", nargs="?", default=None, help="输出 PNG")
     ap.add_argument("width", nargs="?", type=int, default=1440)
     ap.add_argument("height", nargs="?", type=int, default=980)
+    ap.add_argument("--theme", choices=["light", "dark"], default="light",
+                    help="渲染用的主题（默认 light，保证截图可复现）")
     args = ap.parse_args()
     out = args.out or f"/tmp/{args.page}.png"
 
@@ -132,7 +144,7 @@ def main():
     warnings = []
     engine.warnings.connect(lambda ws: warnings.extend(w.toString() for w in ws))
 
-    keep, autosave = build_context(engine, app)     # noqa: F841  (keep 防 GC)
+    keep, autosave = build_context(engine, app, args.theme)  # noqa: F841  (防 GC)
 
     src = (HARNESS.replace(b"%WIDTH%", str(args.width).encode())
                   .replace(b"%HEIGHT%", str(args.height).encode())

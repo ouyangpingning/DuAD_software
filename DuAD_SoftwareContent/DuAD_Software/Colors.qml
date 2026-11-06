@@ -6,7 +6,7 @@ QtObject {
 
     // ============================================================
     // 所有 UI 颜色的唯一来源
-    // 主题(setTheme: 亮/暗)控制中性色，配色(setPreset)控制强调色
+    // 主题(setTheme: 亮/暗/跟随系统)控制中性色，配色(setPreset)控制强调色
     // 两者独立，切换互不干扰，最终由 _apply() 统一计算
     // 用法: import DuAD_Software; ... color: Colors.xxx
     // ============================================================
@@ -114,9 +114,25 @@ QtObject {
 
     // ============================================================
     // 当前状态（theme 与 preset 独立）
+    //
+    // _themeMode 是**用户偏好**（light / dark / system），由 AppBridge 持久化；
+    // systemDark 是操作系统当前是否暗色，也由 AppBridge 注入。
+    // _currentTheme 是派生出来给界面/测试看的最终亮度；_apply() 内部直接
+    // 从 _themeMode + systemDark 现算（原因见 _apply 里的 ⚠ 注释）。
+    // "跟随系统"不是直接改 _themeMode，而是让 systemDark 参与计算。
     // ============================================================
-    property string _currentTheme:  "light"
+    property string _themeMode:    "light"
+    property bool   systemDark:    false
+    readonly property string _currentTheme:
+        _themeMode === "system" ? (systemDark ? "dark" : "light") : _themeMode
     property string _currentPreset: "default"
+
+    // 系统亮/暗变化：只有"跟随系统"模式才重算；用户明确选亮/暗时，
+    // 系统再怎么变都不影响界面（但 systemDark 仍然更新，切回跟随系统
+    // 时立刻就是最新值）。
+    onSystemDarkChanged: {
+        if (_themeMode === "system") _apply()
+    }
 
     // ============================================================
     // 配色数据 — 只定义"强调色"和亮色主题下的中性色
@@ -215,7 +231,11 @@ QtObject {
     // ============================================================
     function _apply() {
         var p = _presets[_currentPreset] || _presets["default"]
-        var dark = (_currentTheme === "dark")
+        // ⚠ 不要读 _currentTheme：onSystemDarkChanged 触发时，绑定到 systemDark
+        //   的 readonly 属性 _currentTheme 可能还没重新求值（信号处理器先于绑定）。
+        //   直接从"偏好 + 系统值"现算，顺序无关。
+        var dark = (_themeMode === "dark")
+                || (_themeMode === "system" && systemDark)
 
         // ── 中性色：暗色固定灰阶，亮色用预设色板 ──
         _tween("sidebarBg",   dark ? "#242424" : p.sidebar)
@@ -286,11 +306,17 @@ QtObject {
 
     // ============================================================
     // 主题切换 — 亮色 / 暗色 / 跟随系统
+    //
+    // 这里只改"用户偏好"，真正的颜色由 _themeMode + systemDark 现算。
+    // 重复设置同一模式也重新 _apply()：启动时 AppBridge 会在 QML
+    // 加载前调用一次，确保首帧就是正确主题（见 main.py 的 _bind_colors）。
     // ============================================================
     function setTheme(name) {
-        if (name === "system") name = "light"  // TODO: 对接系统 API
-        if (name === _currentTheme) return
-        _currentTheme = name
+        if (name !== "light" && name !== "dark" && name !== "system") {
+            console.warn("Colors.setTheme: 未知主题", name)
+            return
+        }
+        _themeMode = name
         _apply()
     }
 
@@ -298,8 +324,13 @@ QtObject {
     // 配色切换
     // ============================================================
     function setPreset(name) {
-        if (name === "system") name = "default"  // TODO: 对接系统 API
-        if (name === _currentPreset) return
+        // 兼容旧版 UI 的"配色 → 跟随系统"：它从未真正实现，读到旧值就退回默认。
+        // 新版设置页已删除该选项（主题的"跟随系统"才是系统亮/暗）。
+        if (name === "system") name = "default"
+        if (!_presets[name]) {
+            console.warn("Colors.setPreset: 未知配色", name)
+            return
+        }
         _currentPreset = name
         _apply()
     }
