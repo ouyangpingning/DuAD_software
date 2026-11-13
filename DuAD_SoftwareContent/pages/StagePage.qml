@@ -630,6 +630,8 @@ Item {
                                     pathRpm: StageBridge.pathRpm
                                     pathAcc: StageBridge.pathAcc
                                     acc: StageBridge.acc
+                                    beltPitch: StageBridge.beltPitch
+                                    pulleyTeeth: StageBridge.pulleyTeeth
 
                                     // 拖动滑块松手立即生效（不必等「应用设置」）
                                     onSpeedChanged: function (rpm, acc) {
@@ -647,6 +649,11 @@ Item {
                                         //   属于 StageSetupPanel.qml，在**本文件里取不到**：点击时抛
                                         //   `ReferenceError: xminRow is not defined`，后面三条下发
                                         //   （工作区/速度/连接）**一条都不执行**，表现正是"点了没反应"。
+                                        // ⚠ 先改机械参数，再下发工作区：工作区存的是 mm，
+                                        //   换算成度的比例由齿距/齿数决定（顺序反了会先按
+                                        //   旧比例发一遍 travel，再被 setWorkspace 覆盖 —— 多一条无用命令）。
+                                        StageBridge.setTransmission(setupPanel.fieldBeltPitch,
+                                                                    setupPanel.fieldPulleyTeeth)
                                         StageBridge.setWorkspace(setupPanel.fieldXmin, setupPanel.fieldYmin,
                                                                  setupPanel.fieldXmax, setupPanel.fieldYmax)
                                         StageBridge.setSpeed(setupPanel.fieldRpm, setupPanel.fieldAcc)

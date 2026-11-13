@@ -232,6 +232,7 @@ class FakeZStageBridge(QObject):
     rpm = Property(int, lambda self: 300, notify=changed)
     acc = Property(int, lambda self: 100, notify=changed)
     uiMaxRpm = Property(int, lambda self: 1200, notify=changed)
+    umPerRev = Property(int, lambda self: 8000, notify=changed)
     uiMaxAcc = Property(int, lambda self: 200, notify=changed)
     uiMinAcc = Property(int, lambda self: 1, notify=changed)
     step = Property(float, lambda self: 1.0, notify=changed)
@@ -865,6 +866,74 @@ def main():
                 bool(setup.property("netOpen")) is False,
                 f"netOpen={setup.property('netOpen')}")
 
+    # 机械参数（2026-11）：齿距/齿数决定"每圈多少 mm"，是 mm↔度换算的唯一事实源。
+    # 这里同时钉住三件事：分区能展开、输入框默认值来自 bridge、改完按「应用设置」
+    # 真的写进 bridge（只改 QML 文本而不下发 = 用户看到的和实际用的不一致）。
+    print("=== 11c4b) 机械参数（同步带）分区 ===")
+    mech_fold = find("xyMechFold")
+    r.check("设置面板有「机械参数（同步带）」折叠头", mech_fold is not None)
+    if mech_fold is not None and setup is not None:
+        r.check("「机械参数」默认收起",
+                bool(setup.property("mechOpen")) is False,
+                f"mechOpen={setup.property('mechOpen')}")
+        mech_fold.toggled.emit()
+        r.pump(0.2)
+        r.check("点标题 → 展开",
+                bool(setup.property("mechOpen")) is True,
+                f"mechOpen={setup.property('mechOpen')}")
+
+        pitch_row = find("beltPitchField")
+        teeth_row = find("pulleyTeethField")
+        derived = find("mechDerivedText")
+        r.check("有齿距 / 齿数输入框和推导文字",
+                pitch_row is not None and teeth_row is not None and derived is not None)
+        if pitch_row is not None and teeth_row is not None and derived is not None:
+            r.check("默认值来自 bridge（2.00mm / 16T）",
+                    str(pitch_row.property("text")) == "2.00"
+                    and str(teeth_row.property("text")) == "16",
+                    f"{pitch_row.property('text')} / {teeth_row.property('text')}")
+            txt = str(derived.property("text"))
+            r.check("推导显示 32.00mm/圈、1mm=11.25°",
+                    "32.00" in txt and "11.25" in txt, txt)
+
+            # 输入框内容变了，预览必须立刻跟着变（不是等「应用设置」才动）。
+            pitch_row.setProperty("text", "3.0")
+            teeth_row.setProperty("text", "20")
+            r.pump(0.2)
+            txt2 = str(derived.property("text"))
+            r.check("输入 3.0mm × 20T → 60.00mm/圈、1mm=6°",
+                    "60.00" in txt2 and "= 6°" in txt2, txt2)
+
+            # 应用设置：先等台面停稳（bridge 拒绝运动中改机械参数）。
+            r.check("应用前等台面停稳", r.wait_for(lambda: not stage.moving, 5),
+                    f"moving={stage.moving}")
+            setup.applyRequested.emit()
+            r.pump(0.6)
+            r.check("「应用设置」把机械参数写进 bridge",
+                    abs(float(stage.mmPerRev) - 60.0) < 1e-6,
+                    f"mmPerRev={stage.mmPerRev}")
+            # 机械参数一变，速度旁的 mm/s 必须跟着变（不是只在启动时算一次）。
+            hint_mech = find("rpmMmpsHint")
+            if hint_mech is not None:
+                mh = re.search(r"([\d.]+)\s*mm/s", str(hint_mech.property("text")))
+                got_h = float(mh.group(1)) if mh else -1.0
+                exp_h = float(stage.rpm) / 60.0 * float(stage.mmPerRev)
+                r.check("改机械参数后 mm/s 折算同步变",
+                        abs(got_h - exp_h) <= 0.15,
+                        f"text={hint_mech.property('text')} exp={exp_h:.1f}")
+
+            # 恢复默认，后面的断言仍按 GT2-16T（11.25°/mm）算。
+            r.check("恢复默认 2.00mm × 16T",
+                    stage.setTransmission(2.0, 16) is True, stage.lastError)
+            pitch_row.setProperty("text", "2.0")
+            teeth_row.setProperty("text", "16")
+            r.pump(0.3)
+        mech_fold.toggled.emit()
+        r.pump(0.2)
+        r.check("「机械参数」再点一次 → 收起",
+                bool(setup.property("mechOpen")) is False,
+                f"mechOpen={setup.property('mechOpen')}")
+
     # BLE 配网弹窗：密码空时连接按钮必须禁用（用户明确要求）
     wifi_dlg = find("bleWifiDialog")
     wifi_pwd = find("bleWifiPasswordField")
@@ -964,6 +1033,32 @@ def main():
                 f"uiMaxRpm={stage.uiMaxRpm}")
         r.check("2026-09-13 用户要求提到 3000", float(stage.uiMaxRpm) >= 3000,
                 f"uiMaxRpm={stage.uiMaxRpm}")
+
+        # rpm 对用户不直观：旁边必须有按当前机械参数折算的 mm/s。
+        # ⚠ 这里断言的是**数值**（rpm ÷ 60 × mm/圈），不是"有个标签"——
+        #   写死 32 或忘乘 mmPerRev 时，标签照样在、数字却是错的。
+        hint = find("rpmMmpsHint")
+        r.check("转速旁有 mm/s 折算", hint is not None)
+        if hint is not None:
+            m = re.search(r"([\d.]+)\s*mm/s", str(hint.property("text")))
+            got = float(m.group(1)) if m else -1.0
+            exp = (float(rpm_slider.property("sliderValue")) / 60.0
+                   * float(stage.mmPerRev))
+            r.check("mm/s 数值 = rpm ÷ 60 × mm/圈",
+                    abs(got - exp) <= 0.15,
+                    f"text={hint.property('text')} exp={exp:.1f}")
+        path_hint = find("pathRpmMmpsHint")
+        path_slider = find("pathRpmSliderRow")
+        r.check("轨迹转速旁也有 mm/s 折算",
+                path_hint is not None and path_slider is not None)
+        if path_hint is not None and path_slider is not None:
+            m2 = re.search(r"([\d.]+)\s*mm/s", str(path_hint.property("text")))
+            got2 = float(m2.group(1)) if m2 else -1.0
+            exp2 = (float(path_slider.property("sliderValue")) / 60.0
+                    * float(stage.mmPerRev))
+            r.check("轨迹 mm/s 数值也对",
+                    abs(got2 - exp2) <= 0.15,
+                    f"text={path_hint.property('text')} exp={exp2:.1f}")
 
 
     # 位置读数现在是**上下两段**、住在左列的「状态」折叠节里（2026-09-28 三列版面）。

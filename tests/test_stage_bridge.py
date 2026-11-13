@@ -31,8 +31,9 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 from PySide6.QtCore import QCoreApplication, QSettings         # noqa: E402
 from PySide6.QtNetwork import QAbstractSocket                  # noqa: E402
-from Src.stage_bridge import (COUNTS_PER_MM, DEG_PER_MM, MAX_ACC,     # noqa: E402
-                              MM_PER_DEG, StageBridge)
+from Src.stage_bridge import (COUNTS_PER_MM, COUNTS_PER_REV, DEFAULT_BELT_PITCH,  # noqa: E402
+                              DEFAULT_MM_PER_REV, DEFAULT_PULLEY_TEETH,
+                              DEG_PER_MM, MAX_ACC, MM_PER_DEG, StageBridge)
 
 TOKEN = "deadbeef"
 WS_DEG = None      # 由 bridge 自动下发，假板子只记录
@@ -299,6 +300,28 @@ def main():
     r.check("空口令被拒",
             b_bad.connectDevice("1.2.3.4", 3333, "") is False and "口令" in b_bad.lastError)
 
+    print("=== 1b) 默认速度迁移（300/1200 → 2000，100/1 → 6）===")
+    _mig_file = Path(tempfile.mkdtemp(prefix="duad_stage_mig_")) / "s.ini"
+
+    def _bridge_from(**kv):
+        st = QSettings(str(_mig_file), QSettings.Format.IniFormat)
+        st.clear()
+        for k, v in kv.items():
+            st.setValue(k.replace("__", "/"), v)
+        st.sync()
+        return StageBridge(settings=st), st
+
+    for old_rpm in (300, 1200):
+        mb, ms = _bridge_from(stage__rpm=old_rpm)
+        r.check(f"旧默认 rpm {old_rpm} 迁到 2000", mb.rpm == 2000, str(mb.rpm))
+        r.check(f"rpm 迁移已写回（{old_rpm}）", int(ms.value("stage/rpm")) == 2000,
+                str(ms.value("stage/rpm")))
+    for old_acc in (100, 1):
+        mb, ms = _bridge_from(stage__acc=old_acc)
+        r.check(f"旧默认 acc {old_acc} 迁到 6", mb.acc == 6, str(mb.acc))
+    mb, _ = _bridge_from(stage__rpm=1500, stage__acc=20)
+    r.check("自己调过的速度不会被迁走", (mb.rpm, mb.acc) == (1500, 20), f"{mb.rpm}/{mb.acc}")
+
     print("=== 2) 错误口令 ===")
     b2 = make_bridge()
     b2.connectDevice("127.0.0.1", server.port, "wrongtoken")
@@ -324,6 +347,77 @@ def main():
     r.check("1 度 = 32/360 mm", abs(MM_PER_DEG - 32.0 / 360.0) < 1e-12)
     r.check("1600 counts/mm", COUNTS_PER_MM == 1600.0)
 
+    print("=== 5b) 机械参数（齿距 × 齿数）是唯一事实源 ===")
+    # 默认值必须与老行为完全一致（换参数是"可选项"，不能悄悄改默认）。
+    r.check("默认 2.00mm 齿距 / 16T",
+            DEFAULT_BELT_PITCH == 2.0 and DEFAULT_PULLEY_TEETH == 16)
+    r.check("默认每圈 32mm", DEFAULT_MM_PER_REV == 32.0)
+    r.check("默认 51200 counts/圈", COUNTS_PER_REV == 51200.0)
+    r.check("bridge 默认 mmPerRev=32",
+            abs(b.mmPerRev - 32.0) < 1e-9, f"{b.mmPerRev}")
+    r.check("bridge 默认 degPerMm=11.25",
+            abs(b.degPerMm - 11.25) < 1e-9, f"{b.degPerMm}")
+    r.check("bridge 默认 countsPerMm=1600",
+            abs(b.countsPerMm - 1600.0) < 1e-9, f"{b.countsPerMm}")
+
+    r.check("setTransmission(3.0, 20) 接受",
+            b.setTransmission(3.0, 20) is True, b.lastError)
+    r.check("3mm × 20T = 60mm/圈",
+            abs(b.mmPerRev - 60.0) < 1e-9, f"{b.mmPerRev}")
+    r.check("60mm/圈 → 1mm = 6 度",
+            abs(b.degPerMm - 6.0) < 1e-9, f"{b.degPerMm}")
+    r.check("60mm/圈 → 853.3 counts/mm",
+            abs(b.countsPerMm - 51200.0 / 60.0) < 1e-6, f"{b.countsPerMm}")
+    # 工作区存的是 mm，换算成度会变 → 必须重新下发 travel（否则固件的行程闸
+    # 还是旧比例，长距离移动会被"静默拒绝"）。
+    r.check("改参数后按新比例重发工作区（度）",
+            r.wait_for(lambda: server.board.travel_win is not None
+                       and abs(server.board.travel_win[2] - b.wsXMax * 6.0) < 0.01),
+            str(server.board.travel_win))
+
+    b._settings.sync()
+    bm = make_bridge()
+    r.check("机械参数落盘（新开 bridge 也读到 60mm/圈）",
+            abs(bm.mmPerRev - 60.0) < 1e-9, f"{bm.mmPerRev}")
+
+    r.check("非法齿距 0 被拒",
+            b.setTransmission(0.0, 16) is False and "齿距" in b.lastError,
+            b.lastError)
+    r.check("非法齿数 0 被拒",
+            b.setTransmission(2.0, 0) is False and "齿数" in b.lastError,
+            b.lastError)
+    r.check("小数齿数被拒",
+            b.setTransmission(2.0, 16.5) is False and "整数" in b.lastError,
+            b.lastError)
+    r.check("空输入（NaN）被拒且不抛异常",
+            b.setTransmission(float("nan"), float("nan")) is False,
+            b.lastError)
+    b._moving = True
+    r.check("运动中拒绝改机械参数",
+            b.setTransmission(3.0, 18) is False and "运动" in b.lastError,
+            b.lastError)
+    b._moving = False
+    b._set_error("")     # 清掉上一条"运动中拒绝"，免得后面 [ok] 的附带信息误导
+
+    # 小齿距会同时顶到固件两个硬限：单次 50 圈防呆闸、驱动器 10s 回零超时。
+    # 这两条在默认 32mm/圈 下永远碰不到，换了机械参数才会暴露，必须提前提醒。
+    logs_mech = []
+    b.logMessage.connect(logs_mech.append)
+    r.check("6mm/圈 时同时提醒 50 圈上限与回零超时",
+            b.setTransmission(1.0, 6) is True
+            and any("50 圈" in m for m in logs_mech)
+            and any("回零超时" in m for m in logs_mech),
+            str(logs_mech[-2:]))
+
+    r.check("改回 2.00mm × 16T",
+            b.setTransmission(2.0, 16) is True, b.lastError)
+    r.check("恢复 32mm/圈（后续断言仍按默认机械参数）",
+            abs(b.mmPerRev - 32.0) < 1e-9, f"{b.mmPerRev}")
+    r.check("工作区恢复旧比例的度",
+            r.wait_for(lambda: server.board.travel_win is not None
+                       and abs(server.board.travel_win[2] - b.wsXMax * 11.25) < 0.01),
+            str(server.board.travel_win))
+
     print("=== 6) 无基准时拒绝移动（对应固件基准闸）===")
     r.check("datum 为 False", r.wait_for(lambda: not b.datum))
     r.check("moveTo 返回 False", b.moveTo(10, 20) is False)
@@ -348,6 +442,24 @@ def main():
     r.check("点动到位 (15,16)",
             r.wait_for(lambda: abs(b.posX - 15) < 0.01 and abs(b.posY - 16) < 0.01),
             f"({b.posX:.3f},{b.posY:.3f})")
+
+    print("=== 8b) 机械参数变了，move 命令与位置读数一起换算 ===")
+    r.check("先设 4.00mm × 10T = 40mm/圈",
+            b.setTransmission(4.0, 10) is True, b.lastError)
+    server.board.commands.clear()
+    r.check("moveTo(10, 20) 接受", b.moveTo(10.0, 20.0) is True, b.lastError)
+    # 10mm × 9°/mm = 90°，20mm × 9°/mm = 180°
+    r.check("板子收到 move 90.000 180.000",
+            r.wait_for(lambda: any(c.startswith("move 90.000 180.000")
+                                   for c in server.board.commands), 5),
+            str(server.board.commands[:3]))
+    r.check("位置读数按新比例回到 (10,20) mm",
+            r.wait_for(lambda: abs(b.posX - 10.0) < 0.01
+                       and abs(b.posY - 20.0) < 0.01),
+            f"({b.posX:.3f},{b.posY:.3f})")
+    r.check("恢复 2.00mm × 16T",
+            b.setTransmission(2.0, 16) is True, b.lastError)
+    r.pump(0.3)
 
     print("=== 9) 目标按工作区夹取（界面先夹，固件闸是兜底）===")
     b.moveTo(9999.0, -9999.0)

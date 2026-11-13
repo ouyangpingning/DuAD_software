@@ -178,7 +178,7 @@ def main():
     ap.add_argument("width", nargs="?", type=int, default=1400)
     ap.add_argument("height", nargs="?", type=int, default=1700)
     ap.add_argument("expand", nargs="?", default="none",
-                    choices=["none", "drawers", "setup", "both", "card"])
+                    choices=["none", "drawers", "setup", "both", "mech", "speed", "card"])
     ap.add_argument("--dump", action="store_true",
                     help="额外打印关键行的宽度与子控件坐标（判断'被撑爆'还是'没创建'）")
     args = ap.parse_args()
@@ -269,9 +269,28 @@ def main():
     #   模式跟着删了；新增 `card` —— 滚到「轨迹与网格」卡，改那张卡时用它目检。
     page.setProperty("_xyStatusOpen", args.expand in ("drawers", "both"))
     page.setProperty("_zStatusOpen", args.expand in ("drawers", "both"))
-    page.setProperty("_xySetupOpen", args.expand in ("setup", "both"))
-    page.setProperty("_zSetupOpen", args.expand in ("setup", "both"))
+    page.setProperty("_xySetupOpen", args.expand in ("setup", "both", "mech", "speed"))
+    page.setProperty("_zSetupOpen", args.expand in ("setup", "both", "speed"))
     pump(0.9)
+
+    # `mech` = 只展开左侧「平台设置」里的「机械参数（同步带）」分区，目检齿距/齿数版面。
+    if args.expand == "mech":
+        panel = page.findChild(QObject, "setupPanel")
+        if panel is not None:
+            panel.setProperty("mechOpen", True)
+        else:
+            print("[render_page] 找不到 setupPanel，无法展开机械参数")
+        pump(0.5)
+
+    # `speed` = 展开 XY 的手动/轨迹速度 + Z 的速度，目检 rpm 旁的 mm/s 折算。
+    if args.expand == "speed":
+        for name in ("setupPanel", "zSetupPanel"):
+            panel = page.findChild(QObject, name)
+            if panel is not None:
+                panel.setProperty("speedOpen", True)
+                if name == "setupPanel":
+                    panel.setProperty("pathOpen", True)
+        pump(0.5)
 
     if args.expand == "card":
         from PySide6.QtQuick import QQuickItem

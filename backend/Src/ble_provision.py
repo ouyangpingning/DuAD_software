@@ -2,9 +2,9 @@
 
 设计目标：只把 BLE 当作**配网通道**，运动控制仍然走原来的 TCP。
 板子会一直慢速广播（名字前缀 ``DuAD-XY-`` / ``DuAD-Z-``），
-上位机扫到后连 GATT，先把口令交给板子，再复用板子现有的控制台命令：
+上位机扫到后连 GATT，直接复用板子现有的控制台命令：
 
-    <token>                 -> #OK auth
+    net                     -> 文本行（含“口令 1a2b3c4d”）+ #OK
     wifi status             -> {"configured":...,"connected":...,"state":...}
     wifi scan               -> {"nets":[{"ssid":...,"rssi":...,"auth":...}]}
     wifi set {"ssid":...}   -> #OK（随后每 1s 轮询 wifi status）
@@ -14,13 +14,20 @@
 这样固件侧不需要再造一套协议：BLE 只是第三条“控制台通道”，
 和 USB / TCP 共用同一张命令表、同一套安全闸。
 
+⚠ **BLE 不再要口令**（2026-11 用户要求“别再为抄口令插 USB”）：固件 `ble_prov`
+   取消了第一条认证，命令白名单仍限制在 wifi/net/ver/help，并且拒绝 `net token ...`
+   （防止有人远程改掉 TCP 口令把用户锁在外面）。
+   `net` 的用途变成“**把 TCP 口令读回来**”：读到后经 ``tokenLearned`` 交给桥，
+   桥存进 QSettings，配网成功后的 TCP 连接直接用这个口令，用户全程不碰口令。
+
 ⚠ 本模块只负责 BLE 与配网状态机；不碰运动命令。
-   BLE 侧固件也会把命令白名单限制在 wifi/net/ver/help，避免绕过 TCP 的急停语义。
+   固件 BLE 侧仍把命令白名单限制在 wifi/net/ver/help，避免绕过 TCP 的急停语义。
 """
 
 from __future__ import annotations
 
 import json
+import re
 from typing import Callable, Dict, List, Optional
 
 from PySide6.QtCore import QObject, QTimer, QByteArray, QUuid, Signal, Property, Slot
@@ -42,6 +49,11 @@ BLE_TX_UUID = "d0ad0003-9a1b-4c2d-8e3f-1a2b3c4d5e6f"   # 板子 -> 上位机（n
 #   XY 板实测为 DuAD-XY-55C6；
 #   Z 板的 MAC 后缀请按实物修改，默认用 DuAD-Z- 前缀自动匹配（仍不接受用户选择）。
 BOARD_NAMES = {"xy": "DuAD-XY-55C6", "z": "DuAD-Z-"}
+
+# `net` 的输出里带口令，例如：
+#   net: 命令通道监听中，端口 3333，口令 07b63950
+#   上位机填写 ->  地址 192.168.1.125   端口 3333   口令 07b63950
+_TOKEN_RE = re.compile(r"口令\s*([0-9A-Za-z_\-]{4,32})")
 
 
 def _as_uuid(s: str) -> QBluetoothUuid:
@@ -366,8 +378,9 @@ class BleProvisioner(QObject):
     provisioned = Signal(str, str)      # ip, ssid
     failed = Signal(str)
     forgotten = Signal(str)             # 被忘记的 SSID（空串=板上没有已保存网络）
+    tokenLearned = Signal(str)          # 从板子 `net` 读到的 TCP 口令
 
-    BUSY_STATES = ("scanning", "connecting", "authenticating",
+    BUSY_STATES = ("scanning", "connecting", "probing",
                    "scanning_wifi", "provisioning")
 
     def __init__(self, role: str, link: Optional[BleLink] = None, parent=None):
@@ -392,6 +405,7 @@ class BleProvisioner(QObject):
         self._rssi = 0
         self._error = ""
         self._token = ""
+        self._last_text = ""          # `net` 等文本命令的最后一行（取口令用）
         self._address = ""
         self._pending = None          # (label, on_ok, timer)
         self._last_json: dict = {}
@@ -460,11 +474,6 @@ class BleProvisioner(QObject):
     busy = Property(bool, _get_busy, notify=stateChanged)
 
     # ── 对外动作 ─────────────────────────────────────────
-    @Slot(str)
-    def set_token(self, token: str) -> None:
-        """扫描前先把口令交给状态机，便于“只扫到一台时自动连接”。"""
-        self._token = (token or "").strip()
-
     @Slot()
     def scan(self) -> None:
         self._error = ""
@@ -476,12 +485,10 @@ class BleProvisioner(QObject):
         # 固定板卡名：不显示列表、不让用户选；扫到就自动连。
         self._link.start_scan(self.board_name)
 
-    @Slot(str, str)
-    def connect_device(self, address: str, token: str) -> None:
-        self._token = (token or "").strip()
-        if not self._token:
-            self._fail(self.tr("请先填写板子的连接口令（USB 控制台敲 net 能看到）"))
-            return
+    @Slot(str)
+    def connect_device(self, address: str) -> None:
+        # 免口令（2026-11）：固件 BLE 侧不再校验第一条口令。
+        # TCP 需要的那份口令由连上后的 `net` 自动读回（见 `_on_net_ok`）。
         if not address:
             self._fail(self.tr("请先选择要配网的板卡"))
             return
@@ -495,7 +502,7 @@ class BleProvisioner(QObject):
         if self._state == "scanning_wifi":
             return
         if self._state != "reading":
-            self._fail(self.tr("请先连接板卡并完成口令认证"))
+            self._fail(self.tr("请先连接板卡"))
             return
         # 刚认证完时 wifi status 可能还在途；不要立刻报“上一条没完成”，
         # 等它结束再自动重试（用户点了“扫描 Wi-Fi”就应该扫）。
@@ -516,7 +523,7 @@ class BleProvisioner(QObject):
     @Slot(str, str)
     def apply_wifi(self, ssid: str, password: str) -> None:
         if self._state not in ("reading", "scanning_wifi"):
-            self._fail(self.tr("请先连接板卡并完成口令认证"))
+            self._fail(self.tr("请先连接板卡"))
             return
         ssid = (ssid or "").strip()
         if not ssid:
@@ -561,7 +568,7 @@ class BleProvisioner(QObject):
             "idle": self.tr("未开始"),
             "scanning": self.tr("正在搜索板卡…"),
             "connecting": self.tr("正在连接板卡…"),
-            "authenticating": self.tr("正在验证口令…"),
+            "probing": self.tr("正在读取板卡信息…"),
             "reading": self.tr("已连接板卡"),
             "scanning_wifi": self.tr("正在扫描 Wi-Fi…"),
             "provisioning": self.tr("正在连接 Wi-Fi…"),
@@ -581,7 +588,7 @@ class BleProvisioner(QObject):
         self._fail(msg)
 
     def _on_link_disconnected(self) -> None:
-        if self._state in ("authenticating", "reading",
+        if self._state in ("probing", "reading",
                            "scanning_wifi", "provisioning"):
             self._fail(self.tr("蓝牙连接已断开，请重新搜索板卡"))
 
@@ -594,14 +601,14 @@ class BleProvisioner(QObject):
         # 固定板卡名：第一台匹配的设备直接连，不再等扫描超时/不再让用户选。
         if self._state == "scanning":
             self._link.stop_scan()
-            self.connect_device(dev["address"], self._token)
+            self.connect_device(dev["address"])
 
     def _on_scan_finished(self) -> None:
         if self._state != "scanning":
             return
         if self._devices:
             best = max(self._devices, key=lambda d: int(d.get("rssi", -999) or -999))
-            self.connect_device(best["address"], self._token)
+            self.connect_device(best["address"])
             return
         self._fail(self.tr("没有找到板卡 {}，请确认板子已上电并在广播范围内")
                    .format(self.board_name))
@@ -612,6 +619,7 @@ class BleProvisioner(QObject):
             self._fail(self.tr("上一条命令还没完成，请稍候"))
             return
         self._pending = (cmd.split(" ", 1)[0], on_ok)
+        self._last_text = ""
         self._cmd_timeout.start(timeout_ms)
         self._link.send_line(cmd)
 
@@ -657,15 +665,24 @@ class BleProvisioner(QObject):
                 # 列表结束；保持 nets 给 _on_scan_wifi_ok 收尾
                 pass
             return
-        # 其他文本行（例如 help / 诊断）先忽略，避免误判 #OK
+        # 其他文本行（net / help / 诊断）：记住最后一行，`_on_net_ok` 从里面取口令
+        self._last_text = line
 
     # ── 认证/命令回调 ────────────────────────────────────
     def _on_link_connected(self) -> None:
-        self._set_state("authenticating")
-        self._send(self._token, self._on_auth_ok, timeout_ms=5000)
+        # 固件 BLE 侧已免口令。第一条发 `net`：既确认链路通了，
+        # 又把板子的 TCP 口令读回来（用户不用再插 USB 抄口令）。
+        self._set_state("probing")
+        self._send("net", self._on_net_ok, timeout_ms=5000)
 
-    def _on_auth_ok(self) -> None:
-        # 先读一次状态；读完之前保持 authenticating（busy），
+    def _on_net_ok(self) -> None:
+        m = _TOKEN_RE.search(self._last_text or "")
+        if m:
+            token = m.group(1)
+            if token != self._token:
+                self._token = token
+                self.tokenLearned.emit(token)
+        # 先读一次状态；读完之前保持 probing（busy），
         # 避免“扫描 Wi-Fi”在 status 还在途时被点到而报“上一条没完成”。
         self._send("wifi status", self._on_status_ok, timeout_ms=5000)
 

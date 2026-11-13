@@ -14,7 +14,9 @@
 
 单位约定（**这个文件是唯一的换算边界**）：
     固件的笛卡尔坐标单位是"电机度"（360 = 电机一圈），界面一律用毫米。
-    GT2-16 齿带轮 → 每圈 32mm → `1 度 = 32/360 mm`、`1 mm = 11.25 度`、`1600 counts/mm`。
+    机械参数（齿距 × 带轮齿数）可在「平台设置 → 机械参数」里改，
+    默认 GT2-16T → 每圈 32mm → `1 度 = 32/360 mm`、`1 mm = 11.25 度`、`1600 counts/mm`。
+    ⚠ 运行时一律用 `mmPerRev/degPerMm/countsPerMm`，不要再引用模块常量。
     界面层永远不碰"度"，固件层永远不碰"mm" —— 换算只在这里做一次。
 
 安全相关的三条（都来自固件侧的设计，UI 必须配合，详见 docs/17 §5）：
@@ -39,10 +41,23 @@ from PySide6.QtNetwork import QAbstractSocket, QTcpSocket
 from Src import stage_traj
 from Src.ble_provision import BleProvisioner
 
-# ── 机械换算（GT2-16 齿带轮，每圈 32mm）────────────────────────────
-MM_PER_DEG = 32.0 / 360.0          # 0.088888…
-DEG_PER_MM = 1.0 / MM_PER_DEG      # 11.25
-COUNTS_PER_MM = 1600.0             # 51200 / 32
+# ── 机械换算（同步带传动；齿距/齿数可在「平台设置 → 机械参数」里改）────
+# ⚠ 下面这三个模块常量只是**默认机械参数**（GT2-16T）下的值。
+#   运行时一律走实例属性 `mmPerRev / degPerMm / countsPerMm` ——
+#   改机械参数后还引用模块常量 = "同一个事实两份"，界面改了不生效
+#   （docs/19 第 4 条，`UI_MAX_RPM` 那个坑）。
+DEFAULT_BELT_PITCH = 2.0           # GT2 齿距 mm
+DEFAULT_PULLEY_TEETH = 16          # GT2-16T
+DEFAULT_MM_PER_REV = DEFAULT_BELT_PITCH * DEFAULT_PULLEY_TEETH   # 32mm/圈
+BELT_PITCH_MIN, BELT_PITCH_MAX = 0.5, 10.0
+PULLEY_TEETH_MIN, PULLEY_TEETH_MAX = 6, 200
+# 驱动器 1.8° 电机 + 256 细分 → 51200 counts/圈。细分不变时它是常数，
+# 但 counts/mm 会随 mm/圈 变化。
+COUNTS_PER_REV = 51200.0
+# 兼容旧导入（tests / 文档）：默认机械参数下的换算值。
+MM_PER_DEG = DEFAULT_MM_PER_REV / 360.0          # 0.088888…
+DEG_PER_MM = 1.0 / MM_PER_DEG                    # 11.25
+COUNTS_PER_MM = COUNTS_PER_REV / DEFAULT_MM_PER_REV   # 1600
 
 # ── 轮询节奏 ──────────────────────────────────────────────────────
 POLL_IDLE_MS = 1000                # 空闲：1Hz 足够（状态条不需要更勤）
@@ -114,14 +129,17 @@ UI_MAX_RPM = 3000
 UI_MAX_ACC = MAX_ACC     # 加减速没有"带不动"的问题，直接给到固件上限
                          # （固件其实允许到 6000；这是现场实测觉得够快的值）
 
-# 巡航速度 / 加减速档位的默认值（2026-09-13 按用户实机手感定的）。
+# 巡航速度 / 加减速档位的默认值（2026-11 用户定：2000rpm / 6）。
 # ⚠ 改默认值必须连**旧默认值**一起记下来，见 `_migrating_setting`：
 #   老用户的 QSettings 里已经存着旧值，"只改常量"对他们完全无效。
-DEFAULT_RPM = 1200       # ≈640 mm/s 皮带线速（1200rpm ÷ 60 × 32mm）
-DEFAULT_ACC = 1          # 最柔和的起步/停车。⚠ 固件里 0 = 不加速直接启动（禁止），
-                         #   所以 1 才是真正的最小值
-OLD_DEFAULT_RPM = 300
-OLD_DEFAULT_ACC = 100
+#   历史：rpm 300 → 1200 → 2000；acc 100 → 1 → 6。
+DEFAULT_RPM = 2000       # ≈1067 mm/s 皮带线速（2000rpm ÷ 60 × 32mm）
+DEFAULT_ACC = 6
+OLD_DEFAULT_RPMS = (300, 1200)
+OLD_DEFAULT_ACCS = (100, 1)
+# 轨迹速度默认值（与手动那对**刻意分开**：轨迹每段是完整梯形曲线）
+DEFAULT_PATH_RPM = 1200
+DEFAULT_PATH_ACC = 30
 
 # 工作区（台面行程）默认值。
 #   X = 360（2026-09-13 用户给的实测值，原默认 300）
@@ -211,6 +229,10 @@ class StageBridge(QObject):
     # ── 遥测（来自 json 轮询）─────────────────────────────
     telemetryChanged = Signal()
     movingChanged = Signal()
+    # 机械参数（齿距/齿数）变了：mm/圈、deg/mm、counts/mm 全跟着变。
+    # ⚠ 单独一个信号，**不要**复用 telemetryChanged：遥测 1~8Hz 在刷，
+    #   而轨迹耗时等重计算不该跟着遥测每帧跑一遍。
+    transmissionChanged = Signal()
 
     # ── 预设 ──────────────────────────────────────────────
     presetsChanged = Signal()
@@ -242,6 +264,20 @@ class StageBridge(QObject):
 
         self._settings = settings if settings is not None else QSettings("DuAD", "DuADSoftware")
 
+        # ── 机械参数（同步带）────────────────────────────────
+        # 齿距 × 齿数 = 电机每圈走多少 mm。X/Y 两轴共用一组（CoreXY 通常同带轮）。
+        # 存 QSettings：换平台/换带轮后重开软件仍然生效。
+        self._belt_pitch = _fnum(
+            self._settings.value("stage/belt_pitch", DEFAULT_BELT_PITCH),
+            DEFAULT_BELT_PITCH)
+        if not (BELT_PITCH_MIN <= self._belt_pitch <= BELT_PITCH_MAX):
+            self._belt_pitch = DEFAULT_BELT_PITCH
+        self._pulley_teeth = _inum(
+            self._settings.value("stage/pulley_teeth", DEFAULT_PULLEY_TEETH),
+            DEFAULT_PULLEY_TEETH)
+        if not (PULLEY_TEETH_MIN <= self._pulley_teeth <= PULLEY_TEETH_MAX):
+            self._pulley_teeth = DEFAULT_PULLEY_TEETH
+
         # 回零参数：存 QSettings。注意**不是连上就下发** —— 见 `_send_home_cfg` 的注释：
         # 真机上"点连接就回零"就是它引起的（驱动器收到 0x91 会动）。
         self._home_cfg = dict(HOME_DEFAULT)
@@ -256,9 +292,9 @@ class StageBridge(QObject):
         # ── BLE 配网（与 TCP 运动控制完全解耦）────────────────
         # 板子一直慢速广播；这里只在用户点“蓝牙配网”时扫描/连接。
         # 成功后把新 IP 写回 stage/host 并自动发起 TCP 连接。
-        self._ble_token = self._token
         self._ble = BleProvisioner("xy", parent=self)
-        self._ble.set_token(self._ble_token)
+        # 免口令（2026-11）：BLE 连上后板子会把 TCP 口令读回来，这里接住并落盘
+        self._ble.tokenLearned.connect(self._on_ble_token_learned)
         self._ble.stateChanged.connect(self._on_ble_state)
         self._ble.statusChanged.connect(self.bleStatusChanged.emit)
         self._ble.devicesChanged.connect(self.bleDevicesChanged.emit)
@@ -266,11 +302,13 @@ class StageBridge(QObject):
         self._ble.forgotten.connect(self.bleForgotten)
         self._ble.provisioned.connect(self._on_ble_provisioned)
         self._ble.failed.connect(self._on_ble_failed)
-        self._rpm = self._migrating_setting("stage/rpm", OLD_DEFAULT_RPM, DEFAULT_RPM)
-        self._acc = self._migrating_setting("stage/acc", OLD_DEFAULT_ACC, DEFAULT_ACC)
+        self._rpm = self._migrating_setting("stage/rpm", OLD_DEFAULT_RPMS, DEFAULT_RPM)
+        self._acc = self._migrating_setting("stage/acc", OLD_DEFAULT_ACCS, DEFAULT_ACC)
         # 轨迹默认速度（与手动那对分开存，理由见 setPathSpeed 的注释）
-        self._path_rpm = max(1, min(MAX_RPM, _inum(self._settings.value("stage/path_rpm", 1200), 1200)))
-        self._path_acc = max(1, min(MAX_ACC, _inum(self._settings.value("stage/path_acc", 30), 30)))
+        self._path_rpm = max(1, min(MAX_RPM, _inum(
+            self._settings.value("stage/path_rpm", DEFAULT_PATH_RPM), DEFAULT_PATH_RPM)))
+        self._path_acc = max(1, min(MAX_ACC, _inum(
+            self._settings.value("stage/path_acc", DEFAULT_PATH_ACC), DEFAULT_PATH_ACC)))
         # 零点角写死见 DATUM_CORNER（不再有 `stage/home_corner` 这个设置项）
 
         # 工作区（台面 X/Y 行程，mm）。固件侧 `travel` 的单位是度，下发时换算。
@@ -316,7 +354,7 @@ class StageBridge(QObject):
         self._tel_seq = 0
         self._recording = False
         self._rec_points: List[Tuple[float, float]] = []
-        self._path_speed: Tuple[int, int] = (DEFAULT_RPM, DEFAULT_ACC)
+        self._path_speed: Tuple[int, int] = (DEFAULT_PATH_RPM, DEFAULT_PATH_ACC)
         self._dwell_cb = None
         self._dwell_timer = QTimer(self)
         self._dwell_timer.setSingleShot(True)
@@ -382,23 +420,28 @@ class StageBridge(QObject):
         self._connect_timer.setSingleShot(True)
         self._connect_timer.timeout.connect(self._on_connect_timeout)
 
-        self._log(self.tr("StageBridge 就绪（单位：界面 mm ↔ 固件度，1mm = 11.25°）"))
+        self._log(self.tr("StageBridge 就绪（单位：界面 mm ↔ 固件度，{}mm/圈，"
+                          "1mm = {:.4g}°）").format(
+                              self._get_mm_per_rev(), self._get_deg_per_mm()))
 
     # ============================================================
     # 内部工具
     # ============================================================
-    def _migrating_setting(self, key: str, old_default: int, new_default: int) -> int:
+    def _migrating_setting(self, key: str, old_default, new_default: int) -> int:
         """读一个"有默认值"的设置；**值恰好等于旧默认值时按"没设过"处理**，迁到新默认值。
+
+        `old_default` 可以是单个值，也可以是历史默认值的元组
+        （默认值改过两轮时，300 和 1200 都得能迁到 2000）。
 
         为什么需要：改了默认值常量对老用户是**无效**的 —— 他们的 QSettings 里
         已经存着旧值了，`value(key, 新默认)` 永远读不到新默认。
-        （用户要的就是"默认改成 1200/1"，所以这里必须迁。）
-        用户自己调过的值不等于旧默认值，不会被碰。
+        用户自己调过的值不等于任何旧默认值，不会被碰。
         """
+        olds = old_default if isinstance(old_default, (tuple, list, set)) else (old_default,)
         v = _inum(self._settings.value(key, new_default), new_default)
-        if v == old_default and old_default != new_default:
+        if v != new_default and v in olds:
             self._settings.setValue(key, new_default)
-            self._log(self.tr('默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）').format(key.split('/')[-1], old_default, new_default))
+            self._log(self.tr('默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）').format(key.split('/')[-1], v, new_default))
             return new_default
         return v
 
@@ -561,11 +604,20 @@ class StageBridge(QObject):
 
     bleError = Property(str, _get_ble_error, notify=bleStatusChanged)
 
-    @Slot(str)
-    def bleSetToken(self, token: str):
-        """把界面上的口令交给 BLE 状态机（扫描前调用，便于自动连接）。"""
-        self._ble_token = (token or "").strip()
-        self._ble.set_token(self._ble_token)
+    def _on_ble_token_learned(self, token: str):
+        """BLE 连上后自动读回的 TCP 口令：存 QSettings，界面口令框跟着更新。
+
+        这样用户既不用为了抄口令去插 USB，也不用手工填 —— 配网成功后
+        `_on_ble_provisioned` 直接拿这个口令去连 TCP。
+        """
+        token = (token or "").strip()
+        if not token:
+            return
+        if token != self._token:
+            self._token = token
+            self._settings.setValue("stage/token", token)
+            self.telemetryChanged.emit()
+        self._log(self.tr("已从板子读取连接口令（{}）").format(token))
 
     @Slot()
     def bleScan(self):
@@ -580,7 +632,7 @@ class StageBridge(QObject):
 
     @Slot(str)
     def bleConnect(self, address: str):
-        self._ble.connect_device(address, self._ble_token or self._token)
+        self._ble.connect_device(address)
 
     @Slot()
     def bleScanWifi(self):
@@ -879,6 +931,111 @@ class StageBridge(QObject):
         return self.connected and self._datum and self._travel_set and not self._moving
 
     # ============================================================
+    # 机械参数（同步带：齿距 × 齿数 = 每圈 mm）
+    # ============================================================
+    def _get_belt_pitch(self) -> float:
+        return self._belt_pitch
+
+    beltPitch = Property(float, _get_belt_pitch, notify=transmissionChanged)
+
+    def _get_pulley_teeth(self) -> int:
+        return self._pulley_teeth
+
+    pulleyTeeth = Property(int, _get_pulley_teeth, notify=transmissionChanged)
+
+    def _get_mm_per_rev(self) -> float:
+        return self._belt_pitch * self._pulley_teeth
+
+    mmPerRev = Property(float, _get_mm_per_rev, notify=transmissionChanged)
+
+    def _get_deg_per_mm(self) -> float:
+        return 360.0 / self._get_mm_per_rev()
+
+    degPerMm = Property(float, _get_deg_per_mm, notify=transmissionChanged)
+
+    def _get_mm_per_deg(self) -> float:
+        return self._get_mm_per_rev() / 360.0
+
+    def _get_counts_per_mm(self) -> float:
+        return COUNTS_PER_REV / self._get_mm_per_rev()
+
+    countsPerMm = Property(float, _get_counts_per_mm, notify=transmissionChanged)
+
+    def _get_counts_per_rev(self) -> int:
+        return int(COUNTS_PER_REV)
+
+    countsPerRev = Property(int, _get_counts_per_rev, notify=transmissionChanged)
+
+    @Slot(float, float, result=bool)
+    def setTransmission(self, pitch: float, teeth: float) -> bool:
+        """设置同步带齿距（mm）和带轮齿数（T）——X/Y 两轴共用。
+
+        为什么要有它：固件坐标是"电机度"，界面是 mm，中间的 `1mm = ?°`
+        原来写死成 GT2-16T。换齿距/齿数（甚至换丝杠）时只能改代码重打包。
+        现在把"机械参数"变成界面输入，所有 mm↔度 换算都从这一处派生。
+
+        ⚠ 改完后**必须重新下发 `travel`**：工作区存的是 mm，换算成度会变。
+          预设/轨迹存的是 mm，物理位置会按新比例解释 —— 日志里必须提醒用户
+          核对或重新示教（不同机械参数下同一个 mm 不是同一个物理点）。
+        """
+        if self._moving or self._homing == 1 or self._runner.busy:
+            self._set_error(self.tr("平台正在运动/回零，等它停下再改机械参数"))
+            return False
+        pitch = _fnum(pitch, -1.0)
+        teeth_f = _fnum(teeth, -1.0)
+        if not math.isfinite(pitch) or not (BELT_PITCH_MIN <= pitch <= BELT_PITCH_MAX):
+            self._set_error(self.tr("齿距 {} 超出范围（{}~{}mm）").format(
+                pitch, BELT_PITCH_MIN, BELT_PITCH_MAX))
+            return False
+        # ⚠ 先判 isfinite：空输入经 QML 传进来是 NaN，`round(nan)` 会直接抛
+        #   ValueError（槽里抛异常 = 这次点击静默失效）。
+        if not math.isfinite(teeth_f) or abs(teeth_f - round(teeth_f)) > 1e-6:
+            self._set_error(self.tr("齿数必须是整数（收到 {}）").format(teeth_f))
+            return False
+        teeth_i = int(round(teeth_f))
+        if not (PULLEY_TEETH_MIN <= teeth_i <= PULLEY_TEETH_MAX):
+            self._set_error(self.tr("齿数 {} 超出范围（{}~{}T）").format(
+                teeth_i, PULLEY_TEETH_MIN, PULLEY_TEETH_MAX))
+            return False
+
+        changed = (abs(pitch - self._belt_pitch) > 1e-9
+                   or teeth_i != self._pulley_teeth)
+        self._belt_pitch = pitch
+        self._pulley_teeth = teeth_i
+        self._settings.setValue("stage/belt_pitch", pitch)
+        self._settings.setValue("stage/pulley_teeth", teeth_i)
+        self._settings.sync()
+        if changed:
+            self.transmissionChanged.emit()
+            self.telemetryChanged.emit()
+            self.pathChanged.emit()      # 轨迹耗时估算要按新线速度重算
+            self._log(self.tr("机械参数：{:.3f}mm × {}T = {:.3f}mm/圈"
+                              "（1mm = {:.4g}°，{:.1f} counts/mm）").format(
+                                  pitch, teeth_i, self._get_mm_per_rev(),
+                                  self._get_deg_per_mm(), self._get_counts_per_mm()))
+            self._log(self.tr("预设/轨迹按 mm 解释：机械参数变了，物理位置会跟着变，"
+                              "请核对或重新示教"))
+            # 两个"换机械参数后才会暴露"的固件硬限制（原来 32mm/圈时永远碰不到）：
+            #   ① 固件单次移动防呆闸 50 圈（PD42S1_MAX_MOVE_COUNTS）；
+            #   ② 驱动器默认 10s 回零超时。mm/圈 变小 → 圈数变多 → 两者都可能被顶到。
+            span_mm = max(self._ws_xmax - self._ws_xmin,
+                          self._ws_ymax - self._ws_ymin)
+            span_rev = span_mm / self._get_mm_per_rev()
+            if span_rev > 50.0:
+                self._log(self.tr("⚠ 工作区最长 {:.0f}mm = {:.1f} 圈，超过固件单次移动"
+                                  " 50 圈上限：长距离移动会被拒绝，请分段或核对机械参数").format(
+                                      span_mm, span_rev))
+            home_rpm = max(1, int(self._home_cfg.get("rpm", 300)))
+            home_sec = span_rev / home_rpm * 60.0
+            if home_sec > 8.0:
+                self._log(self.tr("⚠ 按当前回零转速 {}rpm，走完 {:.0f}mm 约 {:.1f}s，"
+                                  "接近/超过驱动器 10s 回零超时：请提高回零转速，"
+                                  "或在固件里放宽 htmo").format(home_rpm, span_mm, home_sec))
+            if self.connected:
+                self._send_travel()     # 度的行程窗口按新比例重算
+        return True
+
+    # ============================================================
     # 工作区（台面行程，mm）—— 固件侧 `travel` 用度
     # ============================================================
     def _get_ws_xmin(self) -> float:
@@ -924,9 +1081,10 @@ class StageBridge(QObject):
             self._send_travel()
 
     def _send_travel(self):
+        d = self._get_deg_per_mm()
         cmd = "travel {:.3f} {:.3f} {:.3f} {:.3f}".format(
-            self._ws_xmin * DEG_PER_MM, self._ws_ymin * DEG_PER_MM,
-            self._ws_xmax * DEG_PER_MM, self._ws_ymax * DEG_PER_MM)
+            self._ws_xmin * d, self._ws_ymin * d,
+            self._ws_xmax * d, self._ws_ymax * d)
         self._enqueue(cmd, note=self.tr("下发工作区"))
 
     @Slot(int, int)
@@ -1102,10 +1260,6 @@ class StageBridge(QObject):
         self._settings.setValue("stage/host", ip)
         self.telemetryChanged.emit()
         self._log(self.tr("BLE 配网成功：{} → {}").format(ssid or "?", ip))
-        if self._ble_token:
-            # BLE 认证用的就是界面上的口令；成功之后 TCP 也沿用它
-            self._token = self._ble_token
-            self._settings.setValue("stage/token", self._token)
         if self._sock.state() != QAbstractSocket.SocketState.UnconnectedState:
             self._sock.abort()
         if self._token:
@@ -1281,8 +1435,8 @@ class StageBridge(QObject):
             self._set_error(self.tr('板子读位置失败：{}').format(data['err']))
             return
 
-        self._pos_x = _fnum(data.get("xdeg")) * MM_PER_DEG
-        self._pos_y = _fnum(data.get("ydeg")) * MM_PER_DEG
+        self._pos_x = _fnum(data.get("xdeg")) * self._get_mm_per_deg()
+        self._pos_y = _fnum(data.get("ydeg")) * self._get_mm_per_deg()
         self._jog_axis = (_fnum(data.get("adeg")), _fnum(data.get("bdeg")))
         self._voltage = _fnum(data.get("v"))
         self._enabled = bool(_inum(data.get("en")))
@@ -1332,11 +1486,11 @@ class StageBridge(QObject):
     # ============================================================
     def _move_cmd(self, x_mm: float, y_mm: float,
                   rpm: Optional[int] = None, acc: Optional[int] = None) -> str:
-        # 固件的角度域：1mm = 11.25°
+        # 固件的角度域：mm × degPerMm（默认 GT2-16T = 11.25°/mm）
         # rpm/acc 可覆盖：轨迹有自己的速度（默认 acc 会明显大于手动点动的
         # acc=1 —— 5mm 的小段用 acc=1 的话每段全程都在爬坡，根本走不动）。
         return "move {:.3f} {:.3f} {} {}".format(
-            x_mm * DEG_PER_MM, y_mm * DEG_PER_MM,
+            x_mm * self._get_deg_per_mm(), y_mm * self._get_deg_per_mm(),
             self._rpm if rpm is None else rpm,
             self._acc if acc is None else acc)
 
@@ -1762,7 +1916,7 @@ class StageBridge(QObject):
         if len(pts) < 2:
             return 0.0
         rpm = max(1, _inum(paths[self._selected_path].get("rpm"), self._rpm))
-        speed = max(1.0, rpm / 60.0 * 32.0)      # GT2-16 齿带轮：每圈 32mm
+        speed = max(1.0, rpm / 60.0 * self._get_mm_per_rev())      # 每圈 mm 随机械参数变
         est = 0.0
         for a, b in zip(pts, pts[1:]):
             est += max(PATH_SEG_OVERHEAD_S, math.dist(a, b) / speed)

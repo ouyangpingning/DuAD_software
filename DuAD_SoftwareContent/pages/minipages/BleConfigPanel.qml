@@ -22,7 +22,6 @@ Item {
     objectName: "blePanel"
 
     property var bridge: null
-    property string token: ""
     property string roleLabel: ""
     property bool expanded: true
 
@@ -32,7 +31,7 @@ Item {
     readonly property bool busy: root.bridge
                                  && (root.bridge.bleState === "scanning"
                                      || root.bridge.bleState === "connecting"
-                                     || root.bridge.bleState === "authenticating"
+                                     || root.bridge.bleState === "probing"
                                      || root.bridge.bleState === "scanning_wifi"
                                      || root.bridge.bleState === "provisioning")
 
@@ -81,7 +80,6 @@ Item {
                 running: root.busy
                 enabled: root.bridge && !root.busy
                 onClicked: {
-                    root.bridge.bleSetToken(root.token)
                     root.bridge.bleScan()
                 }
             }
@@ -219,7 +217,8 @@ Item {
         Text {
             Layout.fillWidth: true
             visible: root.expanded
-            text: qsTr("板子只支持 2.4GHz。配置时平台会短暂离线，请先停止运动；失败会自动回滚到原网络。")
+            text: qsTr("板子只支持 2.4GHz。配置时平台会短暂离线，请先停止运动；失败会自动回滚到原网络。"
+                       + "无需口令：连上后会自己把板子的连接口令读回来。")
             font.pixelSize: 11
             color: Colors.textPlaceholder
             wrapMode: Text.Wrap

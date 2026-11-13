@@ -33,9 +33,12 @@ RX/TX 是**按行文本**，和 USB/TCP 控制台完全同构；上位机按 `\n
 ```text
 1. 点面板右上角刷新 → QtBluetooth 只找固定名字（XY = DuAD-XY-55C6；Z = DuAD-Z- 前缀）
 2. 扫到第一台就自动连（不再有板卡下拉/选择步骤）
-3. GATT 连接成功 → 第一条必须发连接口令：
-      <token>
-   ← #OK auth
+3. GATT 连接成功 → **不再交口令**（2026-11 起 `ble_prov` 免口令），第一条发：
+      net
+   ← net: 命令通道监听中，端口 3333，口令 07b63950
+   ← #OK
+   上位机从这行里**读回 TCP 口令**存进 QSettings —— 用户再也不用插 USB 抄口令。
+   （BLE 上 `net token ...` 被固件拒绝，防止有人远程换掉口令把用户锁在外面。）
 4. 自动读状态 + 自动扫描 Wi-Fi（用户不需要再点「扫描 Wi-Fi」）：
       wifi status
    ← {"configured":1,"connected":0,"state":"connecting","ssid":"","ip":"","rssi":0}
@@ -78,7 +81,7 @@ wifi rollback     ← #OK
 
 | 模块 | 作用 |
 |---|---|
-| `components/ble_prov/` | NimBLE 广播 + GATT + 口令认证 + 命令队列 + 输出改道到 BLE |
+| `components/ble_prov/` | NimBLE 广播 + GATT + 命令队列 + 输出改道到 BLE（**免口令**，`net token` 被拒） |
 | `components/console_io/` | 新增 `console_io_get_sink()`，BLE 临时接管输出后恢复 |
 | `components/net_link/` | 新增 `net_link_wifi_rollback()`、`net_link_token_matches()`、备份/状态字段 |
 | `main/console_cmds.c` | `wifi status/scan/rollback`、`wifi set <json>`；`console_cmds_exec` 对 `wifi set ` 整行保留 |
@@ -95,7 +98,7 @@ wifi rollback     ← #OK
 | `backend/Src/ble_provision.py` | `QtBleLink`（QtBluetooth 扫描/GATT/分片/通知）+ `BleProvisioner`（状态机/协议/超时/回滚） |
 | `backend/Src/stage_bridge.py` / `zstage_bridge.py` | BLE 属性/槽；配网前断 TCP、暂停 json 轮询；成功后改 `stage/host` 并自动连 TCP |
 | `pages/minipages/BleConfigPanel.qml` | 共用配网面板（搜索/选板/扫描 Wi-Fi/SSID/密码/连接/忘记/状态） |
-| `pages/minipages/StageSetupPanel.qml` / `ZStageSetupPanel.qml` | 引入面板，口令取各自「口令」输入框 |
+| `pages/minipages/StageSetupPanel.qml` / `ZStageSetupPanel.qml` | 引入面板；口令框保留作手工兜底（BLE 会自动填好） |
 | `scripts/gen_translations.py` | 新增文案 EN/TW |
 | `tests/test_ble_provision.py` | 假 BLE 链路：成功 / 认证失败 / Wi-Fi 失败回滚 |
 
@@ -103,7 +106,7 @@ wifi rollback     ← #OK
 
 | 场景 | 表现 | 处理 |
 |---|---|---|
-| 口令错 | `#ERR bad token`，BLE 断开 | UI 提示重新填口令 |
+| 口令错 | （BLE 已免口令）TCP 连不上时才查 | 从板子 USB 控制台敲 `net`，或点一次蓝牙配网自动读回 |
 | 搜不到板 | 扫描 8s 无结果 | 检查供电/距离/是否被别的中心连着 |
 | Wi-Fi 密码错 | `wifi status` state=failed reason=auth | 固件自动回滚；UI 显示“密码错误” |
 | SSID 不存在/5GHz | reason=no_ap | 用板子扫描结果重选 2.4GHz |
@@ -126,8 +129,9 @@ wifi rollback     ← #OK
 
 ## 9 已知限制 / 后续
 
-- 当前 GATT 未启用 LE Secure Connections，口令在 BLE 链路上是明文（局域网实验环境可接受）；
-  量产建议开 bonding + NVS 加密。
+- 当前 GATT 未启用 LE Secure Connections，BLE 通道本身不加密（局域网实验环境可接受）；
+  **已不再在 BLE 上交口令**，口令只由上位机从 `net` 输出里读回并用于 TCP；
+  量产建议开 bonding + NVS 加密，并重新评估“BLE 免口令”是否可接受。
 - `wifi scan` 同步执行，BLE 任务已独立（6KB 栈），不会堵住 TCP/控制台；
 - 扫描结果按行输出（`{"nets_start":N}` / 每行一个 `{"net":{...}}` / `{"nets_end":N}`），
   不再受 `console_io` 单次 512 字节限制；最多列 24 条，按 RSSI 从强到弱。

@@ -42,8 +42,8 @@ Item {
     property string token: ""
 
     // 速度 / 加减速
-    property int rpm: 300
-    property int acc: 100
+    property int rpm: 600
+    property int acc: 1
 
     // 软限位（mm，相对基准零点）
     property real limitLo: 0
@@ -132,7 +132,6 @@ Item {
             BleConfigPanel {
                 Layout.fillWidth: true
                 bridge: ZStageBridge
-                token: root.fieldToken.length > 0 ? root.fieldToken : ZStageBridge.token
                 roleLabel: "Z"
                 expanded: root.wifiOpen
                 onExpandedChanged: root.wifiOpen = expanded
@@ -184,7 +183,7 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("三个值都在 Z 轴板子的 USB 控制台上敲 net 就能看到，板子会直接打印出来。")
+                    text: qsTr("口令在蓝牙配网时会自动读取；也可以从 Z 轴板子的 USB 控制台敲 net 查看后手工填写。")
                     font.pixelSize: 11
                     color: Colors.textPlaceholder
                     wrapMode: Text.Wrap
@@ -216,6 +215,18 @@ Item {
                     snapTicks: [1, 60, 150, 300, 600, ZStageBridge.uiMaxRpm]
                     wheelStep: 10
                     onReleased: root.speedChanged(rpmRow.sliderValue, accRow.sliderValue)
+                }
+                // 与二轴同理：rpm 折算成 mm/s（Z 的导程由固件 json 的 umrev 给，默认 8000µm/圈）。
+                Text {
+                    objectName: "zRpmMmpsHint"
+                    Layout.fillWidth: true
+                    Layout.topMargin: -4
+                    horizontalAlignment: Text.AlignRight
+                    text: qsTr("≈ %1 mm/s").arg(
+                              parseFloat((rpmRow.sliderValue / 60
+                                          * ZStageBridge.umPerRev / 1000.0).toFixed(1)))
+                    font.pixelSize: 11
+                    color: Colors.textPlaceholder
                 }
                 SliderRow {
                     id: accRow

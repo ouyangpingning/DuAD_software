@@ -27,6 +27,7 @@ Item {
     // 分区展开状态（不写进 QSettings：只是界面习惯）
     property bool wifiOpen: true
     property bool netOpen: false
+    property bool mechOpen: false
     property bool workOpen: false
     property bool speedOpen: false
     property bool pathOpen: false
@@ -37,6 +38,10 @@ Item {
     property int port: 3333
     property string token: ""
 
+    // 机械参数（同步带）：齿距(mm) × 带轮齿数(T) = 电机每圈走多少 mm
+    property real beltPitch: 2.0
+    property int pulleyTeeth: 16
+
     // 工作区（mm）
     property real wsXMin: 0
     property real wsYMin: 0
@@ -44,8 +49,8 @@ Item {
     property real wsYMax: 420
 
     // 速度（手动点动/绝对定位）
-    property int rpm: 1200
-    property int acc: 1
+    property int rpm: 2000
+    property int acc: 6
     // 轨迹速度（与上面的手动速度刻意分开：轨迹默认 1200/30）
     property int pathRpm: 1200
     property int pathAcc: 30
@@ -70,6 +75,14 @@ Item {
     readonly property int fieldAcc: accRow.sliderValue
     readonly property int fieldPathRpm: pathRpmRow.sliderValue
     readonly property int fieldPathAcc: pathAccRow.sliderValue
+    // 机械参数：用输入框**当前内容**换算，拖动/输入时预览立刻跟着变。
+    readonly property real fieldBeltPitch: parseFloat(beltPitchRow.text)
+    readonly property real fieldPulleyTeeth: parseFloat(pulleyTeethRow.text)
+    readonly property real fieldMmPerRev: fieldBeltPitch * fieldPulleyTeeth
+    readonly property bool mechValid:
+        isFinite(fieldBeltPitch) && fieldBeltPitch >= 0.5 && fieldBeltPitch <= 10
+        && isFinite(fieldPulleyTeeth) && fieldPulleyTeeth >= 6 && fieldPulleyTeeth <= 200
+        && Math.abs(fieldPulleyTeeth - Math.round(fieldPulleyTeeth)) < 1e-6
 
     implicitWidth: 460
     implicitHeight: expanded ? contentLayout.implicitHeight + 42 : 0
@@ -103,7 +116,6 @@ Item {
             BleConfigPanel {
                 Layout.fillWidth: true
                 bridge: StageBridge
-                token: root.fieldToken.length > 0 ? root.fieldToken : StageBridge.token
                 roleLabel: "XY"
                 expanded: root.wifiOpen
                 onExpandedChanged: root.wifiOpen = expanded
@@ -147,9 +159,66 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("三个值都在板子的 USB 控制台上敲 net 就能看到，板子会直接打印出来。")
+                    text: qsTr("口令在蓝牙配网时会自动读取；也可以从板子 USB 控制台敲 net 查看后手工填写。")
                     font.pixelSize: 11
                     color: Colors.textPlaceholder
+                    wrapMode: Text.Wrap
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.panelBorder }
+
+            // ── 机械参数（同步带）──────────────────────────
+            CollapsibleHeader {
+                objectName: "xyMechFold"
+                Layout.fillWidth: true
+                title: qsTr("机械参数（同步带）")
+                expanded: root.mechOpen
+                onToggled: root.mechOpen = !root.mechOpen
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: root.mechOpen
+                spacing: 8
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("X/Y 两轴共用一组带轮。改完会重新下发工作区；"
+                               + "预设/轨迹按 mm 解释，物理位置会变，请核对或重新示教。")
+                    font.pixelSize: 11
+                    color: Colors.textPlaceholder
+                    wrapMode: Text.Wrap
+                }
+                InputRow {
+                    id: beltPitchRow
+                    objectName: "beltPitchField"
+                    Layout.fillWidth: true
+                    label: qsTr("齿距")
+                    text: root.beltPitch.toFixed(2)
+                    placeholderText: "2.00"
+                }
+                InputRow {
+                    id: pulleyTeethRow
+                    objectName: "pulleyTeethField"
+                    Layout.fillWidth: true
+                    label: qsTr("齿数")
+                    text: String(root.pulleyTeeth)
+                    placeholderText: "16"
+                }
+                Text {
+                    objectName: "mechDerivedText"
+                    Layout.fillWidth: true
+                    text: root.mechValid
+                          ? qsTr("%1 mm × %2 T = %3 mm/圈\n1mm = %4° · %5 counts/mm")
+                                .arg(root.fieldBeltPitch.toFixed(2))
+                                .arg(Math.round(root.fieldPulleyTeeth))
+                                .arg(root.fieldMmPerRev.toFixed(2))
+                                .arg(parseFloat((360 / root.fieldMmPerRev).toFixed(4)))
+                                .arg(parseFloat((StageBridge.countsPerRev
+                                                 / root.fieldMmPerRev).toFixed(1)))
+                          : qsTr("齿距 0.5~10mm，齿数 6~200 的整数")
+                    font.pixelSize: 11
+                    color: root.mechValid ? Colors.textPlaceholder : Colors.statusDisconnected
                     wrapMode: Text.Wrap
                 }
             }
@@ -219,8 +288,21 @@ Item {
                     suffix: "rpm"; decimals: 0
                     snapTicks: [60, 300, 600, 1200, 2000, StageBridge.uiMaxRpm]
                     wheelStep: 50
-                    resetValue: 1200
+                    resetValue: 2000
                     onReleased: root.speedChanged(rpmRow.sliderValue, accRow.sliderValue)
+                }
+                // rpm 对用户不直观：按当前机械参数顺手折算成 mm/s（1200rpm × 32mm/圈 = 640mm/s）。
+                // ⚠ 必须读 StageBridge.mmPerRev（而不是再写死 32）：换齿距/齿数后这里要跟着变。
+                Text {
+                    objectName: "rpmMmpsHint"
+                    Layout.fillWidth: true
+                    Layout.topMargin: -4
+                    horizontalAlignment: Text.AlignRight
+                    text: qsTr("≈ %1 mm/s").arg(
+                              parseFloat((rpmRow.sliderValue / 60
+                                          * StageBridge.mmPerRev).toFixed(1)))
+                    font.pixelSize: 11
+                    color: Colors.textPlaceholder
                 }
                 SliderRow {
                     id: accRow
@@ -233,7 +315,7 @@ Item {
                     snapTicks: [1, 2, 3, 4, 5, 7, 9, 12, 16, 21, 28, 37, 50, 67, 90, 120, 160, 200]
                     wheelStep: accRow.sliderValue <= 20 ? 1
                              : (accRow.sliderValue <= 60 ? 2 : 5)
-                    resetValue: 1
+                    resetValue: 6
                     onReleased: root.speedChanged(rpmRow.sliderValue, accRow.sliderValue)
                 }
             }
@@ -265,6 +347,17 @@ Item {
                     resetValue: 1200
                     onReleased: root.pathSpeedChanged(pathRpmRow.sliderValue,
                                                       pathAccRow.sliderValue)
+                }
+                Text {
+                    objectName: "pathRpmMmpsHint"
+                    Layout.fillWidth: true
+                    Layout.topMargin: -4
+                    horizontalAlignment: Text.AlignRight
+                    text: qsTr("≈ %1 mm/s").arg(
+                              parseFloat((pathRpmRow.sliderValue / 60
+                                          * StageBridge.mmPerRev).toFixed(1)))
+                    font.pixelSize: 11
+                    color: Colors.textPlaceholder
                 }
                 SliderRow {
                     id: pathAccRow
