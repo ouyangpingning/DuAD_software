@@ -158,8 +158,11 @@ Item {
             //   两个方向都有实际用途：
             //     · 失能 → 用手推台面调机械、对基准；
             //     · 使能 → 顶住位置（失能时台面能被外力推动，一推坐标系就废了）。
-            // 行序照 2026-09-28 手绘稿：[使能][设为原点] 一行，「停止」单独一行 ——
-            //   窄卡里塞不下三个并排按钮，急停独占一行也更醒目、更够得着。
+            // 行序照 2026-09-28 手绘稿：[使能][设为原点] 一行，「停止」单独一行。
+            // 2026-11-06 用户批注后改为 **[使能][设为原点][停止]** 同一行：
+            //   停止不再独占一行（它原来上下那 46px 白占着，急停离方向键也更近）；
+            //   三个控件同高 38，红色"停止"填满行尾剩余宽度，仍然是最扎眼的一块。
+            //   「移动到该位置」不在这一行 —— 它回到下面绝对定位区、贴着 X/Y 输入框。
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -167,9 +170,9 @@ Item {
                 // ⚠ 样式一律走 ThemedButton（颜色只来自 Colors，不再手抄 background）
                 ThemedButton {
                     objectName: "enableButton"
-                    // 这一行要塞进 192px（窄卡内容宽），所以留白压到 22：
-                    //   使能 22+16+6+26=70，设为原点 22+16+6+52=96，+8 间距 = 174 ✓
-                    // 两个"次要动作"挤一行；主按钮（停止/移动到该位置）才是加大的那批。
+                    // 留白压到 22 才塞得下：使能 68 + 8 + 设为原点 95 + 8 + 停止(fill) ≥ 84 → 263。
+                    // 页面里中列内容宽 ≥ 300，够；只有在"被塞进 224 的窄抽屉"时才会溢出，
+                    // 那种布局得把 设为原点 缩成图标（停止是有意的 fillWidth，不再单独占一行）。
                     implicitHeight: 38
                     hPadding: 22
                     enabled: root.connected
@@ -221,26 +224,25 @@ Item {
                                        + "每次上电都要重立一次。")
                 }
 
-                Item { Layout.fillWidth: true }   // 弹簧：控件靠左，不拉满
-            }
-
-            // ── 急停 ─────────────────────────────────
-            // 只要连着就永远可点（不依赖 moving）——"只有动的时候才能停"的急停等于没有急停。
-            ThemedButton {
-                objectName: "stopButton"
-                Layout.fillWidth: true
-                implicitHeight: 46
-                radius: 10
-                iconSize: 18
-                // 急停：**禁用时也保留淡红底**（ThemedButton 里 danger 的处理）——
-                // 整个消失的话，用户会以为"急停按钮怎么没了"。
-                tone: "danger"
-                enabled: root.connected
-                text: qsTr("停止")      // 同上：写在 Button 上，给无障碍与测试读
-                iconSource: "../../images/停止.svg"
-                fontPixelSize: 15
-                fontBold: true
-                onClicked: root.stopRequested()
+                // ── 急停（2026-11-06 用户批注：从独占一行挪进这一行的右端）──
+                // 只要连着就永远可点（不依赖 moving）——"只有动的时候才能停"的急停等于没有急停。
+                // 填满该行剩余宽度：左边两个文字按钮靠左，红色"停止"从它们右边一路铺到行尾，
+                // 既不像圆点那样难按，也仍然是最扎眼的一块红。
+                ThemedButton {
+                    objectName: "stopButton"
+                    Layout.fillWidth: true
+                    implicitHeight: 38          // 与 使能/设为原点 同高，一行读成一组
+                    iconSize: 16
+                    // 急停：**禁用时也保留淡红底**（ThemedButton 里 danger 的处理）——
+                    // 整个消失的话，用户会以为"急停按钮怎么没了"。
+                    tone: "danger"
+                    enabled: root.connected
+                    text: qsTr("停止")      // 同上：写在 Button 上，给无障碍与测试读
+                    iconSource: "../../images/停止.svg"
+                    fontPixelSize: 14
+                    fontBold: true
+                    onClicked: root.stopRequested()
+                }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -266,40 +268,59 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
-            // X / Y 竖排：卡收窄后放不下一对 132px 的输入行（手绘稿也是竖排）
-            InputRow {
-                id: txRow
-                objectName: "targetX"
+            // X / Y 竖排 + 右侧圆形「移动到该位置」（2026-11-06 用户批注第三次）：
+            //   圆钮住在**绝对定位区**、贴着两个输入框的右边（垂直跨两行居中），
+            //   而不是上面那一行 —— 它作用的是这两个框，挨着框才看得出关系。
+            RowLayout {
                 Layout.fillWidth: true
-                label: "X (mm)"
-                text: root.posX.toFixed(2)
-            }
-            InputRow {
-                id: tyRow
-                objectName: "targetY"
-                Layout.fillWidth: true
-                label: "Y (mm)"
-                text: root.posY.toFixed(2)
-            }
+                spacing: 8
 
-            ThemedButton {
-                objectName: "moveToButton"
-                // 居中（用户 2026-09-28 截图批注："我觉得可以居中"）—— 原来靠左，
-                // 在这张空白很多的卡片里显得没着落。
-                Layout.alignment: Qt.AlignHCenter
-                implicitHeight: 42
-                hPadding: 44
-                // soft：本卡"提交一个动作"的主按钮，淡强调底让它和周围的描边按钮分开。
-                // 原来它**没写 background** → 用的是 Fusion 默认灰渐变，换主题时纹丝不动，
-                // 正是用户截图点名"设置成可以随主题变化"的那个按钮。
-                tone: "primary"
-                enabled: root.canMove
-                text: qsTr("移动到该位置")
-                onClicked: {
-                    var x = parseFloat(txRow.text)
-                    var y = parseFloat(tyRow.text)
-                    if (isNaN(x) || isNaN(y)) return
-                    root.moveToRequested(x, y)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    // X / Y 竖排：卡收窄后放不下一对 132px 的输入行（手绘稿也是竖排）
+                    InputRow {
+                        id: txRow
+                        objectName: "targetX"
+                        Layout.fillWidth: true
+                        label: "X (mm)"
+                        text: root.posX.toFixed(2)
+                    }
+                    InputRow {
+                        id: tyRow
+                        objectName: "targetY"
+                        Layout.fillWidth: true
+                        label: "Y (mm)"
+                        text: root.posY.toFixed(2)
+                    }
+                }
+
+                // 圆形主按钮：**直径 48**（用户要求"图标放大一些"）。
+                // ⚠ 控件高写 50 而不是 48：ThemedButton 的面高 = 控件高 − pressDepth(2)，
+                //   写 48 会得到 48×46 的椭圆（radius 24 被夹成 23）。
+                ThemedButton {
+                    objectName: "moveToButton"
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: 48
+                    implicitHeight: 50
+                    radius: 24
+                    iconSize: 24
+                    tone: "primary"
+                    enabled: root.canMove
+                    iconSource: "../../images/定位.svg"
+                    // 纯图标按钮没有 text：无障碍名字单独给，别让读屏软件念出一个空按钮。
+                    Accessible.name: qsTr("移动到该位置")
+                    onClicked: {
+                        var x = parseFloat(txRow.text)
+                        var y = parseFloat(tyRow.text)
+                        if (isNaN(x) || isNaN(y)) return
+                        root.moveToRequested(x, y)
+                    }
+
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("移动到该位置")
                 }
             }
 

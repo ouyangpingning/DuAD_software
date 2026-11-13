@@ -229,8 +229,8 @@ Item {
             }
 
             // ── 急停 / 设为原点 ────────────────────────
-            // 行序照 2026-09-28 手绘稿：[使能][设为原点] 一行，「停止」单独一行 ——
-            //   窄卡里三个按钮排不下一行；急停独占一行也更醒目。
+            // 行序：**[使能][设为原点][停止]** 一行（2026-11-06 用户批注把急停从独占一行
+            //   挪进这一行；与 X/Y 那张卡同一套，三个控件同高 38，红色"停止"吃满行尾）。
             //
             // 失能 / 使能 —— "用手把平台推到底 → 设为原点"这条主线的关键一步。
             // ⚠ 本机丝杠**自锁**（现场确认：断电后平台不动），所以失能后平台停在
@@ -291,23 +291,22 @@ Item {
                                        + "先把平台推到靠块/机械死点贴实再点它 —— "
                                        + "这是主线的立基准方式，每次上电都要重立一次。")
                 }
-                Item { Layout.fillWidth: true }   // 弹簧：控件靠左，不拉满
-            }
-
-            // 急停：只要连着就永远可点（不依赖 canMove / moving）
-            ThemedButton {
-                objectName: "zStopButton"
-                Layout.fillWidth: true
-                implicitHeight: 46
-                radius: 10
-                iconSize: 18
-                tone: "danger"
-                enabled: root.connected
-                text: qsTr("停止")
-                iconSource: "../../images/停止.svg"
-                fontPixelSize: 15
-                fontBold: true
-                onClicked: root.stopRequested()
+                // ── 急停（2026-11-06 用户批注：从独占一行挪进这一行的右端）──
+                // 与 X/Y 那张卡同一套：左边两个文字按钮靠左，红色「停止」填满行尾剩余宽度。
+                // 只要连着就永远可点（不依赖 canMove / moving）。
+                ThemedButton {
+                    objectName: "zStopButton"
+                    Layout.fillWidth: true
+                    implicitHeight: 38          // 与 使能/设为原点 同高
+                    iconSize: 16
+                    tone: "danger"
+                    enabled: root.connected
+                    text: qsTr("停止")
+                    iconSource: "../../images/停止.svg"
+                    fontPixelSize: 14
+                    fontBold: true
+                    onClicked: root.stopRequested()
+                }
             }
 
             Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Colors.cardBorder }
@@ -334,28 +333,42 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
-            InputRow {
-                id: targetRow
-                objectName: "zTargetInput"
+            // 目标输入 + 右侧圆形「移动到该位置」（2026-11-06 用户批注）：
+            //   圆钮住在**绝对定位区**、贴着输入框右边，与 X/Y 那张卡同一套。
+            RowLayout {
                 Layout.fillWidth: true
-                label: qsTr("目标 (mm)")
-                text: root.posZ.toFixed(2)
-                placeholderText: "100.0"
-            }
+                spacing: 8
 
-            ThemedButton {
-                objectName: "zMoveToButton"
-                // 居中 + 主题化（与 X/Y 那张卡同一条：用户批注"我觉得可以居中"）
-                Layout.alignment: Qt.AlignHCenter
-                implicitHeight: 42
-                hPadding: 44
-                tone: "primary"
-                enabled: root.canMove
-                text: qsTr("移动到该位置")
-                onClicked: {
-                    var v = parseFloat(targetRow.text)
-                    if (isNaN(v)) return
-                    root.moveToRequested(v)
+                InputRow {
+                    id: targetRow
+                    objectName: "zTargetInput"
+                    Layout.fillWidth: true
+                    label: qsTr("目标 (mm)")
+                    text: root.posZ.toFixed(2)
+                    placeholderText: "100.0"
+                }
+
+                // 直径 48（用户要求"图标放大一些"）；控件高 50 = 面 48 + 2px 下沉量。
+                ThemedButton {
+                    objectName: "zMoveToButton"
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: 48
+                    implicitHeight: 50
+                    radius: 24
+                    iconSize: 24
+                    tone: "primary"
+                    enabled: root.canMove
+                    iconSource: "../../images/定位.svg"
+                    Accessible.name: qsTr("移动到该位置")   // 纯图标按钮，读屏不能是空的
+                    onClicked: {
+                        var v = parseFloat(targetRow.text)
+                        if (isNaN(v)) return
+                        root.moveToRequested(v)
+                    }
+
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("移动到该位置")
                 }
             }
 

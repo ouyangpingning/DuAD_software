@@ -34,7 +34,7 @@ Item {
     // ============================================================
     // 它回答一个数字答不了的问题：**这两根丝杠现在各在什么高度、平台因此歪了多少**。
     // ⚠ 倾角是**放大**画的：真实偏斜 0.02mm 对应的角度肉眼根本看不见，
-    //   所以角上标了「示意」，并在下面照旧给出真实数字 —— 不标就是骗人。
+    //   所以下面照旧给出真实数字（2026-11-06 按用户要求删掉了角上「示意」二字）。
     component ScrewSchematic: Item {
         id: sch
         property real skew: 0            // 两侧高差（mm）
@@ -131,12 +131,6 @@ Item {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
             height: 1
             color: Colors.panelBorder
-        }
-        Text {
-            anchors { right: parent.right; bottom: parent.bottom; bottomMargin: 4 }
-            text: qsTr("示意")
-            font.pixelSize: 9
-            color: Colors.textPlaceholder
         }
     }
 

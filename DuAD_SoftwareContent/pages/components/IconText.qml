@@ -48,7 +48,9 @@ Item {
     readonly property real _iconW: _hasIcon ? iconSize : 0
     readonly property real _textW: label.implicitWidth
     // 整组（图标 + 间隔 + 文字）的宽度
-    readonly property real _groupW: _iconW + (_hasIcon ? gap : 0) + _textW
+    // ⚠ 只有"图标 + 文字"并存时才加 gap：纯图标按钮（2026-11-06 起有：绝对定位的
+    //   定位.svg）如果仍算 gap，图标会整体偏左 3px —— 44px 的按钮上一眼就看得出来。
+    readonly property real _groupW: _iconW + (_hasIcon && _textW > 0 ? gap : 0) + _textW
 
     implicitWidth: _groupW
     implicitHeight: Math.max(_hasIcon ? iconSize : 0, label.implicitHeight)
