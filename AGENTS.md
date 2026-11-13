@@ -33,10 +33,10 @@ Windows：`pyqml_win\Scripts\python.exe -u main.py`；Jetson：`bash run_jetson.
 
 - `camera_bridge.py` — 相机桥：search/connect/feature/startGather/applyRoi；每帧写 `frameProvider` 并发 `rawFrameReady`。bool 特征写字符串 `"true"/"false"`；`GX_FLOAT_GAMMA_PARAM` 在 MER2 只读。**Bayer 排列按 `GX_ENUM_PIXEL_COLOR_FILTER` 选，读不到才查 pixel_format；Windows DxImageProc 的 R/B 与 Linux 相反，`os.name=='nt'` 的 `_SWAP_RB_BAYER` 不要移除**。低帧率先查曝光，再关吞吐量限制，最后查 USB2 口/线。
 - `light_bridge.py` — RS-232 光源：**波特率必须 19200**（其它波特率控制器一个字都不回，而 `serial.Serial()` 永远打开成功 → 静默“已连接没反应”）。三条不要动：① `connectSerial` 后发 `$RD=9999#` 校验；② `_read_reply` 收到半截不要缩短等待（长应答跨 161ms）；③ 发指令前 `_drain()`。QML 波特率读 `LightBridge.defaultBaud`；自动选口用 `pickDefaultPort`（优先 `/dev/ttyUSB*`，别用 `ports[0]`）。
-- `stage_bridge.py` — X/Y 平台（WiFi/TCP，行协议与 USB 控制台一致，口令→`#OK/#ERR`）。**唯一换算边界**：`1mm = 11.25°`、`1600 counts/mm`。移动一律非阻塞 `move`（绝不用 `g0`）；急停 `_enqueue(front=True)` 永不禁用；回零 `home corner … nowait`；连接期只发只读命令（`hcfg` 只写 RAM）；预设/轨迹存 `QSettings("DuAD","DuADSoftware")`（测试注入隔离 settings，docs/19 §1）。轨迹存**参数**不存点列表，所有绝对移动收敛到 `_issue_move()`；`pathCanRun/pathHint` 用单独的 `pathEnableChanged`。`gridRows/gridCols/setGrid/snapToGrid`、`stage_traj.snap_to_cell` 已删除（`sample_grid` 保留）。
-- `ble_provision.py` — **BLE 只做配网，不做运动**（docs/20）。板卡名固定：XY=`DuAD-XY-55C6`，Z 用 `DuAD-Z-` 前缀；界面没有板卡下拉。刷新→自动连→自动 `wifi status`+`wifi scan`→列表点选→密码弹窗。GATT：service `d0ad0001-...`、RX `d0ad0002`、TX `d0ad0003`；第一条交 token，之后复用 `wifi status/scan/set/rollback`。⚠ 配网前先断 TCP + 暂停 `json` 轮询（`bleScan()` 已做，运动/回零中拒绝）；成功后用新 IP 改 `host` 自动重连。固件 `ble_prov` 只放行 wifi/net/ver/help；`wifi_bak` 备份，25s 没 IP 自动回滚；`wifi scan` 按行输出（`nets_start`/`net`/`nets_end`）。
+- `stage_bridge.py` — X/Y 平台（WiFi/TCP，行协议与 USB 控制台一致，口令→`#OK/#ERR`）。**唯一换算边界**：默认 GT2-16T 下 `1mm = 11.25°`、`1600 counts/mm`；齿距/齿数可在「平台设置 → 机械参数」改（`setTransmission`，运行时走 `mmPerRev/degPerMm/countsPerMm`，不要再引用模块常量）。移动一律非阻塞 `move`（绝不用 `g0`）；急停 `_enqueue(front=True)` 永不禁用；回零 `home corner … nowait`；连接期只发只读命令（`hcfg` 只写 RAM）；预设/轨迹存 `QSettings("DuAD","DuADSoftware")`（测试注入隔离 settings，docs/19 §1）。轨迹存**参数**不存点列表，所有绝对移动收敛到 `_issue_move()`；`pathCanRun/pathHint` 用单独的 `pathEnableChanged`。`gridRows/gridCols/setGrid/snapToGrid`、`stage_traj.snap_to_cell` 已删除（`sample_grid` 保留）。
+- `ble_provision.py` — **BLE 只做配网，不做运动**（docs/20）。板卡名固定：XY=`DuAD-XY-55C6`，Z 用 `DuAD-Z-` 前缀；界面没有板卡下拉。刷新→自动连→自动 `wifi status`+`wifi scan`→列表点选→密码弹窗。GATT：service `d0ad0001-...`、RX `d0ad0002`、TX `d0ad0003`；**免口令**（2026-11）：连上先发 `net` 读回 TCP 口令（`tokenLearned`→桥存 QSettings），之后复用 `wifi status/scan/set/rollback`。⚠ 配网前先断 TCP + 暂停 `json` 轮询（`bleScan()` 已做，运动/回零中拒绝）；成功后用新 IP 改 `host` 自动重连。固件 `ble_prov` 只放行 wifi/net/ver/help；`wifi_bak` 备份，25s 没 IP 自动回滚；`wifi scan` 按行输出（`nets_start`/`net`/`nets_end`）。
 - `stage_traj.py` — 轨迹几何（纯函数）+ `PathRunner` 序列器，**刻意不碰 Qt**（注入闭包/时钟，可假时钟单测）。⚠ 必须“发一段→等板子报到位→再发下一段”：固件 `0xF3` 是完整梯形曲线，且在途再发 `move` 会被静默覆盖目标；时序三规则见 docs/17 §14.4。
-- `zstage_bridge.py` — Z 轴，**另一块板子**、独立 IP/口令。**零换算**（固件就是 mm）。连接期只发只读（`json`+`zsign`）；量程读 `uiMaxRpm(1200)/uiMaxAcc(200)/uiMinAcc(1)`（加速档 0=直接启动，界面必须排除）。⚠ `@` 开头的驱动器帧行必须在 `_handle_line` 第一分支丢掉（`trace` 可能开着，混入会让命令判定错位）。回零参数：`setHomeParams(rpm,ma,tmo)`→`zset home`，范围和经验区（60/300，推荐 100）全从桥里读；板子实际值走 json `hma/hrpm/htmo`。`setHomeDir("up"/"down")`→`zhome <dir> nowait` 只存本机；`setAutohome()` 不带方向。`SLOW_CMD_TIMEOUT_MS["stop"]=8000`（固件打断最坏 ~2.5s；板子 TCP 任务串行，桥抢先写救不了急停，docs/18 §7.7）。
+- `zstage_bridge.py` — Z 轴，**另一块板子**、独立 IP/口令。**零换算**（固件就是 mm）。连接期只发只读（`json`+`zsign`）；量程读 `uiMaxRpm(1200)/uiMaxAcc(200)/uiMinAcc(1)`（加速档 0=直接启动，界面必须排除）。⚠ `@` 开头的驱动器帧行必须在 `_handle_line` 第一分支丢掉（`trace` 可能开着，混入会让命令判定错位）。回零参数：`setHomeParams(rpm,ma,tmo)`→`zset home`，范围和经验区（60/200，推荐 100）全从桥里读；板子实际值走 json `hma/hrpm/htmo`。`setHomeDir("up"/"down")`→`zhome <dir> nowait` 只存本机；`setAutohome()` 不带方向。`SLOW_CMD_TIMEOUT_MS["stop"]=8000`（固件打断最坏 ~2.5s；板子 TCP 任务串行，桥抢先写救不了急停，docs/18 §7.7）。
 - `algorithm_bridge.py` — 测试推理：模型默认 null（DetectPage 自选 .onnx）；阈值优先级 = ONNX metadata > `*.threshold.json` > 1.7；`maskReady` 先于 `inferenceReady`；热力图尺度 `<模型>.scale.json`（模型旁→`backend/model_scales/`）；切换模型内存三件套 `enable_cpu_mem_arena=False` + `del old` + `gc.collect()` + `malloc_trim(0)`；`predict_frame` 供实时管线（`_infer_lock`/`_build_lock` 防双 session）；`unloadModel()` 卸载。
 - `onnx_infer.py` — 无 torch：预处理（Resize+CenterCrop+ImageNet 归一化）在客户端；后处理（上采样+高斯平滑）已内化进新 ONNX 图（旧 patch 模型走 `_gaussian_blur`）。**分数 = 判别器负输出的 patch max，带符号、无界、未归一化**（正常≈-1~1.5，异常>2），**不要 clamp/min-max 到 0~1**。`target_size` 默认 518 须与导出一致。
 - 回归测试见 `tests/`；不再有单独的 mqtt_bridge 测试，MQTT 走 CommPage 手工联调。
@@ -97,6 +97,7 @@ QT_QPA_PLATFORM=offscreen python3 -u tests/test_stage_traj.py
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_ble_provision.py
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_ui_theme.py
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_design_tokens.py
+QT_QPA_PLATFORM=offscreen python3 -u tests/test_theme_follow.py
 QT_QPA_PLATFORM=offscreen python3 -u tests/test_detect_page.py
 QT_QPA_PLATFORM=offscreen python3 tests/render_page.py /tmp/p.png 1680 1700 both --dump
 python3 tests/render_pages.py camera /tmp/camera.png 1440 980
@@ -111,7 +112,7 @@ python3 tests/render_icons.py /tmp/icons.png
 
 ## 「平台控制」页（当前：v4.6）
 
-- **设置面板内部按功能分区折叠**（`pages/components/CollapsibleHeader.qml`）：二轴 = Wi-Fi/网络/工作区/速度/轨迹速度/关机行为；Z = Wi-Fi/网络/速度/软限位/自动回零参数/上电行为。默认只展开 Wi-Fi，「应用设置」始终在底部。
+- **设置面板内部按功能分区折叠**（`pages/components/CollapsibleHeader.qml`）：二轴 = Wi-Fi/网络/机械参数/工作区/速度/轨迹速度/关机行为；Z = Wi-Fi/网络/速度/软限位/自动回零参数/上电行为。默认只展开 Wi-Fi，「应用设置」始终在底部。
 - 箭头用普通 `Image`（`images/折叠箭头.svg`，中灰），**不要换回 `IconImage`**（10px ColorOverlay 在此上下文不渲染）。
 - 分区标题要有 objectName（`xyNetFold`/`zHomeFold`…）；测试用 `toggled.emit()` 验展开/收起。
 - Z 的限位电流/超时警告在「自动回零参数」里；测试断言 visible 前先 `zSetupPanel.homeOpen = true`。
@@ -125,7 +126,7 @@ python3 tests/render_icons.py /tmp/icons.png
 - 圆半径夹到“圆心到四边最小距离”；Z 高度条点/拖只画预览，**松手才下发一条** `moveTo`，闸门用 `canMove`，原因用 `datumHint`；绝不能在拖动中连发。
 - 卡与两张手动控制卡用 `flat: true` 住进 `FoldHeader`+`FoldBody`；`flat` 只置空底板 `color/borderColor/shadowed`，**绝不能写 `visible: !flat`**（`mainCol` 会整卡空白）。两张手动卡默认展开（12a2 首屏保证靠它）。
 - 台面纹理 `images/台面_哑光喷砂.jpg`（`scripts/make_texture.py` 生成，中性灰 0.5、四边淡出、512²），要内缩 `radius` 放；`test_stage_page.py` 12g 钉住文件存在。
-- 轨迹 rpm/acc 在「平台设置 → 轨迹速度」（`setPathSpeed`，存 `stage/path_rpm|path_acc`）；手动 acc 默认 1，轨迹默认 1200/30，刻意分开。录制中折叠头 badge 显示「录制中」。
+- 轨迹 rpm/acc 在「平台设置 → 轨迹速度」（`setPathSpeed`，存 `stage/path_rpm|path_acc`）；手动 acc 默认 6，轨迹默认 1200/30，刻意分开。录制中折叠头 badge 显示「录制中」。
 - `MouseArea` 加 `preventStealing: true`（否则外层 Flickable 抢拖动，§38）；折线锚在段起点（`x:_px(x1), y:_py(y1)-lineWidth/2`，§39）；整张卡不用 `Canvas`，标尺/折线用 Rectangle/Text。
 - 版面上下堆叠（台面+Z 条→chips→提示→参数→名称/存为轨迹→速度+录制→列表→执行）；台面组 `GridLayout{Layout.fillWidth:false; Layout.alignment:Qt.AlignHCenter}`；`ColumnLayout` 里成对 `InputRow` 竖排；`InputRow` 宽度用外层普通 Item 定宽。
 - 网格点选替代不了十字点动（1px≈1.1~1.9mm），精调仍用 0.1mm 档；12a 首屏超出量基线 2.0 倍（实测 1.84），`render_page.py ... card` 目检；详见 docs/17 §14。

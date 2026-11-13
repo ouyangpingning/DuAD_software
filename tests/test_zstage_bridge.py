@@ -350,7 +350,20 @@ def main():
     r.check("非法端口被拒",
             b_bad.connectDevice("1.2.3.4", 99999, "x") is False and "端口" in b_bad.lastError)
 
-    print("=== 2) 错误口令 ===")
+    print("=== 1b) 默认速度迁移（300/100 → 600/1）===")
+    _mig_file = Path(tempfile.mkdtemp(prefix="duad_zstage_mig_")) / "s.ini"
+    _ms = QSettings(str(_mig_file), QSettings.Format.IniFormat)
+    _ms.setValue("zstage/rpm", 300)
+    _ms.setValue("zstage/acc", 100)
+    _ms.sync()
+    _mb = ZStageBridge(settings=_ms)
+    r.check("旧默认 300/100 迁到 600/1", (_mb.rpm, _mb.acc) == (600, 1),
+            f"{_mb.rpm}/{_mb.acc}")
+    r.check("迁移结果已写回 settings",
+            (int(_ms.value("zstage/rpm")), int(_ms.value("zstage/acc"))) == (600, 1),
+            f"{_ms.value('zstage/rpm')}/{_ms.value('zstage/acc')}")
+
+    print("=== 1c) 错误口令 ===")
     b2 = make_bridge()
     b2.connectDevice("127.0.0.1", server.port, "wrongtoken")
     # ⚠ 不能等 "not connected"：刚发起连接时它本来就是 False，会立刻为真、
@@ -423,27 +436,27 @@ def main():
     print("=== 9) 点动/定位命令的**原文**（非阻塞 + 带 rpm/acc）===")
     r.check("jogUp(0) 用当前步长", b.jogUp(0) is True)
     # ⚠ 只有两个参数：固件的 cmd_zup/cmd_zdown **不读第三个参数**（acc 走板子自己的）。
-    #   发 `... 300 100` 会让日志以为 acc 生效了 —— 那是假象（评审读固件源码发现）。
-    r.check("命令是 zup 1.000 300（两个参数，acc 由板子自己定）",
-            r.wait_for(lambda: "zup 1.000 300" in board.commands),
+    #   发 `... 600 1` 会让日志以为 acc 生效了 —— 那是假象（评审读固件源码发现）。
+    r.check("命令是 zup 1.000 600（两个参数，acc 由板子自己定）",
+            r.wait_for(lambda: "zup 1.000 600" in board.commands),
             str(board.commands[-3:]))
     r.check("点动命令里没有 acc（不发假参数）",
-            not any(c.startswith("zup 1.000 300 1") for c in board.commands))
+            not any(c.startswith("zup 1.000 600 1") for c in board.commands))
     r.check("jogDown(2.5)", b.jogDown(2.5) is True)
-    r.check("命令是 zdown 2.500 300",
-            r.wait_for(lambda: "zdown 2.500 300" in board.commands), str(board.commands[-3:]))
+    r.check("命令是 zdown 2.500 600",
+            r.wait_for(lambda: "zdown 2.500 600" in board.commands), str(board.commands[-3:]))
     r.check("moveTo(100)", b.moveTo(100.0) is True)
-    r.check("命令是 zmove 100.000 300 100",
-            r.wait_for(lambda: "zmove 100.000 300 100" in board.commands), str(board.commands[-3:]))
+    r.check("命令是 zmove 100.000 600 1",
+            r.wait_for(lambda: "zmove 100.000 600 1" in board.commands), str(board.commands[-3:]))
     r.check("乐观置 moving", r.wait_for(lambda: b.moving))
     r.check("轮询后到位", r.wait_for(lambda: not b.moving))
 
     print("=== 10) 目标按**固件实际在用的**软限位夹取 ===")
     r.check("超出上限被夹到 250", b.moveTo(999.0) is True)
-    r.check("命令里是 250.000", r.wait_for(lambda: "zmove 250.000 300 100" in board.commands),
+    r.check("命令里是 250.000", r.wait_for(lambda: "zmove 250.000 600 1" in board.commands),
             str(board.commands[-2:]))
     r.check("低于下限被夹到 0", b.moveTo(-5.0) is True)
-    r.check("命令里是 0.000", r.wait_for(lambda: "zmove 0.000 300 100" in board.commands),
+    r.check("命令里是 0.000", r.wait_for(lambda: "zmove 0.000 600 1" in board.commands),
             str(board.commands[-2:]))
 
     print("=== 11) 撤掉基准后立刻恢复「拒绝」（基准在 RAM，板子一重启就没）===")
@@ -471,19 +484,22 @@ def main():
 
     print("=== 13) 速度/加减速：只发改动的那一项；acc=0 会被夹到 1 ===")
     n_before = len([c for c in board.commands if c.startswith("zset")])
-    b.setSpeed(600, 100)                    # 只有 rpm 变了
+    b.setSpeed(800, 1)                      # 只有 rpm 变了（默认 acc 已是 1）
     # ⚠ 断言方式：必须 **pump 一段固定时间让队列泵完**，再数最终条数。
     #   第一版写的是 `wait_for(数量 == n_before+1)` —— 那只要求"某一刻恰好 +1"，
     #   而第二条命令是异步泵出去的：**故意把 setSpeed 改成两项都发，这条照样通过**
     #   （评审用 break-test 证明它是假断言）。
     r.pump(0.5)
     zsets = [c for c in board.commands if c.startswith("zset")][n_before:]
-    r.check("只发了一条 zset（rpm 变了、acc 没变）", zsets == ["zset rpm 600"], str(zsets))
+    r.check("只发了一条 zset（rpm 变了、acc 没变）", zsets == ["zset rpm 800"], str(zsets))
     r.check("没有多发 acc", "zset acc" not in " ".join(zsets), str(zsets))
-    b.setSpeed(600, 0)                      # acc=0 是"直接启动"，必须被夹到 1
+    b.setSpeed(800, 50)                     # 先把 acc 调离默认值，再验证 0 的夹取
+    r.check("acc 改到 50 会下发", r.wait_for(lambda: "zset acc 50" in board.commands),
+            str(board.commands[-2:]))
+    b.setSpeed(800, 0)                      # acc=0 是"直接启动"，必须被夹到 1
     r.check("acc=0 被夹到 1（手册：0 = 无斜坡直接启动）",
             r.wait_for(lambda: "zset acc 1" in board.commands), str(board.commands[-2:]))
-    r.check("界面属性同步", b.rpm == 600 and b.acc == UI_MIN_ACC, f"rpm={b.rpm} acc={b.acc}")
+    r.check("界面属性同步", b.rpm == 800 and b.acc == UI_MIN_ACC, f"rpm={b.rpm} acc={b.acc}")
     r.check("uiMaxRpm 就是固件的夹取上限 1200", UI_MAX_RPM == 1200, str(UI_MAX_RPM))
 
     print("=== 14) 自动回零：走 nowait 的非阻塞路径 ===")
@@ -547,14 +563,14 @@ def main():
 
     print("=== 20d) 无限位回零的参数（限位电流 / 转速 / 超时）===")
     # 背景（2026-09-29 用户提的）：界面上**没法设限位电流** —— 而它正是"自动回零能不能成"
-    # 的关键。⚠ 本机经验区是**实测**出来的 60~300mA（100mA 可用；200~250mA 顶到超时也不触发），
+    # 的关键。⚠ 本机经验区是**实测**出来的 60~200mA（100mA 可用；200~250mA 顶到超时也不触发），
     # 不是 42 电机手册口径的 600mA 级 —— 早先的 300~1500 已被现场否掉。
     # 固件早就有 `zset home <rpm> <mA> [timeout_ms]`（存 NVS），只是桥里没接。
     r.check("默认值 = 固件出厂（400rpm / **100mA** / 12000ms）",
             (b.homeRpm, b.homeMa, b.homeTmo) == (400, 100, 12000),
             f"{b.homeRpm}/{b.homeMa}/{b.homeTmo}")
-    r.check("经验区是从桥里读的（QML 不许再抄一份 60/300）",
-            (b.uiHomeMaSweetLo, b.uiHomeMaSweetHi) == (60, 300),
+    r.check("经验区是从桥里读的（QML 不许再抄一份 60/200）",
+            (b.uiHomeMaSweetLo, b.uiHomeMaSweetHi) == (60, 200),
             f"{b.uiHomeMaSweetLo}~{b.uiHomeMaSweetHi}")
     # ⚠ 「超时够不够」的体检值（与固件 home_travel_ms() 同一套算法）：
     #   现场实测用户填 4000ms，而满行程要好几秒 —— 回零会在中途被判超时失败，

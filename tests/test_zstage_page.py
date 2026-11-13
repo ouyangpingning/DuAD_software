@@ -531,6 +531,17 @@ def main():
                 f"to={rpm_row.property('to')} uiMaxRpm={zstage.uiMaxRpm}")
         r.check("界面量程不超过固件上限 1200", float(zstage.uiMaxRpm) <= 1200,
                 f"uiMaxRpm={zstage.uiMaxRpm}")
+        # rpm 旁边要有 mm/s（Z 的导程来自板子 json 的 umrev，默认 8000µm/圈）。
+        zhint = find("zRpmMmpsHint")
+        r.check("Z 转速旁有 mm/s 折算", zhint is not None)
+        if zhint is not None:
+            parts = str(zhint.property("text")).split()
+            got = float(parts[1]) if len(parts) >= 2 else -1.0
+            exp = (float(rpm_row.property("sliderValue")) / 60.0
+                   * float(zstage.umPerRev) / 1000.0)
+            r.check("Z mm/s 数值 = rpm ÷ 60 × 导程",
+                    abs(got - exp) <= 0.15,
+                    f"text={zhint.property('text')} exp={exp:.1f}")
     acc_row = find("zAccSliderRow")
     r.check("加减速滑块下界 >= 1（固件的 0 = 直接启动、无斜坡，最伤这种刚性平台）",
             acc_row is not None and float(acc_row.property("from")) >= 1.0,

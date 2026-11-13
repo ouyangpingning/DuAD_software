@@ -82,9 +82,13 @@ MAX_ACC = 200            # 固件 `zset acc` 的上限
 UI_MIN_ACC = 1
 UI_MAX_ACC = MAX_ACC
 
-# 出厂默认（与固件 `board_config.h` 一致：300rpm / acc 100）
-DEFAULT_RPM = 300
-DEFAULT_ACC = 100
+# 默认速度（2026-11 用户定：600rpm / acc 1）。
+# ⚠ 固件出厂是 300 / 100；这两项只影响**新装/没改过**的用户，联动迁移见
+#   `_migrating_setting`（QSettings 里存过旧默认值的按"没设过"迁到新值）。
+DEFAULT_RPM = 600
+DEFAULT_ACC = 1
+OLD_DEFAULT_RPMS = (300,)
+OLD_DEFAULT_ACCS = (100,)
 
 # ── 无限位回零的参数（固件 `zset home <rpm> <mA> <timeout_ms>`，存板子 NVS）────
 # ⚠ 范围与固件 `cmd_zset` 的检查**逐条对齐**（super 1~6000 / mA 1~3000），
@@ -93,13 +97,14 @@ HOME_RPM_MIN, HOME_RPM_MAX = 1, 6000
 HOME_MA_MIN, HOME_MA_MAX = 1, 3000
 HOME_TMO_MIN, HOME_TMO_MAX = 1000, 120000
 # 经验甜点区：低于空转电流(≈40mA)会「一动就报完成」（假成功），
-# 高于堵转电流(≈1500~2700mA)永远不触发（假失败）。固件在 `zset home` 里
+# 高于本机堵转电流（实测一百多 mA）永远不触发（假失败）。固件在 `zset home` 里
 # 会用同样两条线打警告 —— 界面在**填的当下**就把话说清楚，别等下发完才说。
 # ⚠⚠ 2026-09-29 现场实测把本机的经验区改小了：**100mA 能正常判到位**，而
 #   **200~250mA 会「顶到驱动器超时也不触发」** —— 说明这台机器顶住时相电流只有
-#   一百多 mA（不是 42 电机手册口径的 600mA 级）。早先的 300~1500 是从别处抄的
-#   经验值，**实测被否掉**。现在与固件 `board_config.h` 的 60~300mA 对齐。
-HOME_MA_SWEET_LO, HOME_MA_SWEET_HI = 60, 300
+#   一百多 mA（不是 42 电机手册口径的 600mA 级）。
+#   2026-11 用户拍板：经验区按实测收紧到 **60~200mA**（原 60~300 的上沿落进了
+#   “顶到超时也不触发”那一段）。
+HOME_MA_SWEET_LO, HOME_MA_SWEET_HI = 60, 200
 # 出厂默认（= 固件 `board_config.h`：BOARD_Z_HOME_RPM 400 / MA 100 / TMO 12000）
 DEFAULT_HOME_RPM = 400
 DEFAULT_HOME_MA = 100
@@ -195,6 +200,10 @@ class ZStageBridge(QObject):
         """
         super().__init__(parent)
 
+        # 诊断日志缓冲要在**读 settings 之前**就绪：默认值迁移会在 __init__ 里
+        # 调 `_log()`（迁移提示要画在诊断面板上），晚了会 AttributeError。
+        self._log_lines: List[str] = []
+
         self._sock = QTcpSocket(self)
         self._sock.connected.connect(self._on_connected)
         self._sock.disconnected.connect(self._on_disconnected)
@@ -208,9 +217,9 @@ class ZStageBridge(QObject):
         self._token = str(self._settings.value("zstage/token", DEFAULT_TOKEN))
 
         # ── BLE 配网（与 TCP 运动控制完全解耦）────────────────
-        self._ble_token = self._token
         self._ble = BleProvisioner("z", parent=self)
-        self._ble.set_token(self._ble_token)
+        # 免口令（2026-11）：BLE 连上后板子会把 TCP 口令读回来，这里接住并落盘
+        self._ble.tokenLearned.connect(self._on_ble_token_learned)
         self._ble.stateChanged.connect(self._on_ble_state)
         self._ble.statusChanged.connect(self.bleStatusChanged.emit)
         self._ble.devicesChanged.connect(self.bleDevicesChanged.emit)
@@ -221,9 +230,9 @@ class ZStageBridge(QObject):
         # ⚠ 从 QSettings 读回来也要**夹取**：手改过 ini（或旧版本写下的值）可能是
         #   `acc=0` —— 手册里 0 是"直接启动、无斜坡"，界面明令排除，但它会原样进
         #   每一条运动命令（`_motion_cmd` 直接用 self._acc）。老用户的 ini 里可能就有。
-        self._rpm = min(max(_inum(self._settings.value("zstage/rpm", DEFAULT_RPM), DEFAULT_RPM), 1),
+        self._rpm = min(max(self._migrating_setting("zstage/rpm", OLD_DEFAULT_RPMS, DEFAULT_RPM), 1),
                         UI_MAX_RPM)
-        self._acc = min(max(_inum(self._settings.value("zstage/acc", DEFAULT_ACC), DEFAULT_ACC),
+        self._acc = min(max(self._migrating_setting("zstage/acc", OLD_DEFAULT_ACCS, DEFAULT_ACC),
                             UI_MIN_ACC), UI_MAX_ACC)
         self._step = _fnum(self._settings.value("zstage/step", DEFAULT_STEP), DEFAULT_STEP)
         self._lim_lo = _fnum(self._settings.value("zstage/lim_lo", DEFAULT_Z_LO), DEFAULT_Z_LO)
@@ -278,7 +287,7 @@ class ZStageBridge(QObject):
         self._resp_lines: List[str] = []
 
         # ── 诊断日志 ──────────────────────────────────────
-        self._log_lines: List[str] = []
+        # （缓冲已在 __init__ 开头创建，见那里的注释）
 
         # 轮询定时器：认证通过后才跑
         self._poll = QTimer(self)
@@ -298,6 +307,22 @@ class ZStageBridge(QObject):
     # ============================================================
     # 内部工具
     # ============================================================
+    def _migrating_setting(self, key: str, old_default, new_default: int) -> int:
+        """读一个"有默认值"的设置；等于旧默认值时按"没设过"处理，迁到新默认值。
+
+        与 `stage_bridge._migrating_setting` 同一套路（2026-11 默认值从
+        300/100 改成 600/1）：老用户 INI 里已经存着旧值，只改常量对他们无效。
+        `old_default` 允许传元组，方便再改一轮时把多个历史默认值一起迁。
+        """
+        olds = old_default if isinstance(old_default, (tuple, list, set)) else (old_default,)
+        raw = _inum(self._settings.value(key, new_default), new_default)
+        if raw != new_default and raw in olds:
+            self._settings.setValue(key, new_default)
+            self._log(self.tr('默认值更新：{} {} → {}（没改过的话就跟着新默认走，改过的值不受影响）').format(
+                key.split('/')[-1], raw, new_default))
+            return new_default
+        return raw
+
     def _log(self, msg: str):
         print(f"[ZStageBridge] {msg}")
         self._log_lines.append(msg)
@@ -404,10 +429,16 @@ class ZStageBridge(QObject):
     bleRssi = Property(int, lambda self: self._ble.rssi, notify=bleStatusChanged)
     bleError = Property(str, lambda self: self._ble.error, notify=bleStatusChanged)
 
-    @Slot(str)
-    def bleSetToken(self, token: str):
-        self._ble_token = (token or "").strip()
-        self._ble.set_token(self._ble_token)
+    def _on_ble_token_learned(self, token: str):
+        """BLE 连上后自动读回的 TCP 口令：存 QSettings，界面口令框跟着更新。"""
+        token = (token or "").strip()
+        if not token:
+            return
+        if token != self._token:
+            self._token = token
+            self._settings.setValue("zstage/token", token)
+            self.telemetryChanged.emit()
+        self._log(self.tr("已从板子读取连接口令（{}）").format(token))
 
     @Slot()
     def bleScan(self):
@@ -420,7 +451,7 @@ class ZStageBridge(QObject):
 
     @Slot(str)
     def bleConnect(self, address: str):
-        self._ble.connect_device(address, self._ble_token or self._token)
+        self._ble.connect_device(address)
 
     @Slot()
     def bleScanWifi(self):
@@ -707,9 +738,6 @@ class ZStageBridge(QObject):
         self._settings.setValue("zstage/host", ip)
         self.telemetryChanged.emit()
         self._log(self.tr("BLE 配网成功：{} → {}").format(ssid or "?", ip))
-        if self._ble_token:
-            self._token = self._ble_token
-            self._settings.setValue("zstage/token", self._token)
         if self._sock.state() != QAbstractSocket.SocketState.UnconnectedState:
             self._sock.abort()
         if self._token:

@@ -51,7 +51,7 @@ DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\package_win.py 1.0.
 
 ```text
 DuAD_1.0.0_Windows_x64.zip             # 主程序（CPU-only，~200MB）
-DuAD_GPU_runtime_1.0.0_Windows_x64.zip # GPU 支持包（可选，--trt min 约 1.2GB）
+DuAD_GPU_runtime_1.0.0_Windows_x64.zip # GPU 支持包（可选，--trt full 约 2.6GB）
 SHA256SUMS                             # 两个 zip 的校验和
 ```
 
@@ -77,6 +77,14 @@ DuAD_SoftwareContent\pyqml_win\Scripts\python.exe -u scripts\collect_gpu_dlls_wi
 | `--trt min`（默认） | TensorRT 只收核心 DLL + `nvinfer_builder_resource_ptx_10.dll`（PTX 覆盖所有显卡架构，首次建引擎稍慢），总量约 1.2GB |
 | `--trt full` | TensorRT 全量（含各 SM 架构 builder 资源），约 3.4GB，各架构建引擎最快 |
 | `--into-app` | 同时复制到 `dist\DuAD\`（本地 GPU 验证） |
+
+> ⚠ **发布包请用 `--trt full`**（2026-11 实测，GTX 1650 Ti / sm75 + TRT 10.16 + ORT 1.28）：
+> 只有 PTX 资源的 `min` 包在**建引擎时报**
+> `TensorRT EP failed to create engine from network for fused node ...`，
+> 补上 `nvinfer_builder_resource_sm75_10.dll` 即恢复。`onnx_infer` 的
+> `attempt_lists` 会自动去掉 TRT 回退 CUDA（实测 166ms/帧；TRT 146ms），
+> 所以 `min` 包不会崩、只是拿不到 TRT 的那点速度，日志里会出现一条 session 失败。
+> PTX 并不能替代本机架构的 builder 资源，这是本文档早先“PTX 覆盖所有架构”的更正。
 
 体积参考（未压缩）：
 
